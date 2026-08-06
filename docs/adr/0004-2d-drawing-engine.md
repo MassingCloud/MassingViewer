@@ -82,6 +82,67 @@ the approximations taken. This is the part most likely to be treated as optional
 that is silently missing a wall renders perfectly**, gives no visual cue, and the person who finds out is
 on site.
 
+## First-pass spike results (2026-08-06)
+
+An exploratory spike ran against the real packages, ahead of the full scored bake-off. It does not settle
+the ADR, but it settles the **pass/fail criterion** and it changes the scope of the question.
+
+### The GUID criterion is MET, and cheaply
+
+`DrawingLine` and `DrawingPolygon` both carry `entityId` (the IFC expressID), `ifcType`, and `modelIndex`.
+`MeshData` — the input — carries `expressId`. So element identity survives the section cut.
+
+expressID is not GlobalId: it is a STEP line number, stable within a file version but **not** across
+edits. That gap closes with one map, because we own the parse. `@ifc-lite/parser` exposes GlobalIds and a
+reverse lookup, so the hedge this ADR said "must be prototyped, not assumed" turns out to be a lookup
+rather than geometry matching.
+
+### Two concrete integration hazards found by running it
+
+Both would have produced silently wrong identity, which is the worst failure mode available here.
+
+1. **`getExpressIdByGlobalId` returns a ROW INDEX, not an expressID**, despite the name. Verified across
+   three entities: `getGlobalId(getExpressIdByGlobalId(guid)) === guid` holds, but the return value must
+   be used as `expressId[row]` before it can be matched against `DrawingLine.entityId`. Trusting the name
+   yields a mapping that looks plausible and is wrong.
+2. **The columnar arrays hold string-table indices, not strings.** Reading `entities.globalId[i]` directly
+   returns a small integer, which is truthy — the first version of the spike reported "77.6% GlobalId
+   coverage" made entirely of nonsense before the accessors (`getGlobalId(row)`) were used instead. Any
+   adapter must go through the accessors.
+
+### The scope of the question is bigger than this ADR assumed
+
+The spike was scoped to `@ifc-lite/drawing-2d`. The surrounding packages turn out to matter more:
+
+- **20+ packages on npm, all permissive**, last released three days before this spike. The full transitive
+  tree was checked against `scripts/check-licenses.mjs`'s own logic and **passes** — including jszip's
+  `(MIT OR GPL-3.0-or-later)`, where the OR means we take MIT.
+- **`@ifc-lite/parser` (v3.15) runs in plain Node**, no browser and no WASM for the parse itself: 1,230
+  entities in 12 ms. It exposes material layer sets, classifications, georeferencing, quantities,
+  inherited property-set merging, spatial hierarchy, schedule extraction, and IFCX federation with
+  overlays.
+- **`drawing-2d` already ships much of the drawing intelligence** this ADR proposed porting from Python:
+  `ARCHITECTURAL_PRESET` / `FIRE_SAFETY_PRESET` / `BUILT_IN_PRESETS`, `DEFAULT_OBJECT_STYLES`,
+  `DEFAULT_LAYERS`, `DASH_PATTERNS`, `COMMON_SCALES`, `DXFExporter`, `DoorSymbolGenerator`,
+  `EdgeExtractor`, `FRAME_PRESETS`, `DEFAULT_TITLE_BLOCK_FIELDS`, `DEFAULT_NORTH_ARROW`,
+  `DEFAULT_SCALE_BAR`.
+- **`@ifc-lite/mutations` is property and attribute editing, not geometry authoring.** Its surface is
+  `MutablePropertyView`, `ChangeSetManager`, `BulkQueryEngine`, `StoreEditor`, `propertyKey` /
+  `quantityKey` / `attributeKey`, `CsvConnector`. There is no `addWall`, no `extrude`, no parametric
+  element model. **So it does not replace `LocalKernel`** — which sharpens rather than weakens the plan:
+  ifc-lite is a pipeline and a data editor, and the modeller is still ours to build.
+
+### Not yet validated
+
+End-to-end drawing generation. The 58 IFC files available locally are massing's **family/type libraries**
+— zero geometry entities and no storeys, so they exercise the parser and not the sectioner. A
+building-shaped fixture is a prerequisite, and it is the same fixture M1 needs. Also unmeasured: cold/warm
+timings at scale, peak worker memory, and output quality against a reference.
+
+Note the license fence: those 58 files come from `MassingCloud/massing-families`, whose license is
+"Other". They are usable for **local measurement only** and must not be committed here — see
+`docs/adr/0003-license-posture.md`.
+
 ## Status
 
 This ADR is **Proposed**. It becomes Accepted when the table below is filled in, with the verdict and the
@@ -89,4 +150,4 @@ reasoning. An empty table means the decision has not been made, whatever anyone 
 
 | Case | Provider | ms cold | ms warm | peak MB | guidCoverage | incomplete | SSIM | verdict |
 |---|---|---|---|---|---|---|---|---|
-| _(to be filled by the M0 bake-off)_ | | | | | | | | |
+| _(awaiting a building-shaped fixture — see "Not yet validated")_ | | | | | | | | |
