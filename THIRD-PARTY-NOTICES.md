@@ -5,9 +5,13 @@
 MassingViewer depends on the packages below. This project accepts only permissive licenses; the
 posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 
-165 package(s) across 7 license(s).
+Generated from `package-lock.json` rather than from an installed `node_modules`, so this list is the
+same on every platform and covers all 45 platform-specific binaries — not only the handful
+installed on whichever host happened to run the generator.
 
-## MIT (122)
+207 package(s) across 7 license(s).
+
+## MIT (154)
 
 - `@babel/helper-string-parser` 7.29.7
 - `@babel/helper-validator-identifier` 7.29.7
@@ -21,8 +25,39 @@ posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 - `@jridgewell/sourcemap-codec` 1.5.5
 - `@jridgewell/trace-mapping` 0.3.31
 - `@oxc-project/types` 0.143.0
-- `@oxlint/binding-win32-x64-msvc` 1.76.0
-- `@rolldown/binding-win32-x64-msvc` 1.2.3
+- `@oxlint/binding-android-arm-eabi` 1.76.0 _(android/arm)_
+- `@oxlint/binding-android-arm64` 1.76.0 _(android/arm64)_
+- `@oxlint/binding-darwin-arm64` 1.76.0 _(darwin/arm64)_
+- `@oxlint/binding-darwin-x64` 1.76.0 _(darwin/x64)_
+- `@oxlint/binding-freebsd-x64` 1.76.0 _(freebsd/x64)_
+- `@oxlint/binding-linux-arm-gnueabihf` 1.76.0 _(linux/arm)_
+- `@oxlint/binding-linux-arm-musleabihf` 1.76.0 _(linux/arm)_
+- `@oxlint/binding-linux-arm64-gnu` 1.76.0 _(linux/arm64)_
+- `@oxlint/binding-linux-arm64-musl` 1.76.0 _(linux/arm64)_
+- `@oxlint/binding-linux-ppc64-gnu` 1.76.0 _(linux/ppc64)_
+- `@oxlint/binding-linux-riscv64-gnu` 1.76.0 _(linux/riscv64)_
+- `@oxlint/binding-linux-riscv64-musl` 1.76.0 _(linux/riscv64)_
+- `@oxlint/binding-linux-s390x-gnu` 1.76.0 _(linux/s390x)_
+- `@oxlint/binding-linux-x64-gnu` 1.76.0 _(linux/x64)_
+- `@oxlint/binding-linux-x64-musl` 1.76.0 _(linux/x64)_
+- `@oxlint/binding-openharmony-arm64` 1.76.0 _(openharmony/arm64)_
+- `@oxlint/binding-win32-arm64-msvc` 1.76.0 _(win32/arm64)_
+- `@oxlint/binding-win32-ia32-msvc` 1.76.0 _(win32/ia32)_
+- `@oxlint/binding-win32-x64-msvc` 1.76.0 _(win32/x64)_
+- `@rolldown/binding-android-arm64` 1.2.3 _(android/arm64)_
+- `@rolldown/binding-darwin-arm64` 1.2.3 _(darwin/arm64)_
+- `@rolldown/binding-darwin-x64` 1.2.3 _(darwin/x64)_
+- `@rolldown/binding-freebsd-x64` 1.2.3 _(freebsd/x64)_
+- `@rolldown/binding-linux-arm-gnueabihf` 1.2.3 _(linux/arm)_
+- `@rolldown/binding-linux-arm64-gnu` 1.2.3 _(linux/arm64)_
+- `@rolldown/binding-linux-arm64-musl` 1.2.3 _(linux/arm64)_
+- `@rolldown/binding-linux-ppc64-gnu` 1.2.3 _(linux/ppc64)_
+- `@rolldown/binding-linux-s390x-gnu` 1.2.3 _(linux/s390x)_
+- `@rolldown/binding-linux-x64-gnu` 1.2.3 _(linux/x64)_
+- `@rolldown/binding-linux-x64-musl` 1.2.3 _(linux/x64)_
+- `@rolldown/binding-openharmony-arm64` 1.2.3 _(openharmony/arm64)_
+- `@rolldown/binding-win32-arm64-msvc` 1.2.3 _(win32/arm64)_
+- `@rolldown/binding-win32-x64-msvc` 1.2.3 _(win32/x64)_
 - `@rolldown/pluginutils` 1.0.1
 - `@standard-schema/spec` 1.1.0
 - `@types/chai` 5.2.3
@@ -75,6 +110,7 @@ posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 - `file-entry-cache` 8.0.0
 - `find-up` 5.0.0
 - `flat-cache` 4.0.1
+- `fsevents` 2.3.3 _(darwin)_
 - `globals` 17.7.0
 - `happy-dom` 20.8.9
 - `has-flag` 4.0.0
@@ -150,6 +186,21 @@ posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 - `expect-type` 1.4.0
 - `typescript` 5.9.3
 
+## MPL-2.0 (12)
+
+- `lightningcss` 1.33.0
+- `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
+- `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_
+- `lightningcss-darwin-x64` 1.33.0 _(darwin/x64)_
+- `lightningcss-freebsd-x64` 1.33.0 _(freebsd/x64)_
+- `lightningcss-linux-arm-gnueabihf` 1.33.0 _(linux/arm)_
+- `lightningcss-linux-arm64-gnu` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-arm64-musl` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-x64-gnu` 1.33.0 _(linux/x64)_
+- `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
+- `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
+- `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
+
 ## BSD-2-Clause (7)
 
 - `entities` 7.0.1
@@ -187,11 +238,6 @@ posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 - `istanbul-lib-report` 3.0.1
 - `istanbul-reports` 3.2.0
 - `source-map-js` 1.2.1
-
-## MPL-2.0 (2)
-
-- `lightningcss` 1.33.0
-- `lightningcss-win32-x64-msvc` 1.33.0
 
 ## Deliberately excluded
 

@@ -109,49 +109,64 @@ function readJson(path) {
   }
 }
 
-/** Walk node_modules, including scoped packages, without shelling out to `npm ls`. */
-function collectPackages(dir, found = new Map()) {
-  if (!existsSync(dir)) return found;
-  for (const entry of readdirSync(dir)) {
-    if (entry.startsWith(".")) continue;
-    const full = join(dir, entry);
-    if (!statSync(full).isDirectory()) continue;
+function normaliseLicense(entry) {
+  if (typeof entry.license === "string") return entry.license;
+  if (entry.license?.type) return entry.license.type;
+  if (Array.isArray(entry.licenses)) return entry.licenses.map((l) => l.type ?? l).join(" OR ");
+  return "UNKNOWN";
+}
 
-    if (entry.startsWith("@")) {
-      for (const sub of readdirSync(full)) {
-        const scoped = join(full, sub);
-        if (!statSync(scoped).isDirectory()) continue;
-        addPackage(scoped, found);
-        collectPackages(join(scoped, "node_modules"), found);
-      }
-      continue;
-    }
-    addPackage(full, found);
-    collectPackages(join(full, "node_modules"), found);
+/**
+ * Read the dependency tree from `package-lock.json`, not from `node_modules`.
+ *
+ * The first version of this gate walked `node_modules`, and it could not pass on two platforms at once:
+ * `npm ci` installs only the platform-specific optional packages for the current host, so
+ * `@oxlint/binding-win32-x64-msvc` exists on Windows and `@oxlint/binding-linux-x64-gnu` in CI. The
+ * generated notices therefore differed by host, and the staleness check failed in CI on a file that was
+ * correct locally. A gate that cannot pass everywhere gets deleted.
+ *
+ * The lockfile is strictly better here, for three reasons rather than just being a workaround:
+ *
+ * 1. **Deterministic.** It is committed, so the notices are a function of the repo rather than of the
+ *    machine that generated them.
+ * 2. **More complete.** It lists all 45 platform-specific packages, not the ~6 installed on this host —
+ *    so the licence review covers what a Linux, macOS or ARM user would actually receive, which is the
+ *    population that matters for a published library.
+ * 3. **Runs without installing.** The gate works on a fresh clone.
+ *
+ * npm's lockfile v3 carries `license` on every third-party entry (verified: 213 of 218, and the five
+ * without are this repo's own workspace links).
+ */
+function collectPackages() {
+  const lock = readJson(join(ROOT, "package-lock.json"));
+  if (!lock?.packages) {
+    throw new Error(
+      "package-lock.json is missing or has no `packages` map. This gate reads the lockfile so its result " +
+        "is platform-independent; run `npm install` to generate one.",
+    );
+  }
+
+  const found = new Map();
+  for (const [path, entry] of Object.entries(lock.packages)) {
+    if (path === "") continue; // the root project
+    if (entry.link) continue; // a workspace symlink — our own code, covered by this repo's LICENSE
+
+    // Derive the package name from the lockfile path, since entries do not always carry `name`.
+    const name = entry.name ?? path.replace(/^(?:.*\/)?node_modules\//, "");
+    if (!name || name.startsWith("@massingviewer/")) continue;
+
+    const key = `${name}@${entry.version ?? "?"}`;
+    if (found.has(key)) continue;
+    found.set(key, {
+      name,
+      version: entry.version ?? "?",
+      license: normaliseLicense(entry),
+      // Recorded so the notices can say which platforms a binary actually reaches.
+      platform: entry.os || entry.cpu ? [entry.os ?? [], entry.cpu ?? []].flat().join("/") : null,
+      dev: entry.dev === true,
+    });
   }
   return found;
-}
-
-function addPackage(dir, found) {
-  const manifest = readJson(join(dir, "package.json"));
-  if (!manifest?.name || !manifest.version) return;
-  // Our own workspace packages are covered by the repo's LICENSE, not by third-party review.
-  if (manifest.name.startsWith("@massingviewer/")) return;
-  const key = `${manifest.name}@${manifest.version}`;
-  if (found.has(key)) return;
-  found.set(key, {
-    name: manifest.name,
-    version: manifest.version,
-    license: normaliseLicense(manifest),
-    repository: typeof manifest.repository === "string" ? manifest.repository : manifest.repository?.url,
-  });
-}
-
-function normaliseLicense(manifest) {
-  if (typeof manifest.license === "string") return manifest.license;
-  if (manifest.license?.type) return manifest.license.type;
-  if (Array.isArray(manifest.licenses)) return manifest.licenses.map((l) => l.type ?? l).join(" OR ");
-  return "UNKNOWN";
 }
 
 /**
@@ -176,9 +191,7 @@ function isAcceptable(expression) {
 
 // --- 1. transitive dependency licenses -------------------------------------------------------------
 
-const packages = [...collectPackages(join(ROOT, "node_modules")).values()].sort((a, b) =>
-  a.name.localeCompare(b.name),
-);
+const packages = [...collectPackages().values()].sort((a, b) => a.name.localeCompare(b.name));
 
 const problems = [];
 
@@ -243,18 +256,25 @@ for (const pkg of packages) {
   byLicense.get(pkg.license).push(pkg);
 }
 
+const platformCount = packages.filter((p) => p.platform).length;
+
 const notices =
   `# Third-party notices\n\n` +
   `<!-- GENERATED by scripts/check-licenses.mjs. Do not edit by hand; run \`npm run gate:license -- --write\`. -->\n\n` +
   `MassingViewer depends on the packages below. This project accepts only permissive licenses; the\n` +
   `posture and the reasoning are in \`docs/adr/0003-license-posture.md\`.\n\n` +
+  `Generated from \`package-lock.json\` rather than from an installed \`node_modules\`, so this list is the\n` +
+  `same on every platform and covers all ${platformCount} platform-specific binaries — not only the handful\n` +
+  `installed on whichever host happened to run the generator.\n\n` +
   `${packages.length} package(s) across ${byLicense.size} license(s).\n\n` +
   [...byLicense.entries()]
     .sort((a, b) => b[1].length - a[1].length)
     .map(
       ([license, pkgs]) =>
         `## ${license} (${pkgs.length})\n\n` +
-        pkgs.map((p) => `- \`${p.name}\` ${p.version}`).join("\n"),
+        pkgs
+          .map((p) => `- \`${p.name}\` ${p.version}${p.platform ? ` _(${p.platform})_` : ""}`)
+          .join("\n"),
     )
     .join("\n\n") +
   `\n\n## Deliberately excluded\n\n` +
