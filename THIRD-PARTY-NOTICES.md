@@ -9,7 +9,7 @@ Generated from `package-lock.json` rather than from an installed `node_modules`,
 same on every platform and covers all 45 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-207 package(s) across 7 license(s).
+212 package(s) across 8 license(s).
 
 ## MIT (154)
 
@@ -168,6 +168,25 @@ installed on whichever host happened to run the generator.
 - `ws` 8.21.2
 - `yocto-queue` 0.1.0
 
+## MPL-2.0 (16)
+
+- `@ifc-lite/data` 3.2.0
+- `@ifc-lite/drawing-2d` 1.20.0
+- `@ifc-lite/geometry` 3.6.0
+- `@ifc-lite/wasm` 4.3.0
+- `lightningcss` 1.33.0
+- `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
+- `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_
+- `lightningcss-darwin-x64` 1.33.0 _(darwin/x64)_
+- `lightningcss-freebsd-x64` 1.33.0 _(freebsd/x64)_
+- `lightningcss-linux-arm-gnueabihf` 1.33.0 _(linux/arm)_
+- `lightningcss-linux-arm64-gnu` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-arm64-musl` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-x64-gnu` 1.33.0 _(linux/x64)_
+- `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
+- `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
+- `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
+
 ## Apache-2.0 (15)
 
 - `@eslint/config-array` 0.23.5
@@ -185,21 +204,6 @@ installed on whichever host happened to run the generator.
 - `eslint-visitor-keys` 5.0.1
 - `expect-type` 1.4.0
 - `typescript` 5.9.3
-
-## MPL-2.0 (12)
-
-- `lightningcss` 1.33.0
-- `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
-- `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_
-- `lightningcss-darwin-x64` 1.33.0 _(darwin/x64)_
-- `lightningcss-freebsd-x64` 1.33.0 _(freebsd/x64)_
-- `lightningcss-linux-arm-gnueabihf` 1.33.0 _(linux/arm)_
-- `lightningcss-linux-arm64-gnu` 1.33.0 _(linux/arm64)_
-- `lightningcss-linux-arm64-musl` 1.33.0 _(linux/arm64)_
-- `lightningcss-linux-x64-gnu` 1.33.0 _(linux/x64)_
-- `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
-- `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
-- `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
 
 ## BSD-2-Clause (7)
 
@@ -238,6 +242,10 @@ installed on whichever host happened to run the generator.
 - `istanbul-lib-report` 3.0.1
 - `istanbul-reports` 3.2.0
 - `source-map-js` 1.2.1
+
+## Apache-2.0 OR MIT (1)
+
+- `@tauri-apps/api` 2.11.1
 
 ## Deliberately excluded
 

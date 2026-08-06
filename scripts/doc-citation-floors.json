@@ -3,7 +3,7 @@
   "docs/adr/0001-two-kernels.md": 4,
   "docs/adr/0002-vendor-vs-depend.md": 4,
   "docs/adr/0003-license-posture.md": 6,
-  "docs/adr/0004-2d-drawing-engine.md": 4,
+  "docs/adr/0004-2d-drawing-engine.md": 6,
   "docs/adr/0005-clean-history-with-provenance-ledger.md": 5,
   "docs/adr/0006-react-shell-vanilla-core.md": 6,
   "docs/adr/0007-massingifc-boundary.md": 8,

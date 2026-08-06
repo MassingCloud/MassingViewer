@@ -1,6 +1,6 @@
-# ADR-0004 — 2D drawing engine: decision deferred to a measured bake-off
+# ADR-0004 — 2D drawing engine: adopt @ifc-lite/drawing-2d, keep our own cutter for interaction
 
-- **Status:** Proposed — awaiting the M0 bake-off result
+- **Status:** **Accepted** (2026-08-06, on measured results — see "Verdict")
 - **Date:** 2026-08-06
 
 ## Context
@@ -143,11 +143,100 @@ Note the license fence: those 58 files come from `MassingCloud/massing-families`
 "Other". They are usable for **local measurement only** and must not be committed here — see
 `docs/adr/0003-license-posture.md`.
 
-## Status
+## The bake-off, as actually run
 
-This ADR is **Proposed**. It becomes Accepted when the table below is filled in, with the verdict and the
-reasoning. An empty table means the decision has not been made, whatever anyone remembers deciding.
+The IFC-fixture problem was sidestepped by a better experiment design. `generateFloorPlan(meshes, …)` takes
+`MeshData[]` directly, so **both engines were given byte-identical input**: a synthetic single-storey
+building (8 x 6 m, 200 mm walls, 3 m high) built as a triangle soup. Any difference in output is then
+attributable to the algorithm, not to two different tessellations of the same wall — which a
+parse-then-compare design could never guarantee.
 
-| Case | Provider | ms cold | ms warm | peak MB | guidCoverage | incomplete | SSIM | verdict |
-|---|---|---|---|---|---|---|---|---|
-| _(awaiting a building-shaped fixture — see "Not yet validated")_ | | | | | | | | |
+The fixture is deliberately architectural rather than abstract boxes, because the cases that decide whether
+a plan is usable are architectural:
+
+- a south wall with a **door** (head 2.1 m) — the cut at 1.2 m must yield **two** loops, not one
+- a north wall with a **window** (sill 0.9 m, head 2.1 m) — the cut passes through the opening, also two loops
+- two solid walls — exactly one loop each
+- a **slab entirely below the cut** — zero cut loops, and this is the one a naive cutter gets wrong
+- a 300 mm **column** — a dot in plan, testing small-feature survival
+
+The competing arm is a from-scratch TypeScript sectioner (`own-sectioner.mjs`, ~200 LOC): exact
+plane-triangle intersection with the degenerate cases handled, spatial-hash loop stitching, below-cut
+footprint projection. Written honestly, not as a straw man — a rigged comparison is worse than none.
+
+### Results
+
+| Criterion | `@ifc-lite/drawing-2d` | own sectioner |
+|---|---|---|
+| Door in cut band → 2 loops | PASS | PASS |
+| Window in cut band → 2 loops | PASS | PASS |
+| Solid walls → 1 loop each | PASS | PASS |
+| Slab below cut → 0 cut loops | PASS | PASS |
+| Column → 1 loop | PASS | PASS |
+| **Identity coverage** | **100%** | **100%** |
+| `ifcType` preserved | yes (3 types) | yes (2 — no projection, so the slab never appears) |
+| Rotated geometry (0/30/45/17.3°) | correct | correct |
+| **Cut exactly at wall top (h=3.0)** | **7 loops** | **0 loops** |
+| **Cut exactly at wall base (h=0.0)** | **8 loops** | **0 loops** |
+| Cut above the building (h=5.0) | 35 projection lines | nothing |
+| Lines emitted (132-tri fixture) | 104 (28 cut + 76 projection) | 56 (cut only) |
+| 264,000 triangles | 2,326 ms → 208k lines | 273 ms → 112k lines |
+| Per triangle | 8.81 µs | 1.03 µs |
+
+## Verdict
+
+**Adopt `@ifc-lite/drawing-2d`.** Three reasons, in order of weight:
+
+1. **It is correct on the degenerate cuts where ours produces nothing.** Cutting exactly at a datum is the
+   *normal* case in BIM, not an edge case — a slab top sitting precisely on a storey elevation is
+   ubiquitous. Our cutter drops coplanar triangles by design (documented, deliberate) and therefore emits
+   **zero** loops at h=3.0 and h=0.0. That is not a bug to fix cheaply; robust coplanar handling is most of
+   the difficulty in a sectioner.
+2. **The surrounding work is already done.** Projection bands (visible-below / dashed-overhead), hidden-line
+   removal, silhouette and crease edges, line merging, architectural and fire-safety presets, object styles,
+   layers, dash patterns, scales, a DXF exporter, door symbols, title blocks, north arrows, scale bars. That
+   is the 6-12 months this ADR was weighing, and it exists.
+3. **It scales acceptably.** 2.3 s for 264,000 triangles, single-threaded with the GPU path disabled — fine
+   inside a Worker, and there is a `useGPU` path plus a WebGPU compute cutter not yet exercised.
+
+### The loser does not get deleted — it gets a different job
+
+This is the finding worth keeping. Our sectioner is **8.5x faster on the cut-only path** (1.03 vs
+8.81 µs/triangle). That is not a curiosity, it is a role:
+
+- **`@ifc-lite/drawing-2d`** generates *drawings* — the full, correct, richly-classified output that gets
+  styled, dimensioned, placed on a sheet and plotted.
+- **our cutter** powers *interaction* — live cut lines while a user drags a section plane, where 60 fps
+  matters far more than hidden-line fidelity and where nothing is being plotted.
+
+Two engines for two jobs, behind one `DrawingProvider`. It also remains the differential-testing oracle the
+original decision wanted: the two disagreeing on a golden case is the cheapest bug detector available, and
+we now know exactly where they legitimately differ (coplanar cuts, projection) so a disagreement outside
+those is a real signal.
+
+### Integration hazards found by running it (all three would corrupt identity silently)
+
+1. **`getExpressIdByGlobalId` returns a ROW INDEX, not an expressID**, despite the name. Use
+   `expressId[row]` before matching `DrawingLine.entityId`.
+2. **Columnar arrays hold string-table indices, not strings.** `entities.globalId[i]` is a truthy integer;
+   the first probe reported "77.6% GlobalId coverage" of pure nonsense. Always use the accessors.
+3. **Hidden lines are `visibility: 'hidden'`, not `category: 'hidden'`.** `stats.hiddenLineCount` says 35,
+   and `category` never contains `hidden` — the categories are `cut` and `projection`. A renderer filtering
+   on `category` alone silently drops every hidden line while the stats insist they were produced. The SDM
+   adapter must read **both** fields.
+
+### Consequences
+
+- `packages/drawings2d` wraps `@ifc-lite/drawing-2d` behind `DrawingProvider`, adapting into the Semantic
+  Drawing Model and resolving expressID → GlobalId on the way through.
+- Never patch ifc-lite in-tree. MPL-2.0 requires modifications to *their files* stay MPL and be published;
+  adapting at the boundary keeps that boundary clean. This is also what keeps the provider swappable.
+- Pin exact versions and add the `@ifc-lite/*` set to `scripts/check-fragments-version.mjs` as a coupled
+  group. Release velocity is high (parser 3.15, wasm 4.3, renderer 1.41) — active, and therefore churny.
+- massing's drawing *intelligence* is still to be ported, because ifc-lite does not have it: grid bubbles by
+  clustering, collision-avoiding tag placement, poché by class and LOD, and material-layer build-up
+  dimensions that report declared-vs-measured and flag disagreement. That work now sits on top of a working
+  sectioner instead of underneath a missing one.
+- Not measured, and deliberately deferred: peak worker memory, the GPU path, and output quality against a
+  curated reference render. Those need the M1 fixture and a browser; they gate nothing now that correctness
+  and identity are settled.
