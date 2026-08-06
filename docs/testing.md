@@ -1,0 +1,185 @@
+# Testing
+
+Seven layers, ordered by how often they run. Layer 2 is the most valuable thing in the repo.
+
+The organising principle: **a gate people trust is worth ten they route around.** Every choice below trades
+sensitivity for stability in that direction, and where a check is inherently flaky it runs nightly rather
+than per-PR. A visual gate that gets `--update-snapshots`'d reflexively has stopped being a test.
+
+## 1. Unit — pure math
+
+No DOM, no network, no clock. Fast enough to run on save. This is most of
+`packages/geometry-math/src/snapEngine.ts` and friends, and the whole of `packages/core`.
+
+**Add property-based tests, not just examples.** Examples pin cases someone thought about; properties pin
+the invariant, and the invariant is what a refactor breaks. See
+`packages/geometry-math/src/properties.test.ts` — and read its comments, because two of them record real
+findings that only a property test surfaces:
+
+- **`resolveSnap`'s tie-break is epsilon-based**, so at exactly 1e-6 the winner depends on array order.
+  That is not a defect — one micron is the same point for any construction purpose — but it means the
+  contract is "within epsilon of the true minimum", not "the true minimum". The property is stated in those
+  terms, and the looser guarantee is now written down instead of assumed.
+- **`checkPolygon`'s exact orientation predicate is algebraically winding-invariant but not numerically so**
+  at magnitudes around 1e-232, where the determinant underflows through subnormals and loses its sign. Real,
+  and irrelevant: no building has a dimension of 1e-232 m, and the placement checks reject anything near it
+  first. So the generator is scoped to 0.1 mm – 100 km, which is scoping the property to its domain rather
+  than weakening it. A separate example asserts the predicate still returns a *well-formed verdict* on
+  subnormals, because a `NaN` escaping the determinant would make every downstream comparison false and the
+  polygon silently "valid".
+
+Both notes exist because the honest answer to a failing property is sometimes "the property was wrong" — and
+that has to be written down, or the next person re-derives it.
+
+## 2. Kernel conformance — the executable specification
+
+`@massingviewer/kernel-conformance` is a **published test library**, not a test directory:
+
+```ts
+describeKernel("LocalKernel", () => createLocalKernel(), declaredCapabilities);
+```
+
+Both first-party kernels call it. So does anyone writing a third kernel — which is what turns "write a
+MassingViewer kernel" from a reverse-engineering exercise into `npm i -D` and fix the reds.
+
+Seven invariant families:
+
+| # | Family | Why it is in this order |
+|---|---|---|
+| 1 | **GUID stability** across apply / reload / re-serialise | The invariant everything rests on, and the one most likely to differ silently between an `ifcopenshell` writer and a `web-ifc` writer |
+| 2 | **Refusal parity** — same error *code* for the same bad input | Codes asserted, messages never (they are localised). A test pinning wording either blocks copy improvements or gets updated unread |
+| 3 | **Idempotence and commutativity** | Catches hidden global state in the Worker |
+| 4 | **Units round-trip** to 1e-9 m | The other half of the metres-only rule |
+| 5 | **Version monotonicity** | A stale write must get `version_conflict`, never a silent overwrite |
+| 6 | **Capability honesty** | How a partial kernel ships **without lying**: everything it does not claim returns `unsupported` rather than throwing, hanging, or doing nothing |
+| 7 | **Recipe parity ledger** | A ratchet over the remote kernel's 96 operations. CI fails on regression and prints coverage |
+
+Refusal parity has one case worth knowing about. massing's server refuses `set_extrusion_depth` on a
+non-extrusion, and there is **deliberately no client-side allowlist** — the refusal arrives through the
+normal error path. So `LocalKernel` must produce a compatible refusal or that design collapses into "works
+against one kernel, silently does nothing against the other".
+
+**Mechanics.** `LocalKernel` runs in-process on every PR. `RemoteKernel` runs against recorded cassettes on
+every PR (for speed) and against a live docker-composed backend nightly, with the nightly job failing if the
+cassettes have drifted from reality. Cassettes that are never revalidated are fiction.
+
+## 3. Golden drawings — semantic digests, never raw SVG
+
+**Never snapshot SVG text.** It changes on any generator refactor, attribute reordering, or whitespace
+change, none of which are regressions — and it fails unreadably, so the reflex is to accept the new output
+without reading it.
+
+Three tiers:
+
+**Tier 1 — semantic digest (every PR, the real gate).** Normalise the drawing to a canonical form: per
+layer, a sorted list of typed geometry operations, coordinates quantised to 0.1 mm at paper scale, GlobalIds
+retained, all `id`/`class`/timestamp/generator-version attributes stripped. Snapshot *that*. It is invariant
+to ordering and refactors, it fails on the things that matter (a missing wall, a cut line in the wrong
+place, a lost `guid`), and it diffs **readably** — a reviewer sees "layer A-WALL lost 1 polyline at
+(3.2, 4.8)".
+
+**Tier 2 — structural assertions (same PR).** Element count by IFC class matches the model. Every drawn
+entity's `guid` resolves to a real GlobalId. No geometry outside the sheet border. All text inside its
+bounding box.
+
+**Tier 3 — rasterised perceptual diff (nightly, or on a `drawings` label).** `resvg` (Rust, deterministic,
+no browser) to PNG, then SSIM against a baseline at 0.995, with the title block masked and the `resvg`
+version pinned. This catches what a digest cannot express — hatch pattern changes, line-weight errors —
+without gating every PR on pixel luck.
+
+### Updating a golden safely
+
+1. Run the drawing bake-off harness and read the **diff**, not the summary.
+2. Confirm the change is intended by naming which entities moved and why. "The generator changed" is not a
+   reason.
+3. Check `guidCoverage` did not drop. It is the one number that must never regress.
+4. Check `incomplete[]` did not grow. A drawing that lost an element renders perfectly and says nothing —
+   this list is the only thing that says something.
+5. Update, and put the reasoning in the commit message.
+
+## 4. 3D viewport visual regression
+
+WebGL is not deterministic across GPUs, drivers or ANGLE backends. Making it deterministic *enough*:
+
+- Playwright Chromium in a **digest-pinned container**, launched with
+  `--use-gl=angle --use-angle=swiftshader --deterministic-mode --force-device-scale-factor=1`.
+  SwiftShader is a software rasteriser: identical bytes on any host.
+- Remove non-determinism in the scene: fix device pixel ratio to 1, disable MSAA and dithering, fixed tone
+  mapping, seeded RNG, frozen clocks.
+- **Render N frames, then explicitly read pixels.** massing's hero-capture code documents why:
+  `preserveDrawingBuffer` is off, so buffers do not persist between frames and a stale read returns a black
+  image. Drive frames from the test rather than waiting on wall time — the frame loop takes an injectable
+  frame API for exactly this.
+- Baselines are keyed by **renderer signature** (unmasked renderer + Chromium version + container digest).
+  A baseline from a different key is a hard failure with a clear message, never a silent pass.
+- **Gate on structure, not pixels:** alpha-threshold the render into a coarse occupancy grid and compare
+  silhouettes, plus a luminance histogram distance. That catches "the model did not load", "the camera is
+  wrong", "geometry vanished". Full SSIM runs nightly only.
+
+**Deliberately no Safari or iPad pixel parity.** Their renderers differ and always will. Chasing it is how
+this suite gets abandoned; cross-browser gets functional E2E instead.
+
+## 5. E2E — Playwright
+
+**Matrix: `chromium` + `webkit` + `firefox` on every PR, and `webkit` is a required check.** Safari and
+iPad support is a stated differentiator (the nearest competitor is Chrome/Edge only), so it cannot be a
+nightly afterthought. iPad runs emulated per-PR plus a **weekly real-device run** — emulated WebKit does not
+reproduce real iOS memory pressure or WASM limits, which is precisely where an iPad fails.
+
+Flows:
+
+1. **Local golden path, zero network.** Import a fixture IFC, orbit, select a wall, read its properties,
+   generate a plan, place a markup pin, export PDF, export BCF. This is `LocalKernel`'s acceptance test and
+   the demo's smoke test in one.
+2. **Author flow.** Arm the wall tool, snap to a grid intersection, type `12'6`, commit. Assert the wall
+   appears in 3D **and** in the plan with a matching `guid`. This is the only test that exercises snapping,
+   imperial parsing and identity together in a real DOM.
+3. **Refusal UX.** Author a zero-length wall; assert the refusal surfaces and the tool stays armed. A
+   refusal that disarms the tool loses the user's work.
+4. **Offline.** Load, go offline, author, reload; assert work persisted.
+5. **Capability gating.** Assert unavailable controls are **dimmed with a visible reason**, not absent.
+
+## 6. Performance and memory
+
+- **Frame time:** scripted orbit, gate on p95 with a 20% tolerance band, and report p50/p99 to the job
+  summary. A tight gate on noisy runners trains people to ignore it, so the trend is tracked in a committed
+  JSON where a regression is visible even while under threshold.
+- **Long tasks:** nothing over 50 ms during the golden path. This is the gate that keeps the Worker boundary
+  real rather than nominal.
+- **Drawing generation:** per-fixture wall-clock budgets.
+- **Bundle budget:** per package. Parse the entry from `index.html` rather than filename-matching — massing
+  learned that a lazily-loaded vendor chunk whose hashed name happens to start with `index-` gets
+  miscounted as shell.
+- **Memory leaks** — the highest-value and most-neglected gate for a long-lived three.js app. Mount, load,
+  author 50 elements, unmount, force GC, then assert: renderer geometry and texture counts back to baseline,
+  the three.js cache empty, JS heap within 5% of pre-mount, **zero pending animation-frame callbacks**, and
+  listener counts at baseline. The frame-loop helper exists because an animation loop with no way to stop
+  outlives whatever it was drawing for; test that property directly.
+
+## 7. Accessibility
+
+`axe-core` on every route and every open panel, gated at `serious` and above.
+
+Ribbon-specific, beyond what axe can see: keyboard traversal of every tool (roving tabindex, arrows within
+a group, Tab between groups), correct toolbar roles and pressed/expanded state, 3:1 focus contrast, focus
+returning to the invoking control on close, and live-region announcements for tool arm/disarm and for
+refusals.
+
+**State the 3D-canvas limit honestly** in the accessibility docs rather than claiming parity — and name the
+alternative, because there is a real one: the CAD command grammar in
+`packages/geometry-math/src/cadCommands.ts` means `WALL 0,0 5,0` authors a wall with no pointing device at
+all. That is a genuine and underrated accessibility story, and it is worth saying out loud.
+
+## Running things
+
+```bash
+npm run test          # layers 1–3
+npm run test:watch    # while working
+npm run verify        # lint + typecheck + test + repo gates — what CI runs
+npm run gates         # the repo gates alone
+```
+
+The repo gates are described in [CONTRIBUTING.md](../CONTRIBUTING.md#repo-gates). Each fails the build
+rather than warning, and each one's failure paths are themselves verified — a gate that has never been
+observed to fail is decoration, so `scripts/check-architecture.mjs`, `scripts/check-licenses.mjs` and
+`scripts/check-provenance.mjs` were each run against deliberate violations before being trusted.

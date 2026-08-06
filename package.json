@@ -1,0 +1,59 @@
+{
+  "name": "massingviewer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Standalone IFC-native 3D/2D CAD studio for the browser — view and author models, generate and mark up plans. Offline-capable local kernel, pluggable remote kernel.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git"
+  },
+  "homepage": "https://github.com/MassingCloud/MassingViewer#readme",
+  "bugs": "https://github.com/MassingCloud/MassingViewer/issues",
+  "workspaces": [
+    "packages/*",
+    "packages/plugins/*",
+    "apps/*",
+    "tooling/*"
+  ],
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "npm": ">=10.8.0"
+  },
+  "packageManager": "npm@11.16.0",
+  "scripts": {
+    "preinstall": "node scripts/check-node.mjs",
+    "dev": "npm run dev --workspace @massingviewer/demo",
+    "build": "tsc --build",
+    "clean": "tsc --build --clean && rimraf packages/*/dist apps/*/dist",
+    "lint": "eslint . && oxlint",
+    "typecheck": "tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run gates",
+    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions",
+    "gate:arch": "node scripts/check-architecture.mjs",
+    "gate:license": "node scripts/check-licenses.mjs",
+    "gate:provenance": "node scripts/check-provenance.mjs",
+    "gate:docs": "node scripts/check-doc-paths.mjs",
+    "gate:versions": "node scripts/check-fragments-version.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.10.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.8.0",
+    "fast-check": "4.5.0",
+    "globals": "17.7.0",
+    "happy-dom": "20.8.9",
+    "oxlint": "1.76.0",
+    "rimraf": "6.1.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "eslint": "10.8.0"
+  },
+  "type": "module"
+}

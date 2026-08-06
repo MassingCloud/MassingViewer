@@ -1,0 +1,30 @@
+{
+  "name": "@massingviewer/ui-model",
+  "version": "0.0.0",
+  "description": "Ribbon, palette and toolbar layout as pure data and pure layout math. No DOM, no framework — so a React shell and a vanilla-DOM host can render one identical table.",
+  "license": "MIT",
+  "keywords": ["ribbon", "toolbar", "command-palette", "ui-model", "cad"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/ui-model"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

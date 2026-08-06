@@ -1,0 +1,41 @@
+name: Upstream divergence
+
+# The process automation that keeps this extraction from becoming a fork.
+#
+# ~14,000 lines here came from ibuilder/massing. Nothing in git connects the two repos, so a bug fixed
+# upstream in a file we copied will never arrive — and the first symptom is someone re-reporting a bug that
+# was fixed months ago somewhere else.
+#
+# During the initial extraction session massing advanced 15 commits in about 90 minutes. At that rate,
+# "remembering to check" is not a plan, which is why this is a cron job and not a checklist item.
+
+on:
+  schedule:
+    # Monday morning, before anyone plans a week around a stale assumption.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # maintains ONE tracking issue — see the note in scripts/divergence-report.mjs
+
+concurrency:
+  group: divergence
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check every extracted path against upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Exit 2 means the report itself could not complete. That must fail the job rather than be read as
+        # "no divergence" — a report whose silence is unreliable is worse than no report, and the script's
+        # first version had exactly that bug.
+        run: node scripts/divergence-report.mjs --issue

@@ -1,0 +1,36 @@
+name: Kernel parity gap
+description: An operation one kernel supports and another does not
+title: "parity: "
+labels: ["kernel-parity"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template exists because a parity gap is a **countable defect**, not a vague gap.
+        `LocalKernel` will trail `RemoteKernel` for a long time; the point is that the gap is visible
+        and tracked rather than discovered by a user hitting a dimmed button.
+  - type: input
+    id: op
+    attributes:
+      label: Operation id
+      placeholder: add_connection_assembly
+    validations: { required: true }
+  - type: dropdown
+    id: supported-by
+    attributes:
+      label: Supported by
+      options: ["RemoteKernel only", "LocalKernel only", "Neither, but should be"]
+    validations: { required: true }
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: What the unsupported kernel does today
+      description: >-
+        It must return `unsupported` with a useful hint. If it throws, hangs, or silently does nothing,
+        say so — that is a separate and worse bug than the missing operation.
+    validations: { required: true }
+  - type: textarea
+    id: blocking
+    attributes:
+      label: What this blocks
+      description: Which user-visible workflow is unavailable offline because of it?

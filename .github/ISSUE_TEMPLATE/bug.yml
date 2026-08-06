@@ -1,0 +1,42 @@
+name: Bug
+description: Something behaves incorrectly
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: kernel
+    attributes:
+      label: Which kernel?
+      description: Nearly every behavioural question depends on this, so it is asked first.
+      options: ["LocalKernel (offline, the default)", "RemoteKernel (connected to a massing server)", "Not sure", "Not kernel-related"]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the studio
+        2. ...
+    validations: { required: true }
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: >-
+        If a specific IFC is involved, its size and origin (which authoring tool exported it) matter more
+        than its contents. Please do not attach a confidential model.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Safari 18.4 / iPadOS 18.4
+    validations: { required: true }
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      render: shell

@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the whole coupled 3D stack. These five versions move as a set — see
+      # scripts/check-fragments-version.mjs — so five separate PRs would each fail the parity gate and
+      # none could merge alone.
+      three-stack:
+        patterns: ["three", "@types/three", "@thatopen/*", "web-ifc", "camera-controls"]
+      dev-tooling:
+        patterns: ["eslint*", "@eslint/*", "typescript*", "oxlint", "vitest", "@vitest/*", "happy-dom", "fast-check"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    # Actions are pinned to commit SHAs deliberately (a tag is mutable and these workflows have write
+    # access). Dependabot is what keeps the pins from going stale.

@@ -1,0 +1,30 @@
+{
+  "name": "@massingviewer/catalog",
+  "version": "0.0.0",
+  "description": "The parametric element palette: what a user can draw, which IFC class it becomes, how many points it takes, and which parameters it exposes.",
+  "license": "MIT",
+  "keywords": ["ifc", "bim", "parametric", "catalog", "aec"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/catalog"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@massingviewer/kernel-api",
+  "version": "0.0.0",
+  "description": "The KernelProvider contract: one interface for authoring IFC, satisfied by an in-browser offline kernel and by a remote authoring service. Types and error taxonomy only, no implementation.",
+  "license": "MIT",
+  "keywords": ["ifc", "bim", "kernel", "authoring", "aec", "contract"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/kernel-api"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@massingviewer/core": "0.0.0"
+  }
+}

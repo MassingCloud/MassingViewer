@@ -1,0 +1,30 @@
+{
+  "name": "@massingviewer/core",
+  "version": "0.0.0",
+  "description": "Document model foundations: GUID-based element identity, unit systems with imperial formatting, and the shared result/event types every other package speaks.",
+  "license": "MIT",
+  "keywords": ["ifc", "bim", "globalid", "units", "aec"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/core"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

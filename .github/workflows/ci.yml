@@ -1,0 +1,132 @@
+name: CI
+
+# Every action is pinned to a commit SHA rather than a tag. A tag is mutable: whoever controls the action
+# repo can repoint `@v5` at different code, and this workflow has repository write access. Dependabot keeps
+# the pins fresh, so the cost is a periodic PR and the benefit is that a supply-chain compromise of an
+# action cannot silently reach this repo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Reproducible installs. `npm ci` refuses to update the lockfile, which is what makes CI a check on the
+  # committed tree rather than a fresh resolution of it.
+  NPM_CONFIG_AUDIT: "false"
+  NPM_CONFIG_FUND: "false"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          # One source of truth for the Node version. massing's CI floats on `node-version: "24"`;
+          # reading .nvmrc means CI and contributors cannot disagree.
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # --force so the project-reference graph is rebuilt from scratch; an incremental build can pass on a
+      # stale .tsbuildinfo and hide a break in a package nothing changed.
+      - run: npm run typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --coverage
+      - name: Coverage to job summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e '
+              const s = require("./coverage/coverage-summary.json").total;
+              const row = (k) => `| ${k} | ${s[k].pct}% | ${s[k].covered}/${s[k].total} |`;
+              console.log("## Coverage\n\n| Metric | % | Covered |\n|---|---|---|");
+              for (const k of ["statements", "branches", "functions", "lines"]) console.log(row(k));
+            ' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  gates:
+    # The repo's own invariants: layering, licensing, provenance, doc citations, version parity.
+    # Each is described in CONTRIBUTING.md, and each has been verified to actually FAIL on a deliberate
+    # violation — a gate that has only ever passed is decoration.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Architecture (layer DAG, restricted externals, no cycles)
+        run: npm run gate:arch
+
+      - name: Licenses (permissive-only, transitive, banned-by-name)
+        run: npm run gate:license
+
+      - name: Provenance (extraction headers agree with the ledger, both directions)
+        run: npm run gate:provenance
+
+      - name: Doc paths (backticked citations resolve; citation counts do not regress)
+        run: npm run gate:docs
+
+      - name: Version parity (three / @thatopen / web-ifc move as one set)
+        run: npm run gate:versions
+
+  dependency-review:
+    # A second, GitHub-native line of defence on the license posture. It sees things a manifest scan does
+    # not — and the deny list here is deliberately the same one as scripts/check-licenses.mjs, so a
+    # dependency has to get past both.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          deny-licenses: >-
+            GPL-1.0-only, GPL-1.0-or-later, GPL-2.0-only, GPL-2.0-or-later,
+            GPL-3.0-only, GPL-3.0-or-later,
+            AGPL-1.0-only, AGPL-1.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later,
+            LGPL-2.0-only, LGPL-2.0-or-later, LGPL-2.1-only, LGPL-2.1-or-later,
+            LGPL-3.0-only, LGPL-3.0-or-later,
+            SSPL-1.0, BUSL-1.1, CC-BY-NC-4.0
+          deny-packages: >-
+            npm/tldraw, npm/xeokit-sdk, npm/mupdf, npm/mupdf-js,
+            npm/@mlightcad/libredwg-web, npm/@mlightcad/libredwg-converter,
+            npm/web-ifc-three
+          comment-summary-in-pr: on-failure

@@ -1,0 +1,27 @@
+#
+
+# Default owner for everything.
+*                                   @ibuilder
+
+# Public contracts. Changes here bind us via the deprecation policy, so they require an ADR
+# (see CONTRIBUTING.md) as well as a review.
+/packages/kernel-api/                @ibuilder
+/packages/plugin-host/               @ibuilder
+
+# The executable specification both kernels are measured against. Weakening an assertion here is
+# indistinguishable from fixing a bug unless someone looks closely.
+/packages/kernel-conformance/        @ibuilder
+
+# Security-critical. sanitizeSvg is the primary control on untrusted drawing SVG, not
+# defence-in-depth — see SECURITY.md.
+/packages/core/src/sanitizeSvg.ts    @ibuilder
+
+# CI, gates, and supply chain.
+/.github/                            @ibuilder
+/scripts/                            @ibuilder
+/.npmrc                              @ibuilder
+/package-lock.json                   @ibuilder
+
+# Decisions of record.
+/docs/adr/                           @ibuilder
+/docs/PROVENANCE.tsv                 @ibuilder

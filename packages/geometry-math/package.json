@@ -1,0 +1,30 @@
+{
+  "name": "@massingviewer/geometry-math",
+  "version": "0.0.0",
+  "description": "Pure CAD geometry for the browser: object snapping, polar tracking, dynamic input, drawing inference, placement validation, and an AutoCAD-style command grammar. No DOM, no three.js, no network.",
+  "license": "MIT",
+  "keywords": ["cad", "snapping", "osnap", "polar-tracking", "autocad", "geometry", "bim", "aec"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/geometry-math"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

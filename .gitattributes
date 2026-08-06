@@ -1,0 +1,32 @@
+# Normalise line endings in the repository to LF, always.
+#
+# Without this, a Windows contributor commits CRLF, CI on Ubuntu sees a whole-file diff, and every
+# subsequent diff is unreadable. Worse for this repo specifically: the extraction headers and
+# docs/PROVENANCE.tsv are compared byte-for-byte by scripts/check-provenance.mjs, and a line-ending
+# change would read as tampering.
+* text=auto eol=lf
+
+# Binary — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.wasm binary
+*.pdf binary
+*.zip binary
+
+# BIM and CAD payloads. `.frag` is a binary tile format; `.ifc` is text but large and machine-written, so
+# it is excluded from diffs to keep `git log -p` usable.
+*.frag binary
+*.ifc -diff
+*.dwg binary
+
+# Generated — collapse in review rather than hiding, so a suspicious change is still inspectable.
+package-lock.json linguist-generated=true -diff
+THIRD-PARTY-NOTICES.md linguist-generated=true
+
+# The provenance ledger is tab-separated and load-bearing. Never let a tool "helpfully" convert the tabs.
+docs/PROVENANCE.tsv text eol=lf -whitespace

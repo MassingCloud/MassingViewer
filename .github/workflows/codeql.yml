@@ -1,0 +1,35 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: github/codeql-action/init@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e # v3
+        with:
+          languages: javascript-typescript
+          # `security-and-quality` on top of `security-extended`. The quality pack is noisier, and it is
+          # worth the noise here: this repo publishes libraries, so a dead branch or an unused parameter in
+          # a public API surface is a defect other people inherit.
+          queries: security-extended,security-and-quality
+
+      - uses: github/codeql-action/analyze@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e # v3
+        with:
+          category: "/language:javascript-typescript"

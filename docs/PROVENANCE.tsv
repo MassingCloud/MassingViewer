@@ -1,0 +1,32 @@
+# Provenance ledger. Every file carrying an "Extracted from" header has exactly one row here,
+# and every row has exactly one such file. scripts/check-provenance.mjs asserts both directions.
+#
+# action:  move = byte-identical apart from the header
+#          port = adapted during the move (decoupled from massing APIs, retyped, or split)
+#
+# The weekly divergence report reads massing_path + massing_sha to find upstream commits that
+# touched code we extracted. Keeping massing_sha accurate is what makes that report trustworthy.
+#
+massing_path	massing_sha	massingviewer_path	action	date
+apps/web/src/viewer/snapEngine.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/snapEngine.ts	move	2026-08-06
+apps/web/src/viewer/snapEngine.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/snapEngine.test.ts	move	2026-08-06
+apps/web/src/viewer/snapOverride.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/snapOverride.ts	move	2026-08-06
+apps/web/src/viewer/snapOverride.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/snapOverride.test.ts	move	2026-08-06
+apps/web/src/viewer/inference.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/inference.ts	move	2026-08-06
+apps/web/src/viewer/inference.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/inference.test.ts	move	2026-08-06
+apps/web/src/viewer/placeValid.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/placeValid.ts	move	2026-08-06
+apps/web/src/viewer/placeValid.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/placeValid.test.ts	move	2026-08-06
+apps/web/src/viewer/dynInput.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/dynInput.ts	move	2026-08-06
+apps/web/src/viewer/dynInput.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/dynInput.test.ts	move	2026-08-06
+apps/web/src/viewer/draftHistory.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/draftHistory.ts	move	2026-08-06
+apps/web/src/viewer/draftHistory.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/draftHistory.test.ts	move	2026-08-06
+apps/web/src/viewer/solar.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/solar.ts	move	2026-08-06
+apps/web/src/viewer/solar.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/solar.test.ts	move	2026-08-06
+apps/web/src/viewer/cadCommands.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/cadCommands.ts	move	2026-08-06
+apps/web/src/viewer/cadCommands.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/cadCommands.test.ts	move	2026-08-06
+apps/web/src/viewer/toolbarLayout.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/ui-model/src/toolbarLayout.ts	move	2026-08-06
+apps/web/src/viewer/toolbarLayout.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/ui-model/src/toolbarLayout.test.ts	port	2026-08-06
+apps/web/src/viewer/draft/draftCatalog.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/catalog/src/draftCatalog.ts	port	2026-08-06
+apps/web/src/ui/icons.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/ui-model/src/icons.ts	port	2026-08-06
+apps/web/src/viewer/keysDyn.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/shortcuts.ts	port	2026-08-06
+apps/web/src/viewer/toolbarLayout.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	docs/pending/toolbarView.test.ts.txt	port	2026-08-06

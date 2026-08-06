@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // This package is the layer that must stay usable from any host — Node, a Worker, a vanilla-DOM
+    // app, React Native. Omitting the DOM lib makes that structural: a stray `document` reference is a
+    // type error here rather than a runtime failure in somebody else's environment.
+    "lib": ["ES2023"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // No DOM lib, deliberately. This package describes *what* the ribbon contains and *how it
+    // collapses*; rendering it is somebody else's job. Keeping the DOM out of scope is what lets
+    // massing's vanilla-DOM app and the React shell agree on one layout table instead of two.
+    "lib": ["ES2023"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
