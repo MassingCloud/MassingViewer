@@ -1,0 +1,55 @@
+/* Deliberately one small stylesheet with CSS custom properties, matching massing's approach — no Tailwind,
+   no CSS-in-JS. The ribbon shell at M7 brings its own system; this is the walking skeleton's chrome. */
+:root {
+  --bg: #16181c;
+  --panel: #1e2126;
+  --line: #2c3138;
+  --text: #e6e8ea;
+  --muted: #8b949e;
+  --accent: #2b8fff;
+  --warn: #d9a13b;
+  --ok: #3fb950;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#app, .shell { height: 100%; }
+.shell { display: grid; grid-template-rows: 40px 1fr 26px; }
+
+header, footer {
+  display: flex; align-items: center; gap: 10px; padding: 0 12px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+footer { border-bottom: 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+
+button {
+  background: #262b32; color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; padding: 4px 10px; font: inherit; cursor: pointer;
+}
+button:hover { background: #2f353d; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+main { display: grid; grid-template-columns: 1fr 290px; min-height: 0; }
+/* min-height/min-width 0 on a grid child is what stops the canvas from inflating the row forever. Without it
+   the viewport grows every frame and the layout never settles — a classic flex/grid canvas trap. */
+#viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+aside {
+  background: var(--panel); border-left: 1px solid var(--line);
+  padding: 10px 12px; overflow: auto; min-height: 0;
+}
+aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+aside h2:first-child { margin-top: 0; }
+dl { display: grid; grid-template-columns: 88px 1fr; gap: 3px 8px; margin: 0; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+ul { margin: 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+code { font-family: ui-monospace, Consolas, monospace; }

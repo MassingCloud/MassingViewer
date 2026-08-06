@@ -6,24 +6,29 @@ MassingViewer depends on the packages below. This project accepts only permissiv
 posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 
 Generated from `package-lock.json` rather than from an installed `node_modules`, so this list is the
-same on every platform and covers all 45 platform-specific binaries — not only the handful
+same on every platform and covers all 60 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-212 package(s) across 8 license(s).
+244 package(s) across 9 license(s).
 
-## MIT (154)
+## MIT (184)
 
 - `@babel/helper-string-parser` 7.29.7
 - `@babel/helper-validator-identifier` 7.29.7
 - `@babel/parser` 7.29.8
 - `@babel/types` 7.29.8
 - `@bcoe/v8-coverage` 1.0.2
+- `@emnapi/core` 1.11.1
+- `@emnapi/runtime` 1.11.1
+- `@emnapi/wasi-threads` 1.2.2
 - `@eslint-community/eslint-utils` 4.10.1
 - `@eslint-community/regexpp` 4.12.2
 - `@eslint/js` 9.39.5
 - `@jridgewell/resolve-uri` 3.1.2
 - `@jridgewell/sourcemap-codec` 1.5.5
 - `@jridgewell/trace-mapping` 0.3.31
+- `@napi-rs/wasm-runtime` 1.2.2
+- `@oxc-project/types` 0.139.0
 - `@oxc-project/types` 0.143.0
 - `@oxlint/binding-android-arm-eabi` 1.76.0 _(android/arm)_
 - `@oxlint/binding-android-arm64` 1.76.0 _(android/arm64)_
@@ -44,28 +49,48 @@ installed on whichever host happened to run the generator.
 - `@oxlint/binding-win32-arm64-msvc` 1.76.0 _(win32/arm64)_
 - `@oxlint/binding-win32-ia32-msvc` 1.76.0 _(win32/ia32)_
 - `@oxlint/binding-win32-x64-msvc` 1.76.0 _(win32/x64)_
+- `@rolldown/binding-android-arm64` 1.1.5 _(android/arm64)_
 - `@rolldown/binding-android-arm64` 1.2.3 _(android/arm64)_
+- `@rolldown/binding-darwin-arm64` 1.1.5 _(darwin/arm64)_
 - `@rolldown/binding-darwin-arm64` 1.2.3 _(darwin/arm64)_
+- `@rolldown/binding-darwin-x64` 1.1.5 _(darwin/x64)_
 - `@rolldown/binding-darwin-x64` 1.2.3 _(darwin/x64)_
+- `@rolldown/binding-freebsd-x64` 1.1.5 _(freebsd/x64)_
 - `@rolldown/binding-freebsd-x64` 1.2.3 _(freebsd/x64)_
+- `@rolldown/binding-linux-arm-gnueabihf` 1.1.5 _(linux/arm)_
 - `@rolldown/binding-linux-arm-gnueabihf` 1.2.3 _(linux/arm)_
+- `@rolldown/binding-linux-arm64-gnu` 1.1.5 _(linux/arm64)_
 - `@rolldown/binding-linux-arm64-gnu` 1.2.3 _(linux/arm64)_
+- `@rolldown/binding-linux-arm64-musl` 1.1.5 _(linux/arm64)_
 - `@rolldown/binding-linux-arm64-musl` 1.2.3 _(linux/arm64)_
+- `@rolldown/binding-linux-ppc64-gnu` 1.1.5 _(linux/ppc64)_
 - `@rolldown/binding-linux-ppc64-gnu` 1.2.3 _(linux/ppc64)_
+- `@rolldown/binding-linux-s390x-gnu` 1.1.5 _(linux/s390x)_
 - `@rolldown/binding-linux-s390x-gnu` 1.2.3 _(linux/s390x)_
+- `@rolldown/binding-linux-x64-gnu` 1.1.5 _(linux/x64)_
 - `@rolldown/binding-linux-x64-gnu` 1.2.3 _(linux/x64)_
+- `@rolldown/binding-linux-x64-musl` 1.1.5 _(linux/x64)_
 - `@rolldown/binding-linux-x64-musl` 1.2.3 _(linux/x64)_
+- `@rolldown/binding-openharmony-arm64` 1.1.5 _(openharmony/arm64)_
 - `@rolldown/binding-openharmony-arm64` 1.2.3 _(openharmony/arm64)_
+- `@rolldown/binding-wasm32-wasi` 1.1.5 _(wasm32)_
+- `@rolldown/binding-win32-arm64-msvc` 1.1.5 _(win32/arm64)_
 - `@rolldown/binding-win32-arm64-msvc` 1.2.3 _(win32/arm64)_
+- `@rolldown/binding-win32-x64-msvc` 1.1.5 _(win32/x64)_
 - `@rolldown/binding-win32-x64-msvc` 1.2.3 _(win32/x64)_
 - `@rolldown/pluginutils` 1.0.1
 - `@standard-schema/spec` 1.1.0
+- `@tweenjs/tween.js` 23.1.3
+- `@tybys/wasm-util` 0.10.3
 - `@types/chai` 5.2.3
 - `@types/deep-eql` 4.0.2
 - `@types/esrecurse` 4.3.1
 - `@types/estree` 1.0.9
 - `@types/json-schema` 7.0.15
 - `@types/node` 24.10.1
+- `@types/stats.js` 0.17.4
+- `@types/three` 0.184.1
+- `@types/webxr` 0.5.24
 - `@types/whatwg-mimetype` 3.0.2
 - `@types/ws` 8.18.1
 - `@typescript-eslint/eslint-plugin` 8.65.0
@@ -107,6 +132,7 @@ installed on whichever host happened to run the generator.
 - `fast-json-stable-stringify` 2.1.0
 - `fast-levenshtein` 2.0.6
 - `fdir` 6.5.0
+- `fflate` 0.8.3
 - `file-entry-cache` 8.0.0
 - `find-up` 5.0.0
 - `flat-cache` 4.0.1
@@ -130,6 +156,7 @@ installed on whichever host happened to run the generator.
 - `magic-string` 0.30.21
 - `magicast` 0.5.4
 - `make-dir` 4.0.0
+- `meshoptimizer` 1.1.1
 - `ms` 2.1.3
 - `nanoid` 3.3.17
 - `natural-compare` 1.4.0
@@ -146,12 +173,14 @@ installed on whichever host happened to run the generator.
 - `prelude-ls` 1.2.1
 - `punycode` 2.3.1
 - `pure-rand` 7.0.1
+- `rolldown` 1.1.5
 - `rolldown` 1.2.3
 - `shebang-command` 2.0.0
 - `shebang-regex` 3.0.0
 - `stackback` 0.0.2
 - `std-env` 4.2.0
 - `supports-color` 7.2.0
+- `three` 0.184.0
 - `tinybench` 2.9.0
 - `tinyexec` 1.3.0
 - `tinyglobby` 0.2.17
@@ -160,6 +189,7 @@ installed on whichever host happened to run the generator.
 - `type-check` 0.4.0
 - `typescript-eslint` 8.65.0
 - `undici-types` 7.16.0
+- `vite` 8.1.5
 - `vite` 8.2.1
 - `vitest` 4.1.10
 - `whatwg-mimetype` 3.0.0
@@ -167,6 +197,25 @@ installed on whichever host happened to run the generator.
 - `word-wrap` 1.2.5
 - `ws` 8.21.2
 - `yocto-queue` 0.1.0
+
+## Apache-2.0 (16)
+
+- `@dimforge/rapier3d-compat` 0.12.0
+- `@eslint/config-array` 0.23.5
+- `@eslint/config-helpers` 0.7.0
+- `@eslint/core` 1.2.1
+- `@eslint/object-schema` 3.0.5
+- `@eslint/plugin-kit` 0.7.2
+- `@humanfs/core` 0.19.2
+- `@humanfs/node` 0.16.8
+- `@humanfs/types` 0.15.0
+- `@humanwhocodes/module-importer` 1.0.1
+- `@humanwhocodes/retry` 0.4.3
+- `detect-libc` 2.1.2
+- `eslint-visitor-keys` 3.4.3
+- `eslint-visitor-keys` 5.0.1
+- `expect-type` 1.4.0
+- `typescript` 5.9.3
 
 ## MPL-2.0 (16)
 
@@ -186,24 +235,6 @@ installed on whichever host happened to run the generator.
 - `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
 - `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
 - `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
-
-## Apache-2.0 (15)
-
-- `@eslint/config-array` 0.23.5
-- `@eslint/config-helpers` 0.7.0
-- `@eslint/core` 1.2.1
-- `@eslint/object-schema` 3.0.5
-- `@eslint/plugin-kit` 0.7.2
-- `@humanfs/core` 0.19.2
-- `@humanfs/node` 0.16.8
-- `@humanfs/types` 0.15.0
-- `@humanwhocodes/module-importer` 1.0.1
-- `@humanwhocodes/retry` 0.4.3
-- `detect-libc` 2.1.2
-- `eslint-visitor-keys` 3.4.3
-- `eslint-visitor-keys` 5.0.1
-- `expect-type` 1.4.0
-- `typescript` 5.9.3
 
 ## BSD-2-Clause (7)
 
@@ -246,6 +277,10 @@ installed on whichever host happened to run the generator.
 ## Apache-2.0 OR MIT (1)
 
 - `@tauri-apps/api` 2.11.1
+
+## 0BSD (1)
+
+- `tslib` 2.8.1
 
 ## Deliberately excluded
 

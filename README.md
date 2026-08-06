@@ -39,8 +39,12 @@ MassingViewer closes that loop:
 
 **Pre-alpha, in active extraction.** This repo is being built by lifting the Design Room out of
 [ibuilder/massing](https://github.com/ibuilder/massing) — an existing production BIM platform — and
-rebuilding its shell around a ribbon UI and a pluggable geometry kernel. See
-[the roadmap](#roadmap) for what works today versus what is scaffolding.
+rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
+
+**What works today:** `npm run dev` loads a real IFC4 building, renders it, orbits/pans/zooms it, and picks
+elements — with no backend, no WASM and no network after first paint. Every picked element resolves to an IFC
+GlobalId, which is the property everything else depends on. 282 tests and 6 repo gates are green. See
+[the roadmap](#roadmap) for what is still scaffolding.
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).
@@ -122,8 +126,8 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 
 | Milestone | Ships | State |
 |---|---|---|
-| M0 | Repo, CI gates, 2D engine bake-off, sample fixtures | 🔨 in progress |
-| M1 | Walking skeleton — load and orbit a model, zero backend | ⏳ |
+| M0 | Repo, CI gates, 2D engine bake-off, sample fixtures | ✅ done |
+| M1 | Walking skeleton — load and orbit a model, zero backend | ✅ done |
 | M2 | `geometry-math` + `commands` published | ⏳ |
 | M3 | `kernel-api` + conformance suite + `RemoteKernel` | ⏳ |
 | M4 | `LocalKernel` — **author offline** | ⏳ |

@@ -1,0 +1,27 @@
+{
+  "name": "@massingviewer/viewport",
+  "version": "0.0.0",
+  "description": "The 3D viewport: imperative three.js rendering of tessellated IFC element geometry, with per-element identity, picking, selection and adaptive pixel ratio.",
+  "license": "MIT",
+  "keywords": ["three", "webgl", "ifc", "bim", "viewport", "aec"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/viewport"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/core": "0.0.0",
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.184.1"
+  }
+}

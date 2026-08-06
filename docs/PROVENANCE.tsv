@@ -30,3 +30,8 @@ apps/web/src/viewer/draft/draftCatalog.ts	de980159585163d11ca88151fbf8e9013c3ba7
 apps/web/src/ui/icons.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/ui-model/src/icons.ts	port	2026-08-06
 apps/web/src/viewer/keysDyn.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	packages/geometry-math/src/shortcuts.ts	port	2026-08-06
 apps/web/src/viewer/toolbarLayout.test.ts	de980159585163d11ca88151fbf8e9013c3ba7b2	docs/pending/toolbarView.test.ts.txt	port	2026-08-06
+apps/web/src/viewer/raf.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/raf.ts	move	2026-08-06
+apps/web/src/viewer/raf.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/raf.test.ts	move	2026-08-06
+apps/web/src/viewer/pixelGovernor.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/pixelGovernor.ts	move	2026-08-06
+apps/web/src/viewer/pixelGovernor.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/pixelGovernor.test.ts	move	2026-08-06
+apps/web/src/viewer/canvasResize.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/canvasResize.test.ts	move	2026-08-06

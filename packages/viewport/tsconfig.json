@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // The one package that owns the DOM and the renderer, so it gets the DOM lib. Everything below it in
+    // the layer stack deliberately does not — see scripts/check-architecture.mjs.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
