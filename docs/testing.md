@@ -29,7 +29,18 @@ findings that only a property test surfaces:
   polygon silently "valid".
 
 Both notes exist because the honest answer to a failing property is sometimes "the property was wrong" — and
-that has to be written down, or the next person re-derives it.
+that has to be written down, or the next person re-derives it. The orientation-determinant note went through
+two rounds for exactly this reason: the first diagnosis blamed subnormal underflow and bounded the
+coordinate magnitudes, and then CI found a second counterexample at 1e-4 on a seed the local run had never
+reached. The real cause is catastrophic cancellation when subtracting nearly-equal coordinates, of which
+underflow was one instance — so the property is now scoped on vertex *separation* rather than magnitude,
+which is the region where a naive determinant can be trusted at all.
+
+**Property runs are seeded by default.** Unseeded, fast-check finds things nobody thought of; it also makes
+the suite pass locally and fail in CI, and a gate that behaves differently in two places gets muted. So PR
+runs are deterministic and reproducible, and exploration moves to a nightly job with `FAST_CHECK_SEED=random`
+that opens an issue with the reproducing seed rather than blocking a PR that did not cause the failure. Run
+`FAST_CHECK_SEED=random npm run test` locally before a release.
 
 ## 2. Kernel conformance — the executable specification
 

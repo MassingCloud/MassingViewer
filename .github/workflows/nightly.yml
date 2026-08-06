@@ -1,0 +1,68 @@
+name: Nightly
+
+# Checks that are valuable but too slow or too non-deterministic to gate a PR on.
+#
+# The split is deliberate and is this repo's stated principle about gates applied to its own CI: a check
+# that fails on some runs and not others gets muted or retried, and then it protects nothing. So anything
+# inherently explorative runs here, where a failure opens an issue rather than blocking someone's PR.
+
+on:
+  schedule:
+    - cron: "40 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  property-explore:
+    name: Property tests, random seed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Explore with a fresh seed
+        id: explore
+        # PR runs are seeded so they are reproducible; this run is not, so it keeps finding cases nobody
+        # thought of. That is exactly how the two real findings in properties.test.ts surfaced — one of
+        # them only in CI, on a seed the local run never reached.
+        env:
+          FAST_CHECK_SEED: random
+        run: npm run test:fast
+
+      - name: Open an issue with the reproducing seed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The seed is printed in the failure output, and `FAST_CHECK_SEED=<seed> npm run test:fast`
+        # reproduces it exactly. Without that the issue would be unactionable, which is how an explorative
+        # job turns into noise.
+        run: |
+          gh issue create \
+            --title "Nightly property test found a counterexample" \
+            --label "bug" \
+            --body "A random-seed property run failed. The log prints \`{ seed: … }\` — reproduce with:
+
+          \`\`\`bash
+          FAST_CHECK_SEED=<seed> npm run test:fast
+          \`\`\`
+
+          Then decide which it is, because both happen and the difference matters:
+
+          - **The code is wrong** — fix it, and add the counterexample as a named example test so it
+            cannot regress.
+          - **The property was wrong** — the invariant does not actually hold in that region. Narrow the
+            property to its true domain and *write down why*, as \`properties.test.ts\` already does for
+            the snap tie-break epsilon and the orientation-determinant cancellation. Silently loosening a
+            property until it passes is how a suite stops meaning anything.
+
+          Run: $RUN_URL"
