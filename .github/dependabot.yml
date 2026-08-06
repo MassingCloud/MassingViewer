@@ -4,6 +4,17 @@ updates:
     directory: /
     schedule: { interval: weekly, day: monday }
     open-pull-requests-limit: 5
+    ignore:
+      # `@types/node` majors track Node majors, and this repo pins Node 24 (.nvmrc, engines).
+      # Typing against a newer major would let code compile against APIs the runtime does not have —
+      # a typecheck that passes and a program that throws, which is worse than a red build.
+      # This moves when .nvmrc moves, not on Dependabot's schedule.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Same coupling, stated once here and enforced by scripts/check-fragments-version.mjs: three,
+      # @thatopen/* and web-ifc move as one verified set, never individually.
+      - dependency-name: "three"
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for the whole coupled 3D stack. These five versions move as a set — see
       # scripts/check-fragments-version.mjs — so five separate PRs would each fail the parity gate and
