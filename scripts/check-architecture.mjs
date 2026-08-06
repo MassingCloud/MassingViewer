@@ -33,7 +33,7 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
 const LAYERS = [
   ["core", "kernel-api", "kernel-conformance"],
   ["geometry-math", "ui-model", "catalog", "jobs"],
-  ["geometry-worker", "ifc", "kernel-local", "kernel-remote"],
+  ["geometry-worker", "ifc", "kernel-local", "kernel-remote", "kernel-memory"],
   ["drawings2d", "markup-ui", "commands", "plugin-host", "assets"],
   ["viewport", "ui-react"],
   ["embed", "cli"],

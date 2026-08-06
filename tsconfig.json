@@ -19,6 +19,12 @@
     },
     {
       "path": "./packages/viewport"
+    },
+    {
+      "path": "./packages/kernel-conformance"
+    },
+    {
+      "path": "./packages/kernel-memory"
     }
   ]
 }

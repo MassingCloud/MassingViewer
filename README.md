@@ -43,7 +43,9 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 
 **What works today:** `npm run dev` loads a real IFC4 building, renders it, orbits/pans/zooms it, and picks
 elements — with no backend, no WASM and no network after first paint. Every picked element resolves to an IFC
-GlobalId, which is the property everything else depends on. 282 tests and 6 repo gates are green. See
+GlobalId, which is the property everything else depends on. There is a published conformance suite and a
+reference kernel that passes it, so writing a kernel is already a supported thing to do. 317 tests and 6 repo
+gates are green. See
 [the roadmap](#roadmap) for what is still scaffolding.
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
@@ -100,6 +102,7 @@ from any host, including massing's own vanilla-DOM app. React appears only in th
 | `@massingviewer/core` | Document model, GUID identity, units |
 | `@massingviewer/kernel-api` | The `KernelProvider` contract |
 | `@massingviewer/kernel-conformance` | The contract suite every kernel must pass |
+| `@massingviewer/kernel-memory` | A reference kernel that passes it — the template for writing your own |
 | `@massingviewer/geometry-math` | Object snapping, polar tracking, dynamic input, CAD command grammar |
 | `@massingviewer/ui-model` | Ribbon and palette layout model — pure data, no DOM |
 | `@massingviewer/catalog` | The parametric element palette |
@@ -129,7 +132,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M0 | Repo, CI gates, 2D engine bake-off, sample fixtures | ✅ done |
 | M1 | Walking skeleton — load and orbit a model, zero backend | ✅ done |
 | M2 | `geometry-math` + `commands` published | ⏳ |
-| M3 | `kernel-api` + conformance suite + `RemoteKernel` | ⏳ |
+| M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 suite + reference kernel done; `RemoteKernel` needs a reachable massing server |
 | M4 | `LocalKernel` — **author offline** | ⏳ |
 | M5 | 2D drawings + markup — **the full loop** | ⏳ |
 | M6 | Authoring tools, gizmos, inspector | ⏳ |
