@@ -173,7 +173,8 @@ all. That is a genuine and underrated accessibility story, and it is worth sayin
 ## Running things
 
 ```bash
-npm run test          # layers 1–3
+npm run test          # layers 1–3, with coverage thresholds enforced
+npm run test:fast     # the same tests without coverage — for the inner loop
 npm run test:watch    # while working
 npm run verify        # lint + typecheck + test + repo gates — what CI runs
 npm run gates         # the repo gates alone

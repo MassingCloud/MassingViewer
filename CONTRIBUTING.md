@@ -20,12 +20,17 @@ npm run dev       # studio with a sample model, no backend needed
 ```bash
 npm run lint        # eslint 10 + oxlint
 npm run typecheck   # tsc --build across project references
-npm run test        # vitest
+npm run test        # vitest, with coverage thresholds
+npm run test:fast   # vitest without coverage — for the inner loop
 npm run verify      # all of the above, plus the repo gates
 ```
 
 `npm run verify` is what CI runs. If it passes locally it passes in CI, with the exception of the
-browser matrix (`npm run e2e`).
+browser matrix.
+
+`npm run test` includes coverage **deliberately**, even though it is slower. The first CI run of this
+repo passed locally and failed in CI on a coverage threshold, because the local script omitted
+`--coverage` while CI included it. A verify script that does not run what CI runs is not a verify script.
 
 ## Repo gates
 
