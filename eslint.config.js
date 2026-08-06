@@ -40,7 +40,7 @@ export default tseslint.config(
     // Node-side code: tests, repo gates, benchmarks, config. These legitimately print to stdout — a gate
     // that cannot report what it found is useless — and they run outside the browser, so the DOM-globals
     // restriction does not apply either.
-    files: ["**/*.test.ts", "scripts/**/*.mjs", "bench/**/*.mjs", "*.config.{ts,js,mjs}"],
+    files: ["**/*.test.ts", "scripts/**/*.mjs", "bench/**/*.mjs", "fixtures/**/*.mjs", "*.config.{ts,js,mjs}"],
     languageOptions: { globals: { ...globals.node } },
     rules: { "no-console": "off", "no-restricted-globals": "off" },
   },

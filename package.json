@@ -32,13 +32,14 @@
     "test:fast": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run gates",
-    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions",
+    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions && npm run gate:fixtures",
     "gate:arch": "node scripts/check-architecture.mjs",
     "gate:license": "node scripts/check-licenses.mjs",
     "gate:provenance": "node scripts/check-provenance.mjs",
     "gate:docs": "node scripts/check-doc-paths.mjs",
     "gate:versions": "node scripts/check-fragments-version.mjs",
-    "bench": "node bench/drawing-engines/bakeoff.mjs && node bench/drawing-engines/edge-cases.mjs"
+    "bench": "node bench/drawing-engines/bakeoff.mjs && node bench/drawing-engines/edge-cases.mjs",
+    "gate:fixtures": "node scripts/check-fixtures.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

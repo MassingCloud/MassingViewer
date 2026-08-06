@@ -97,18 +97,11 @@ edits. That gap closes with one map, because we own the parse. `@ifc-lite/parser
 reverse lookup, so the hedge this ADR said "must be prototyped, not assumed" turns out to be a lookup
 rather than geometry matching.
 
-### Two concrete integration hazards found by running it
+### An integration hazard found by running it
 
-Both would have produced silently wrong identity, which is the worst failure mode available here.
-
-1. **`getExpressIdByGlobalId` returns a ROW INDEX, not an expressID**, despite the name. Verified across
-   three entities: `getGlobalId(getExpressIdByGlobalId(guid)) === guid` holds, but the return value must
-   be used as `expressId[row]` before it can be matched against `DrawingLine.entityId`. Trusting the name
-   yields a mapping that looks plausible and is wrong.
-2. **The columnar arrays hold string-table indices, not strings.** Reading `entities.globalId[i]` directly
-   returns a small integer, which is truthy — the first version of the spike reported "77.6% GlobalId
-   coverage" made entirely of nonsense before the accessors (`getGlobalId(row)`) were used instead. Any
-   adapter must go through the accessors.
+Identity in ifc-lite is **expressID-keyed throughout**, and the columnar table is **row**-indexed. Mixing
+the two returns a different element's data with no error. Details, and a correction to what an earlier
+version of this ADR claimed here, are under "Integration hazards" below.
 
 ### The scope of the question is bigger than this ADR assumed
 
@@ -214,16 +207,35 @@ original decision wanted: the two disagreeing on a golden case is the cheapest b
 we now know exactly where they legitimately differ (coplanar cuts, projection) so a disagreement outside
 those is a real signal.
 
-### Integration hazards found by running it (all three would corrupt identity silently)
+### Integration hazards found by running it (both corrupt identity silently)
 
-1. **`getExpressIdByGlobalId` returns a ROW INDEX, not an expressID**, despite the name. Use
-   `expressId[row]` before matching `DrawingLine.entityId`.
-2. **Columnar arrays hold string-table indices, not strings.** `entities.globalId[i]` is a truthy integer;
-   the first probe reported "77.6% GlobalId coverage" of pure nonsense. Always use the accessors.
-3. **Hidden lines are `visibility: 'hidden'`, not `category: 'hidden'`.** `stats.hiddenLineCount` says 35,
-   and `category` never contains `hidden` — the categories are `cut` and `projection`. A renderer filtering
-   on `category` alone silently drops every hidden line while the stats insist they were produced. The SDM
-   adapter must read **both** fields.
+**1. The columnar arrays are ROW-indexed; the accessors are EXPRESSID-indexed. Mixing them returns another
+element's data, with no error.**
+
+`entities.expressId[]`, `.globalId[]`, `.name[]` are parallel arrays indexed 0..n-1 by row. But
+`getGlobalId(id)`, `getName(id)`, `getTypeName(id)` and `getExpressIdByGlobalId()` all speak **expressID**.
+For `Wall-South` in `fixtures/sample.ifc`: expressID **36**, row **4**. `getGlobalId(36)` is correct;
+`getGlobalId(4)` returns empty. There is no type distinction between the two, so the mistake compiles and
+usually returns *something*.
+
+The arrays also hold **string-table indices, not strings** — `globalId[4]` is the number `13`. Because that
+is truthy, a naive read produces confident nonsense: the first version of the probe reported
+"77.6% GlobalId coverage" made entirely of small integers.
+
+**Correction to an earlier version of this ADR.** It claimed `getExpressIdByGlobalId` returns a row index
+"despite the name". That was wrong, and the ADR asserted it as a verified finding. Checked against ground
+truth read directly out of `fixtures/sample.ifc` — where `#36` is unambiguously `Wall-South` — the function
+returns **36**, i.e. an expressID, and is correctly named. The original probe had called `getGlobalId(row)`
+and compared the answer against that row's `expressId`, which is comparing two different entities. The
+round-trip `getGlobalId(getExpressIdByGlobalId(g)) === g` holds.
+
+The underlying hazard is real and is arguably worse than the one first written down, because it applies to
+every accessor rather than one function. The correct rule: **never index the columnar arrays and pass the
+result to an accessor.** Go expressID-to-expressID throughout.
+
+**2. Hidden lines are `visibility: 'hidden'`, not `category: 'hidden'`.** `stats.hiddenLineCount` reports 35,
+and `category` only ever contains `cut` and `projection`. A renderer filtering on `category` alone silently
+drops every hidden line while the stats insist they were produced. The SDM adapter must read **both** fields.
 
 ### Consequences
 

@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 // splitting the run would let a package pass in isolation while violating a layering rule.
 export default defineConfig({
   test: {
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "scripts/**/*.test.mjs"],
+    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "fixtures/**/*.test.ts", "scripts/**/*.test.mjs"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     environment: "node",
     // Only the packages that touch the DOM opt into happy-dom, via `// @vitest-environment happy-dom`
