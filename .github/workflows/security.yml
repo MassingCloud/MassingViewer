@@ -26,21 +26,45 @@ jobs:
           # Full history: a secret committed and then removed in a later commit is still in the pack, and
           # a shallow clone cannot see it.
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+          persist-credentials: false
+
+      # Runs the gitleaks BINARY (MIT) rather than gitleaks/gitleaks-action.
+      #
+      # The action refuses to run on an organisation-owned repository without a paid license key —
+      # "[MassingCloud] is an organization. License key is required." The scanner itself is MIT and has no
+      # such restriction, so invoking it directly keeps the gate free, keeps it working, and removes a
+      # commercial dependency from the security path. It also fits this repo's license posture
+      # (docs/adr/0003-license-posture.md): a required gate should not sit behind someone's billing.
+      - name: Install gitleaks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
-          # A hard gate, not a report. massing's equivalent is green with five triaged historical
-          # fingerprints in a .gitleaksignore; this repo starts clean with an EMPTY ignore list, which is
-          # only possible because we did not import filtered history
-          # (docs/adr/0005-clean-history-with-provenance-ledger.md). Keep it empty: an ignore entry needs a
-          # written reason, the same discipline as a license exception.
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Scan full history
+        # A hard gate, not a report. massing's equivalent is green with five triaged historical
+        # fingerprints in a .gitleaksignore; this repo starts clean with an EMPTY ignore list, which is
+        # only possible because we did not import filtered history
+        # (docs/adr/0005-clean-history-with-provenance-ledger.md). Keep it empty: an ignore entry needs a
+        # written reason, the same discipline as a license exception.
+        run: gitleaks git --redact --verbose --exit-code 1 .
+
+      - name: Scan the working tree
+        # `git` mode walks commits; `dir` mode reads files as they are on disk. An untracked or
+        # newly-staged secret is only visible to the second.
+        run: gitleaks dir --redact --verbose --exit-code 1 .
 
   audit:
     name: npm audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
@@ -52,11 +76,11 @@ jobs:
   sbom:
     name: SBOM
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # keyless cosign signing
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
@@ -79,12 +103,19 @@ jobs:
           name: sbom
           path: sbom.cdx.json
           retention-days: 90
+        # NOT signed yet. Keyless cosign signing needs `id-token: write`, and granting an elevated
+        # permission for something not actually done is the kind of drift zizmor flags — so the
+        # permission is absent until the signing step exists. Signing lands with the release workflow,
+        # where the SBOM is attached to a tag and the signature has somewhere to live.
 
   workflow-lint:
     name: zizmor
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
       - name: Lint workflows for injection and permission problems
         # Catches the classes of mistake that are invisible in review: unpinned actions, template
         # injection via `${{ github.event.* }}` in a `run:` block, and over-broad `permissions`.
