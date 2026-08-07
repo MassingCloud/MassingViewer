@@ -104,7 +104,37 @@ test.beforeEach(async ({ page }) => {
     if (m.type() === "error") errors.push(m.text());
   });
   await page.goto("/");
-  await page.waitForFunction(() => window.__massingviewer !== undefined, undefined, { timeout: 30_000 });
+
+  // A bare `waitForFunction` reports "timeout exceeded" for every possible cause, which is the same ambiguity
+  // this whole suite exists to remove — a Firefox CI run failed all thirteen tests this way, and the log said
+  // nothing about why. So a missing hook is turned into a diagnosis: what the page logged, and whether the
+  // browser could give us WebGL at all, which is the difference between "the app is broken" and "this browser
+  // has no renderer".
+  try {
+    await page.waitForFunction(() => window.__massingviewer !== undefined, undefined, { timeout: 20_000 });
+  } catch (cause) {
+    const probe = await page
+      .evaluate(() => {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+        return {
+          webgl: gl === null ? "UNAVAILABLE" : gl.getParameter(gl.VERSION),
+          hasCanvas: document.querySelector("#viewport canvas") !== null,
+          body: (document.body.textContent ?? "").trim().slice(0, 160),
+        };
+      })
+      .catch((e: Error) => ({ webgl: `probe failed: ${e.message}`, hasCanvas: false, body: "" }));
+
+    throw new Error(
+      `the app never set window.__massingviewer.\n` +
+        `  WebGL:       ${String(probe.webgl)}\n` +
+        `  canvas in DOM: ${probe.hasCanvas}\n` +
+        `  page errors: ${errors.length > 0 ? errors.join("\n               ") : "(none reported)"}\n` +
+        `  visible text: ${probe.body || "(empty)"}`,
+      { cause },
+    );
+  }
+
   // Asserted per-test rather than at the end: an exception during init leaves the app in a state where every
   // later assertion fails confusingly, and the console error is the real finding.
   expect(errors, "console errors during load").toEqual([]);

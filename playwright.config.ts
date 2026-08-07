@@ -80,7 +80,25 @@ export default defineConfig({
         },
       },
     },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: {
+          // Headless Firefox on a GPU-less CI runner refuses WebGL by default, and the symptom is not an error
+          // — the renderer simply fails to construct, the app never finishes initialising, and every test times
+          // out saying nothing. These three prefs are what make it fall back to software rendering.
+          //
+          // Unlike the Chromium project this does *not* pin a specific rasteriser, so Firefox is a functional
+          // check only. Pixel comparisons across browsers are explicitly not attempted — see docs/testing.md.
+          firefoxUserPrefs: {
+            "webgl.force-enabled": true,
+            "webgl.disabled": false,
+            "webgl.disable-fail-if-major-performance-caveat": true,
+          },
+        },
+      },
+    },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
     {
       name: "ipad",
