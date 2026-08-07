@@ -17,8 +17,8 @@ import type {
   Transaction,
 } from "@massingviewer/kernel-api";
 import { kernelFailure, unsupported } from "@massingviewer/kernel-api";
-import type { KernelRequest, KernelRequestBody, KernelResponse, KernelTransport } from "./protocol";
-import { UNSUPPORTED_HINT } from "./ops";
+import type { KernelRequest, KernelRequestBody, KernelResponse, KernelTransport } from "./protocol.js";
+import { UNSUPPORTED_HINT } from "./ops.js";
 
 /**
  * `LocalKernel` — the `KernelProvider` callers see.

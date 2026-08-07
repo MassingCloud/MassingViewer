@@ -7,7 +7,7 @@
  * it into the middle of the current polyline and draw a wall nobody clicked.
  */
 import { describe, expect, it } from "vitest";
-import { DraftPointHistory } from "./draftHistory";
+import { DraftPointHistory } from "./draftHistory.js";
 
 describe("DraftPointHistory", () => {
   it("undo pops LIFO and mutates the caller's array — one array, one truth", () => {

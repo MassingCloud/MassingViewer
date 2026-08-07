@@ -1,4 +1,4 @@
-import { type StepValue, unquote } from "./value";
+import { type StepValue, unquote } from "./value.js";
 
 /**
  * A located entity instance: `#42=IFCWALL(...);`

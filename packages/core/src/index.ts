@@ -18,7 +18,7 @@ export {
   sameElement,
   refKey,
   resolveRefs,
-} from "./identity";
+} from "./identity.js";
 export type {
   Guid,
   LocalId,
@@ -26,7 +26,7 @@ export type {
   ElementRef,
   ModelIdMap,
   ResolveOutcome,
-} from "./identity";
+} from "./identity.js";
 
 export {
   // Units — metres internally, always
@@ -38,8 +38,8 @@ export {
   METRIC,
   METRIC_MM,
   IMPERIAL,
-} from "./units";
-export type { LengthUnit, UnitSystem } from "./units";
+} from "./units.js";
+export type { LengthUnit, UnitSystem } from "./units.js";
 
 export {
   // Result — refusals are values, bugs are exceptions
@@ -51,5 +51,5 @@ export {
   unwrap,
   attempt,
   attemptAsync,
-} from "./result";
-export type { Result, Failure } from "./result";
+} from "./result.js";
+export type { Result, Failure } from "./result.js";

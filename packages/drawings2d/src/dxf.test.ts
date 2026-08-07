@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { asGuid, type Guid } from "@massingviewer/core";
-import { ARCHITECTURAL, FIRE_SAFETY } from "./theme";
-import { PAPER_SIZES, fitToPaper } from "./paper";
-import { generatePlan } from "./plan";
-import { makeDrawing, type DrawingEntity } from "./model";
-import { dxfLimitations, toDxf } from "./dxf";
-import { toSvg } from "./svg";
-import type { ElementMesh } from "./provider";
+import { ARCHITECTURAL, FIRE_SAFETY } from "./theme.js";
+import { PAPER_SIZES, fitToPaper } from "./paper.js";
+import { generatePlan } from "./plan.js";
+import { makeDrawing, type DrawingEntity } from "./model.js";
+import { dxfLimitations, toDxf } from "./dxf.js";
+import { toSvg } from "./svg.js";
+import type { ElementMesh } from "./provider.js";
 
 /**
  * ## What these tests do and do not prove

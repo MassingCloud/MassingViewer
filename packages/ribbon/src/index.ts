@@ -9,5 +9,5 @@
 // width all live in `@massingviewer/ui-model`, so massing's renderer and this one cannot disagree about where
 // a tool is.
 
-export { createRibbon } from "./ribbon";
-export type { Ribbon, RibbonHandlers, RibbonOptions } from "./ribbon";
+export { createRibbon } from "./ribbon.js";
+export type { Ribbon, RibbonHandlers, RibbonOptions } from "./ribbon.js";

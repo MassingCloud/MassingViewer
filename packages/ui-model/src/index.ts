@@ -20,15 +20,15 @@ export {
   describe,
   TOOL_ICON,
   iconFor,
-} from "./toolbarLayout";
-export type { ToolContext, ToolGroup, ToolSpec } from "./toolbarLayout";
+} from "./toolbarLayout.js";
+export type { ToolContext, ToolGroup, ToolSpec } from "./toolbarLayout.js";
 
 // The vendored monoline icon set (Lucide, ISC — attribution in THIRD-PARTY-NOTICES.md), as pure path
 // data. It lives here rather than in the React shell so that "every icon this toolbar names is one we
 // actually vendored" is assertable within one package. A typo in the icon map renders *nothing*, which
 // is visually indistinguishable from "this button has no icon yet" — so it has to be a build failure.
-export { ICONS, hasIcon } from "./icons";
-export type { IconName } from "./icons";
+export { ICONS, hasIcon } from "./icons.js";
+export type { IconName } from "./icons.js";
 
 export {
   TABS,
@@ -43,7 +43,7 @@ export {
   reachableIn,
   tabsWithContent,
   toolId,
-} from "./ribbon";
+} from "./ribbon.js";
 export type {
   Availability,
   ItemSize,
@@ -52,4 +52,4 @@ export type {
   RibbonItem,
   RibbonLayout,
   TabId,
-} from "./ribbon";
+} from "./ribbon.js";

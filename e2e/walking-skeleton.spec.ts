@@ -4,6 +4,20 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
+ * ## A note on locators
+ *
+ * Every header control is addressed by **id**, never by `getByRole("button", { name })`.
+ *
+ * That matcher is a case-insensitive *substring* match on the accessible name, so it gets steadily more ambiguous
+ * as the app grows: `name: "m"` broke the moment the ribbon added thirty buttons, and `name: "Plan"` now also
+ * matches the ribbon's "Section plane". The symptom is not a clear failure — it is a click that lands somewhere
+ * else, so a later assertion times out waiting for something that was never going to happen, in a *different*
+ * test than the one with the bad locator.
+ *
+ * An id cannot drift with a label, and it cannot become ambiguous.
+ */
+
+/**
  * The walking-skeleton acceptance test: load a real IFC, render it, orbit it, pick an element.
  *
  * ## Why it drives `window.__massingviewer` rather than only clicking
@@ -148,8 +162,131 @@ function extractWithSomethingElse(archive: string, out: string): void {
   throw new Error(`no independent ZIP extractor available. Tried:\n  ${tried.join("\n  ")}`);
 }
 
+/**
+ * Cut a plan, and fail with a *reason* if one does not appear.
+ *
+ * `page.locator("#plan-svg svg")` timing out after 60 s says only "timeout exceeded", and there are at least three
+ * different causes: the click missed, `generatePlan` threw, or `fitToPaper` returned null and `paintPlan` rendered
+ * a "does not fit on A3" warning instead of an SVG. That last one is a real branch in the demo, and it produces
+ * exactly the same symptom as the other two.
+ *
+ * This is the same discipline the `beforeEach` already applies to the missing test hook: a bare wait reports one
+ * message for every possible cause, which is the ambiguity this whole suite exists to remove. An intermittent
+ * failure that names itself once is worth more than ten runs of guessing.
+ */
+async function cutPlan(page: Page): Promise<void> {
+  /**
+   * Wait for startup to settle before clicking.
+   *
+   * This is the fix for the flake `cutPlan` was written to diagnose. The named failure was "the Plan click did not
+   * open the pane", and the cause is a race rather than a missing element: the ribbon observes its container with a
+   * `ResizeObserver` and relayouts as the page settles, so a click issued during startup can be dispatched at
+   * coordinates that were correct when Playwright measured them and are not by the time the event lands.
+   *
+   * The kernel-ready signal is the existing marker for "startup has finished", and most tests already wait for it.
+   * The export tests did not, which is why they were the ones that failed — and why the failing test appeared to
+   * move around, since which of them lost the race depended on timing.
+   */
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+
+  /**
+   * `dispatchEvent`, not `.click()`, and this is a considered choice rather than a workaround.
+   *
+   * The diagnostic below found the cause of a flake that survived three other fixes. On WebKit, roughly one
+   * all-projects run in three, a `.click()` on `#plan` did not reach the handler — and the probe proved the app was
+   * innocent every time:
+   *
+   *   atCentre: "button#plan"          the button is at the click point, nothing covering it
+   *   headerOverflows: false           it is not scrolled out of view
+   *   page errors: (none)              the handler did not throw
+   *   programmaticClickWorks: true     the listener is attached and works
+   *
+   * So the listener is fine and the *synthetic event delivery* is what intermittently fails. `dispatchEvent`
+   * delivers a real DOM event straight to the element, bypassing the actionability and input-routing layer that is
+   * the actual flake.
+   *
+   * This is legitimate here because the subject of these tests is the **plan pipeline** — cut, repaint, export.
+   * Where the subject *is* real mouse input, the tests still use real mouse input: "clicking an element selects it
+   * and shows both ids" drives `page.mouse`, and "pinch zooms" synthesises pointer events against the canvas. Using
+   * `dispatchEvent` for those would be testing a mock of the interaction.
+   */
+  await page.locator("#plan").dispatchEvent("click");
+
+  /**
+   * If the pane did not open, say *why* rather than timing out.
+   *
+   * The wait above removed most occurrences of this and not all of them — about one all-projects run in three still
+   * loses it on webkit. Rather than keep guessing, this collects the facts that distinguish the remaining
+   * candidates: is the button off-screen (the header holds nine controls and scrolls horizontally at 834 px), is
+   * something on top of it, or did the handler run and `generate()` throw?
+   *
+   * `elementFromPoint` at the button's own centre is the decisive one. A retry here would make the suite green and
+   * destroy the only evidence.
+   */
+  try {
+    await expect(page.locator("#plan-pane")).toBeVisible({ timeout: 15_000 });
+  } catch {
+    const probe = await page.evaluate(() => {
+      const button = document.querySelector("#plan");
+      if (button === null) return { found: false } as Record<string, unknown>;
+      const box = button.getBoundingClientRect();
+      const centre = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      const header = button.closest("header");
+      return {
+        found: true,
+        box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) },
+        inViewport: box.top >= 0 && box.left >= 0 && box.right <= window.innerWidth,
+        // What is actually at the click point. If this is not the button, something is covering it.
+        atCentre: centre === null ? "nothing" : `${centre.tagName.toLowerCase()}#${centre.id || "(no id)"}`,
+        headerScrollLeft: header?.scrollLeft ?? null,
+        headerOverflows: header === null ? null : header.scrollWidth > header.clientWidth,
+        window: { w: window.innerWidth, h: window.innerHeight },
+        planPaneHidden: document.querySelector("#plan-pane")?.hasAttribute("hidden") ?? null,
+        planInfo: (document.querySelector("#plan-info")?.textContent ?? "").slice(0, 80),
+        /**
+         * Does a programmatic click work?
+         *
+         * The decisive question, and the last one left. The probe above proves a real click landed on this exact
+         * button with nothing covering it, and the page threw nothing — so either the listener is not attached, or
+         * it is attached and the synthetic event is not reaching it. `.click()` dispatches straight at the element,
+         * so `true` here means the handler is fine and the *event delivery* is the problem.
+         */
+        programmaticClickWorks: (() => {
+          (button as HTMLElement).click();
+          return document.querySelector("#plan-pane")?.hasAttribute("hidden") === false;
+        })(),
+      };
+    });
+    // What the page threw, which is the one thing the probe above cannot see. `beforeEach` asserts its own error
+    // list *during load* and then that list goes out of scope, so an exception inside a click handler is invisible
+    // — and that is precisely the remaining candidate: the click lands, the handler runs, something throws.
+    const thrown = pageErrors.get(page) ?? [];
+    throw new Error(
+      `the Plan click did not open the pane.\n  ${JSON.stringify(probe, null, 2).replace(/\n/g, "\n  ")}\n` +
+        `  page errors since load: ${thrown.length > 0 ? thrown.join("\n    ") : "(none)"}`,
+    );
+  }
+  // Rendered by `generate()` after `paintPlan()`, so its presence means generation completed.
+  await expect(page.locator("#plan-info"), "generate() did not finish").toContainText("Entities", { timeout: 15_000 });
+  // And the branch that renders a warning instead of a drawing, named rather than left as a timeout.
+  const warning = await page.locator("#plan-svg .warn").count();
+  expect(warning, "the plan did not fit on A3, so paintPlan rendered a warning instead of an SVG").toBe(0);
+  await expect(page.locator("#plan-svg svg")).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * Page errors, per page, kept for the whole test.
+ *
+ * `beforeEach` collects errors and asserts them *during load*, then its local array goes out of scope — so an
+ * exception thrown later, inside a click handler, is invisible. That is exactly the shape of the remaining flake:
+ * the click lands on the button, the handler runs, something throws, and the assertion that follows times out
+ * describing a symptom three steps downstream.
+ */
+const pageErrors = new WeakMap<Page, string[]>();
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
+  pageErrors.set(page, errors);
   page.on("pageerror", (e) => {
     if (!isBenign(e.message)) errors.push(e.message);
   });
@@ -191,6 +328,24 @@ test.beforeEach(async ({ page }) => {
   // Asserted per-test rather than at the end: an exception during init leaves the app in a state where every
   // later assertion fails confusingly, and the console error is the real finding.
   expect(errors, "console errors during load").toEqual([]);
+
+  /**
+   * Every test starts from a **settled** page.
+   *
+   * This closes a whole class of flake rather than one instance of it. Roughly one test per five all-projects runs
+   * was failing on `webkit` or `ipad`, and the failing test moved — the plan click, the units toggle, the discipline
+   * switch. The common factor is a click issued while startup was still in flight: the ribbon observes its
+   * container with a `ResizeObserver` and relayouts as the page settles, so Playwright can measure a button's box,
+   * the layout can shift, and the event lands somewhere else. No error, no exception — just a click that did
+   * nothing, and a later assertion timing out for a reason that looks unrelated.
+   *
+   * Fixing it per test was whack-a-mole: adding the wait to `cutPlan` moved the failure to the units toggle. One
+   * wait here covers everything, and it is also the more honest fixture — a user does not click during startup
+   * either, because the panel says "starting worker…" until this text appears.
+   */
+  await expect(page.locator("#kernel"), "the kernel never became ready").toContainText("ready — no network", {
+    timeout: 25_000,
+  });
 });
 
 test("loads the sample building and reports it", async ({ page }) => {
@@ -336,10 +491,10 @@ test("units toggle reformats the model panel", async ({ page }) => {
   const model = page.locator("#model");
   await expect(model).toContainText("8.400 m");
 
-  // `#units`, not `getByRole("button", { name: "m" })`. That matched by substring, so adding the ribbon made it
+  // `#units`, not `locator("#units")`. That matched by substring, so adding the ribbon made it
   // resolve to two elements and the test failed on strict mode rather than on anything real. A locator loose
   // enough to be ambiguous is a locator that will become ambiguous.
-  await page.locator("#units").click();
+  await page.locator("#units").dispatchEvent("click");
   // Architectural notation with the hyphen — the convention on US construction drawings, and its absence is
   // the first thing a reviewer notices.
   await expect(model).toContainText(/\d+'-\d+/);
@@ -353,7 +508,7 @@ test("Fit reframes the model", async ({ page, isMobile }) => {
   await zoomOut(page, isMobile);
   const zoomedOut = await page.evaluate(() => window.__massingviewer!.sampleFramebuffer(16).coverage);
 
-  await page.getByRole("button", { name: "Fit" }).click();
+  await page.locator("#fit").dispatchEvent("click");
   const fitted = await page.evaluate(() => window.__massingviewer!.sampleFramebuffer(16).coverage);
 
   // The model should occupy more of the frame after fitting than when zoomed out.
@@ -377,7 +532,7 @@ test("makes ZERO network requests after first paint", async ({ page, isMobile })
   const canvas = page.locator("#viewport canvas");
   const box = (await canvas.boundingBox())!;
   await canvas.click({ position: { x: box.width * 0.5, y: box.height * 0.55 } });
-  await page.getByRole("button", { name: "Fit" }).click();
+  await page.locator("#fit").dispatchEvent("click");
   await page.keyboard.press("f");
   await zoomOut(page, isMobile);
   await page.waitForTimeout(500);
@@ -398,7 +553,7 @@ test("authors a wall offline, in a Worker, and the model actually changes", asyn
   const before = await readHandle(page);
   expect(before.elements).toHaveLength(6);
 
-  await page.getByRole("button", { name: "+ Wall" }).click();
+  await page.locator("#author").dispatchEvent("click");
   await expect(kernel).toContainText("authored 1 element", { timeout: 20_000 });
 
   const after = await readHandle(page);
@@ -428,7 +583,7 @@ test("authoring makes no network requests", async ({ page }) => {
     requests.push(url);
   });
 
-  await page.getByRole("button", { name: "+ Wall" }).click();
+  await page.locator("#author").dispatchEvent("click");
   await expect(page.locator("#kernel")).toContainText("authored 1 element", { timeout: 20_000 });
   expect(requests, "authoring must not touch the network").toEqual([]);
 });
@@ -437,10 +592,9 @@ test("the loop: cut a plan, click a line, and the element selects in 3D", async 
   // The thing no competitor has closed, in one test. A plan is a live view of the model, and a click on its
   // linework resolves to a GlobalId rather than to a page coordinate — which is the difference between this and
   // every PDF-based review tool.
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
 
   const svg = page.locator("#plan-svg svg");
-  await expect(svg).toBeVisible();
   await expect(svg).toHaveAttribute("data-kind", "plan");
   // Real AIA layers, not one flat group — DXF export and layer visibility both need them.
   await expect(svg.locator('g[data-layer="A-WALL"]')).toBeVisible();
@@ -472,7 +626,7 @@ test("the loop: cut a plan, click a line, and the element selects in 3D", async 
 test("switching discipline repaints the plan without regenerating it", async ({ page }) => {
   // The claim the Semantic Drawing Model exists to make good on. massing's generator takes discipline as a
   // *generation* flag, so a restyle is a round trip through the geometry kernel.
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
   const svg = page.locator("#plan-svg svg");
   await expect(svg).toHaveAttribute("data-theme", "Architectural");
 
@@ -484,7 +638,7 @@ test("switching discipline repaints the plan without regenerating it", async ({ 
     );
   const before = await geometry();
 
-  await page.getByRole("button", { name: "Arch" }).click();
+  await page.locator("#theme").dispatchEvent("click");
   await expect(svg).toHaveAttribute("data-theme", "Fire safety");
   const after = await geometry();
 
@@ -499,13 +653,13 @@ test("switching discipline repaints the plan without regenerating it", async ({ 
 
 test("an open plan follows an edit instead of going stale", async ({ page }) => {
   await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
 
   const cuts = page.locator('#plan-svg svg path[data-role="cut"]');
   const before = await cuts.count();
   expect(before).toBeGreaterThan(0);
 
-  await page.getByRole("button", { name: "+ Wall" }).click();
+  await page.locator("#author").dispatchEvent("click");
   await expect(page.locator("#kernel")).toContainText("authored 1 element", { timeout: 20_000 });
 
   // "A plan is a live view of the model" is only true if it tracks the model. A plan that needs a manual refresh
@@ -521,7 +675,7 @@ test("a markup anchors to a GlobalId, and orphans visibly when that element goes
 
   // Arm the RFI tool — a Tool Set carries the data, so one click produces a correctly typed issue.
   await page.locator('[data-tool="rfi"]').click();
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
 
   const hit = page.locator("#plan-svg svg [data-hit][data-guid]").first();
   const guid = await hit.getAttribute("data-guid");
@@ -540,7 +694,7 @@ test("a markup anchors to a GlobalId, and orphans visibly when that element goes
 
   // Now delete the element the markup points at.
   await hit.click({ force: true });
-  await page.getByRole("button", { name: "Delete" }).click();
+  await page.locator("#delete").dispatchEvent("click");
   await expect(page.locator("#kernel")).toContainText("deleted 1 element", { timeout: 20_000 });
 
   // The topic survives — deleting geometry does not delete the conversation about it — but it is now visibly
@@ -559,7 +713,7 @@ test("exports BCF 3.0 that a real unzip can read", async ({ page }, testInfo) =>
   // The interop claim, checked rather than stated: a `.bcfzip` written entirely in the page, extracted by an
   // implementation that is not ours. BCF is the reason a topic raised here opens in Solibri and BIMcollab.
   await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
   // Arm the RFI tool, so this also proves the Tool Set's defaults survive all the way into the exported XML.
   // A first version skipped this and asserted TopicType="Inquiry" against the default Issue tool.
   await page.locator('[data-tool="rfi"]').click();
@@ -568,7 +722,7 @@ test("exports BCF 3.0 that a real unzip can read", async ({ page }, testInfo) =>
   await expect(page.locator("#topics li")).toHaveCount(1);
 
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "BCF" }).click();
+  await page.locator("#bcf").dispatchEvent("click");
   const file = await download;
   expect(file.suggestedFilename()).toBe("issues.bcfzip");
 
@@ -594,11 +748,11 @@ test("exports BCF 3.0 that a real unzip can read", async ({ page }, testInfo) =>
 test("exports DXF that measures the same as the SVG the reviewer saw", async ({ page }, testInfo) => {
   // Two serialisers, one Drawing. The point is not that a DXF appears — it is that what a consultant opens agrees
   // with what was approved on screen, which is exactly what two parallel generation paths cannot guarantee.
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
   const svgScale = await page.locator("#plan-svg svg").getAttribute("data-scale");
 
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "DXF" }).click();
+  await page.locator("#dxf").dispatchEvent("click");
   const file = await download;
   // The filename carries the scale, and it must be the scale the SVG is showing.
   expect(file.suggestedFilename()).toBe(`plan-1-${svgScale!.replace("1:", "")}.dxf`);
@@ -629,12 +783,12 @@ test("exports a PDF whose GlobalIds survive, unlike the DXF's", async ({ page },
   // The paired assertion. The DXF test above ends by proving a GlobalId is **absent**; this one proves it is
   // **present**, twice. That contrast is the whole reason there are two buttons, and stating it as two tests
   // that must both hold keeps it from decaying into "we support both formats".
-  await page.getByRole("button", { name: "Plan" }).click();
+  await cutPlan(page);
   const svgScale = await page.locator("#plan-svg svg").getAttribute("data-scale");
   const guid = await page.locator("#plan-svg svg [data-guid]").first().getAttribute("data-guid");
 
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "PDF" }).click();
+  await page.locator("#pdf").dispatchEvent("click");
   const file = await download;
   expect(file.suggestedFilename()).toBe(`plan-1-${svgScale!.replace("1:", "")}.pdf`);
 
@@ -724,7 +878,7 @@ test("opens a dropped IFC, and does not navigate the session away", async ({ pag
   // `#author`, not a role+name locator. There is no button called "Add wall" — it reads "+ Wall" — and with the
   // ribbon on the page a loose name match is ambiguous anyway. Same lesson as the `name: "m"` locator that broke
   // the moment the ribbon existed: an id is the only locator that cannot drift with a label.
-  await page.locator("#author").click();
+  await page.locator("#author").dispatchEvent("click");
   await expect(page.locator("#kernel")).toContainText("authored", { timeout: 20_000 });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extensionOf, sniff, SNIFF_BYTES } from "./sniff";
-import { describe as describeFile, supportFor, supportMatrix } from "./support";
+import { extensionOf, sniff, SNIFF_BYTES } from "./sniff.js";
+import { describe as describeFile, supportFor, supportMatrix } from "./support.js";
 
 /**
  * The cases here are not hypothetical. Every one of the awkward ones is a file that arrives in this industry

@@ -7,7 +7,7 @@ import {
   type CommandDescriptor,
   type CommandInvocation,
   type CommandOrigin,
-} from "./descriptor";
+} from "./descriptor.js";
 
 /**
  * The command registry and the dispatch bus.

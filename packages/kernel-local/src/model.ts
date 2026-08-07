@@ -1,6 +1,6 @@
 import { type EntityTable, type StepValue, integer, list, real, ref, str } from "@massingviewer/ifc";
 import type { Guid } from "@massingviewer/core";
-import type { GuidMinter } from "./guid";
+import type { GuidMinter } from "./guid.js";
 
 /**
  * An IFC model being authored: the entity table, plus the handful of things you need to find before you can

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_OPTS, RATIO_STEPS, attachPixelGovernor, initialState, shadowFrustum, snapRatio,
   step, texelSize,
-} from "./pixelGovernor";
+} from "./pixelGovernor.js";
 
 /** Feed n identical frame samples through the governor. */
 function run(frameMs: number, n: number, max = 2, s = initialState(max)) {

@@ -6,7 +6,7 @@ import {
   isLoadable,
   normaliseChord,
   validateManifest,
-} from "./manifest";
+} from "./manifest.js";
 
 /**
  * The host: registration, dependency-ordered lazy activation, and the property that matters most —

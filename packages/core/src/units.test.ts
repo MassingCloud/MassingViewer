@@ -9,7 +9,7 @@ import {
   isImperial,
   parseLength,
   toMetres,
-} from "./units";
+} from "./units.js";
 
 describe("conversion", () => {
   it("is exact for the imperial definitions", () => {

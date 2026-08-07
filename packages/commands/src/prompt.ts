@@ -6,7 +6,7 @@ import {
   type CommandDescriptor,
   type CommandInvocation,
   type CommandOrigin,
-} from "./descriptor";
+} from "./descriptor.js";
 
 /**
  * The prompt loop, as a **pure reducer**.

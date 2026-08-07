@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { asModelId, isGuid } from "@massingviewer/core";
 import { EntityTable } from "@massingviewer/ifc";
-import { LocalKernelCore } from "./core";
-import { LocalModel } from "./model";
-import { compressUuid, countingGuidMinter, decompressUuid, randomGuidMinter } from "./guid";
-import { BLANK_IFC4 } from "./blank";
+import { LocalKernelCore } from "./core.js";
+import { LocalModel } from "./model.js";
+import { compressUuid, countingGuidMinter, decompressUuid, randomGuidMinter } from "./guid.js";
+import { BLANK_IFC4 } from "./blank.js";
 
 const SAMPLE = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/sample.ifc"),

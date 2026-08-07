@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { sunAltAz, sunSceneDir } from "./solar";
+import { sunAltAz, sunSceneDir } from "./solar.js";
 
 describe("solar", () => {
   it("sun is high near solar noon on the equinox at the equator", () => {

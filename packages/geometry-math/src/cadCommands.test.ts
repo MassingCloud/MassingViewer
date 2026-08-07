@@ -2,7 +2,7 @@
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 
 import { describe, expect, it } from "vitest";
-import { cadCommandList, parseCadCommand } from "./cadCommands";
+import { cadCommandList, parseCadCommand } from "./cadCommands.js";
 
 describe("CADCMD grammar", () => {
   it("parses WALL with two points + default height", () => {

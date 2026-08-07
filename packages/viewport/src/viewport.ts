@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { frameLoop } from "./raf";
-import { attachPixelGovernor, initialState } from "./pixelGovernor";
-import { decideResize, observeSize, type Size } from "./resize";
-import { buildScene, disposeScene, elementIndex, type BuildResult, type GuidResolver, type SourceMesh } from "./meshes";
+import { frameLoop } from "./raf.js";
+import { attachPixelGovernor, initialState } from "./pixelGovernor.js";
+import { decideResize, observeSize, type Size } from "./resize.js";
+import { buildScene, disposeScene, elementIndex, type BuildResult, type GuidResolver, type SourceMesh } from "./meshes.js";
 import type { ModelId } from "@massingviewer/core";
 
 /**

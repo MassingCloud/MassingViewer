@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ok } from "@massingviewer/core";
-import type { CommandContext, CommandDescriptor } from "./descriptor";
-import { begin, step, toInvocation, type PromptEvent, type PromptState } from "./prompt";
+import type { CommandContext, CommandDescriptor } from "./descriptor.js";
+import { begin, step, toInvocation, type PromptEvent, type PromptState } from "./prompt.js";
 
 /**
  * The prompt loop.

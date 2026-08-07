@@ -1,4 +1,4 @@
-import { TOOLS, type ToolContext, type ToolSpec } from "./toolbarLayout";
+import { TOOLS, type ToolContext, type ToolSpec } from "./toolbarLayout.js";
 
 /**
  * The ribbon's layout model: which tools exist, how they group, and how groups collapse at a given width.

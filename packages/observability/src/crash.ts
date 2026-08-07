@@ -1,4 +1,4 @@
-import { redact, redactValue } from "./redact";
+import { redact, redactValue } from "./redact.js";
 
 /**
  * Crash reporting, with the sink inverted.

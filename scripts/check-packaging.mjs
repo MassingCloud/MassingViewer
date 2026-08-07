@@ -18,6 +18,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -47,6 +48,9 @@ function shipped(manifest, rel) {
 const problems = [];
 let checked = 0;
 
+/** Published package names, gathered during the static pass and reused by the load pass below. */
+const published = [];
+
 const packagesDir = join(ROOT, "packages");
 if (!existsSync(packagesDir)) {
   console.log("no packages/ directory yet — nothing to check");
@@ -62,6 +66,7 @@ for (const name of readdirSync(packagesDir)) {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   if (manifest.private === true) continue; // not published; nothing to promise
   checked++;
+  published.push(name);
 
   const where = `packages/${name}/package.json`;
   const tsconfigPath = join(dir, "tsconfig.json");
@@ -194,6 +199,43 @@ for (const name of readdirSync(packagesDir)) {
   }
 }
 
+/**
+ * Does the built ESM actually *load*?
+ *
+ * The static checks above confirm an entry file exists. They do not confirm it *resolves* — and it did not. Every
+ * one of the eighteen published packages failed `import()` in Node with `ERR_MODULE_NOT_FOUND`, because `tsc`
+ * emits specifiers verbatim and the sources used extensionless relative imports (`from "./model"`). That output is
+ * resolvable by a bundler and by nothing else.
+ *
+ * So `npm install @massingviewer/core` followed by `node --input-type=module -e "import('@massingviewer/core')"`
+ * was broken from the first release, and nothing here could see it: the test run resolves workspace packages to
+ * *source* via a Vitest alias, deliberately, and that alias is exactly what hides this class of defect.
+ *
+ * Loading each entry is the only check that catches it. Skipped when `dist` is absent so the gate still works on
+ * an unbuilt tree — and the count of skipped packages is *printed*, because a check that silently examined nothing
+ * is the failure mode every other gate in this repo is written against.
+ */
+let loaded = 0;
+let unbuilt = 0;
+
+for (const name of published) {
+  const entry = join(packagesDir, name, "dist", "index.js");
+  if (!existsSync(entry)) {
+    unbuilt++;
+    continue;
+  }
+  try {
+    await import(pathToFileURL(entry).href);
+    loaded++;
+  } catch (error) {
+    problems.push(
+      `${name}: dist/index.js exists but does not load in Node — ` +
+        `${error.code ?? ""} ${String(error.message).split("\n")[0]}`.trim() +
+        `. A bundler tolerates an extensionless relative import; Node does not.`,
+    );
+  }
+}
+
 if (problems.length > 0) {
   console.error(`\nPackaging gate failed — ${problems.length} problem(s):\n`);
   for (const p of problems) console.error(`  • ${p}`);
@@ -206,4 +248,9 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`Packaging gate passed: ${checked} published package(s), entry points consistent with their builds.`);
+console.log(
+  `Packaging gate passed: ${checked} published package(s), entry points consistent with their builds; ` +
+    `${loaded} load cleanly in Node` +
+    (unbuilt > 0 ? `, ${unbuilt} not built (run \`npm run build\` to include those)` : "") +
+    ".",
+);

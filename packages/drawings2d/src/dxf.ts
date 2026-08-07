@@ -1,7 +1,7 @@
-import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model";
-import { layersIn } from "./model";
-import { type Paper, transformFor } from "./paper";
-import { type Theme, paintFor } from "./theme";
+import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
+import { layersIn } from "./model.js";
+import { type Paper, transformFor } from "./paper.js";
+import { type Theme, paintFor } from "./theme.js";
 
 /**
  * DXF R12 (ASCII) serialisation.

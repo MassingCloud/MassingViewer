@@ -39,9 +39,9 @@ fc.configureGlobal({
   verbose: false,
   endOnFailure: true,
 });
-import { applyDynamicInput, polarConstrain, resolveSnap, segmentSnaps, type SnapCandidate } from "./snapEngine";
-import { checkPolygon } from "./placeValid";
-import { dynKeystroke, formatDynConstraint, parseDynConstraint } from "./dynInput";
+import { applyDynamicInput, polarConstrain, resolveSnap, segmentSnaps, type SnapCandidate } from "./snapEngine.js";
+import { checkPolygon } from "./placeValid.js";
+import { dynKeystroke, formatDynConstraint, parseDynConstraint } from "./dynInput.js";
 
 /**
  * Finite, bounded coordinates. Unbounded floats would only ever test float arithmetic.

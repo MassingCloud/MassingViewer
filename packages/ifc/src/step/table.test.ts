@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { EntityTable } from "./table";
-import { StepSyntaxError } from "./parse";
-import { integer, real, str } from "./value";
+import { EntityTable } from "./table.js";
+import { StepSyntaxError } from "./parse.js";
+import { integer, real, str } from "./value.js";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "../../../../fixtures/sample.ifc");
 const sample = readFileSync(FIXTURE, "utf8");

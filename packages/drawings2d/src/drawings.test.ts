@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { asGuid, type Guid } from "@massingviewer/core";
-import { boundsOf, entitiesFor, guidsIn, layersIn, makeDrawing, type DrawingEntity } from "./model";
-import { ARCHITECTURAL, FIRE_SAFETY, matches, paintFor } from "./theme";
-import { PAPER_SIZES, fitToPaper, toPaper, transformFor } from "./paper";
-import { toSvg } from "./svg";
-import { createPlanProvider, generatePlan } from "./plan";
-import type { ElementMesh } from "./provider";
-import { cutTriangle, nestLoops, ringContains, signedArea, stitch } from "./section";
+import { boundsOf, entitiesFor, guidsIn, layersIn, makeDrawing, type DrawingEntity } from "./model.js";
+import { ARCHITECTURAL, FIRE_SAFETY, matches, paintFor } from "./theme.js";
+import { PAPER_SIZES, fitToPaper, toPaper, transformFor } from "./paper.js";
+import { toSvg } from "./svg.js";
+import { createPlanProvider, generatePlan } from "./plan.js";
+import type { ElementMesh } from "./provider.js";
+import { cutTriangle, nestLoops, ringContains, signedArea, stitch } from "./section.js";
 
 const A4 = PAPER_SIZES.find((p) => p.name === "A4")!;
 const guid = (n: number): Guid => asGuid(`0Test${String(n).padStart(17, "0")}`);

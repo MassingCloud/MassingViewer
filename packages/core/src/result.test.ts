@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { attempt, attemptAsync, err, failure, isOk, mapResult, ok, unwrap } from "./result";
+import { attempt, attemptAsync, err, failure, isOk, mapResult, ok, unwrap } from "./result.js";
 
 describe("ok / err / isOk", () => {
   it("carries the value on success", () => {

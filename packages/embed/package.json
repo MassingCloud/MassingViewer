@@ -1,0 +1,26 @@
+{
+  "name": "@massingviewer/embed",
+  "version": "0.0.0",
+  "description": "createMassingViewer() — the one function a host imports, and the M9 seam ledger that says whether massing can delete its own viewer yet.",
+  "license": "MIT",
+  "keywords": ["ifc", "viewer", "embed", "aec"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/embed" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/core": "0.0.0",
+    "@massingviewer/drawings2d": "0.0.0",
+    "@massingviewer/fileio": "0.0.0",
+    "@massingviewer/kernel-api": "0.0.0",
+    "@massingviewer/observability": "0.0.0",
+    "@massingviewer/plugin-host": "0.0.0",
+    "@massingviewer/ribbon": "0.0.0",
+    "@massingviewer/viewport": "0.0.0"
+  }
+}

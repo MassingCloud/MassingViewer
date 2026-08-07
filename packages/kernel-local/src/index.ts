@@ -5,15 +5,15 @@
 // docs/adr/0008-local-kernel-geometry-stack.md for why this one owns the file's entity table rather than a
 // reduced model of it.
 
-export { createLocalKernel } from "./provider";
-export type { LocalKernelOptions } from "./provider";
-export { browserWorkerTransport, messageChannelTransport } from "./transport";
-export { hostLocalKernel } from "./host";
-export type { KernelRequest, KernelResponse, KernelTransport } from "./protocol";
-export { LocalKernelCore } from "./core";
-export { LocalModel } from "./model";
-export { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops";
-export type { OpEffect } from "./ops";
-export { BLANK_IFC4 } from "./blank";
-export { compressUuid, countingGuidMinter, decompressUuid, randomGuidMinter } from "./guid";
-export type { GuidMinter } from "./guid";
+export { createLocalKernel } from "./provider.js";
+export type { LocalKernelOptions } from "./provider.js";
+export { browserWorkerTransport, messageChannelTransport } from "./transport.js";
+export { hostLocalKernel } from "./host.js";
+export type { KernelRequest, KernelResponse, KernelTransport } from "./protocol.js";
+export { LocalKernelCore } from "./core.js";
+export { LocalModel } from "./model.js";
+export { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops.js";
+export type { OpEffect } from "./ops.js";
+export { BLANK_IFC4 } from "./blank.js";
+export { compressUuid, countingGuidMinter, decompressUuid, randomGuidMinter } from "./guid.js";
+export type { GuidMinter } from "./guid.js";

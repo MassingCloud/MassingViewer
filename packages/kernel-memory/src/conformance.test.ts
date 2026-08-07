@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { asModelId } from "@massingviewer/core";
 import { describeKernel, describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
-import { createMemoryKernel } from "./index";
+import { createMemoryKernel } from "./index.js";
 
 const WALL = { start: [0, 0], end: [5, 0], height: 3, thickness: 0.2, name: "Wall-Test" };
 

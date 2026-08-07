@@ -3,10 +3,10 @@ import { StrictMode, useState } from "react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Ribbon } from "./Ribbon";
-import { CommandPalette, fuzzyScore, rank, type PaletteEntry } from "./CommandPalette";
-import { PropertyGrid, discrepancyOf, type PropertySet } from "./PropertyGrid";
-import { Dock, loadLayout, saveLayout, type DockPanel } from "./Dock";
+import { Ribbon } from "./Ribbon.js";
+import { CommandPalette, fuzzyScore, rank, type PaletteEntry } from "./CommandPalette.js";
+import { PropertyGrid, discrepancyOf, type PropertySet } from "./PropertyGrid.js";
+import { Dock, loadLayout, saveLayout, type DockPanel } from "./Dock.js";
 
 /**
  * ## What is worth testing in a React shell, and what is not

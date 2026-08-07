@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "references": [
+    { "path": "../core" },
+    { "path": "../kernel-api" },
+    { "path": "../viewport" },
+    { "path": "../ribbon" },
+    { "path": "../plugin-host" },
+    { "path": "../drawings2d" },
+    { "path": "../fileio" },
+    { "path": "../observability" }
+  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

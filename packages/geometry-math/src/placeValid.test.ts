@@ -7,7 +7,7 @@
  * by a check that needs a model to exist.
  */
 import { describe, expect, it } from "vitest";
-import { BOUNDS_MARGIN_M, checkBounds, checkPolygon, checkRun, validatePlacement } from "./placeValid";
+import { BOUNDS_MARGIN_M, checkBounds, checkPolygon, checkRun, validatePlacement } from "./placeValid.js";
 
 describe("checkRun — degenerate runs never reach the server", () => {
   it("a zero-length wall is refused with the measured length", () => {

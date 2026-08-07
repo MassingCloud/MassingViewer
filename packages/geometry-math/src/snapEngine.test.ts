@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyDynamicInput, nearestSnaps, perpendicularSnaps, polarConstrain, resolveSnap, segmentSnaps,
-} from "./snapEngine";
+} from "./snapEngine.js";
 
 describe("SNAP-KIT resolveSnap", () => {
   const cands = [

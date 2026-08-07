@@ -1,6 +1,6 @@
-import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model";
-import { type Paper, type Transform, toPaper, toPaperLength, transformFor } from "./paper";
-import { type Paint, type Theme, paintFor } from "./theme";
+import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
+import { type Paper, type Transform, toPaper, toPaperLength, transformFor } from "./paper.js";
+import { type Paint, type Theme, paintFor } from "./theme.js";
 
 /**
  * SVG serialisation: a pure function of `(Drawing, Theme, Paper)`.

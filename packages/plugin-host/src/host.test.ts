@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { TABS, buildRibbon, layoutTab } from "@massingviewer/ui-model";
-import { isLoadable, normaliseChord, validateManifest, type PluginManifest } from "./manifest";
-import { createPluginHost, topologicalOrder, type PluginRuntime } from "./host";
-import { commandsNotOnRibbon, ribbonFrom, unknownTabs } from "./ribbon";
-import { BUILTIN_ID, builtinManifests, commandIdFor } from "./builtin";
+import { isLoadable, normaliseChord, validateManifest, type PluginManifest } from "./manifest.js";
+import { createPluginHost, topologicalOrder, type PluginRuntime } from "./host.js";
+import { commandsNotOnRibbon, ribbonFrom, unknownTabs } from "./ribbon.js";
+import { BUILTIN_ID, builtinManifests, commandIdFor } from "./builtin.js";
 
 const manifest = (over: Partial<PluginManifest> & { id: string }): PluginManifest => ({
   name: over.id,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExpectedFailure, kernelFailure, unsupported, type KernelErrorCode } from "./failure";
+import { isExpectedFailure, kernelFailure, unsupported, type KernelErrorCode } from "./failure.js";
 
 describe("unsupported — the failure that makes partial coverage honest", () => {
   it("requires a hint, and uses it as the user-facing message", () => {

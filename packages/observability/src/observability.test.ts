@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { REDACTION_RULES, redact, redactValue, redactionLimits } from "./redact";
-import { APP_SCHEMA, bucketDuration, createTelemetry, type TelemetrySchema } from "./telemetry";
-import { NOOP_CRASH_SINK, consoleSink, createCrashHandler, httpSink, redactReport, type CrashReport } from "./crash";
-import { auditCoverage, createAuditLog, teeAudit, type AuditEntry } from "./audit";
-import { envelope, isVersioned, migrate, validateChain, type MigrationStep } from "./migrate";
-import { APP_FLAGS, createFlags, expiredFlags, queryFlagSource, storageFlagSource } from "./flags";
+import { REDACTION_RULES, redact, redactValue, redactionLimits } from "./redact.js";
+import { APP_SCHEMA, bucketDuration, createTelemetry, type TelemetrySchema } from "./telemetry.js";
+import { NOOP_CRASH_SINK, consoleSink, createCrashHandler, httpSink, redactReport, type CrashReport } from "./crash.js";
+import { auditCoverage, createAuditLog, teeAudit, type AuditEntry } from "./audit.js";
+import { envelope, isVersioned, migrate, validateChain, type MigrationStep } from "./migrate.js";
+import { APP_FLAGS, createFlags, expiredFlags, queryFlagSource, storageFlagSource } from "./flags.js";
 
 // ===================================================================================================
 // The requirement: the emitter CANNOT send a field it does not declare

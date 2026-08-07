@@ -7,9 +7,9 @@ import {
   type Point,
   type ViewDefinition,
   makeDrawing,
-} from "./model";
-import type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider";
-import { type Seg, cutTriangle, nestLoops, stitch } from "./section";
+} from "./model.js";
+import type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider.js";
+import { type Seg, cutTriangle, nestLoops, stitch } from "./section.js";
 
 /**
  * The built-in plan and section provider.

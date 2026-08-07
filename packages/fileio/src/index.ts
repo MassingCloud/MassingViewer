@@ -13,11 +13,11 @@
 // Vanilla DOM, per docs/adr/0009-ribbon-renders-in-vanilla-dom.md — a drop target that only works inside React
 // is a drop target massing has to write a second time.
 
-export { SNIFF_BYTES, extensionOf, sniff } from "./sniff";
-export type { Confidence, FileKind, Sniffed } from "./sniff";
+export { SNIFF_BYTES, extensionOf, sniff } from "./sniff.js";
+export type { Confidence, FileKind, Sniffed } from "./sniff.js";
 
-export { describe, supportFor, supportMatrix } from "./support";
-export type { Support, SupportState } from "./support";
+export { describe, supportFor, supportMatrix } from "./support.js";
+export type { Support, SupportState } from "./support.js";
 
-export { canPickHandles, createDropTarget, pickFiles } from "./open";
-export type { DropTarget, DropTargetOptions, OpenedFile, PickOptions, PickResult } from "./open";
+export { canPickHandles, createDropTarget, pickFiles } from "./open.js";
+export type { DropTarget, DropTargetOptions, OpenedFile, PickOptions, PickResult } from "./open.js";

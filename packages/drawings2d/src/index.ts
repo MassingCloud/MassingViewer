@@ -11,7 +11,7 @@
 //
 // No DOM, no renderer, no IFC parser. See docs/adr/0004-2d-drawing-engine.md.
 
-export { boundsOf, entitiesFor, guidsIn, layersIn, makeDrawing } from "./model";
+export { boundsOf, entitiesFor, guidsIn, layersIn, makeDrawing } from "./model.js";
 export type {
   Drawing,
   DrawingEntity,
@@ -22,25 +22,25 @@ export type {
   Point,
   Region,
   ViewDefinition,
-} from "./model";
+} from "./model.js";
 
-export { ARCHITECTURAL, FIRE_SAFETY, THEMES, matches, paintFor } from "./theme";
-export type { Paint, Rule, Selector, Theme } from "./theme";
+export { ARCHITECTURAL, FIRE_SAFETY, THEMES, matches, paintFor } from "./theme.js";
+export type { Paint, Rule, Selector, Theme } from "./theme.js";
 
-export { IMPERIAL_SCALES, METRIC_SCALES, PAPER_SIZES, SCALES, fitToPaper, toPaper, toPaperLength, transformFor } from "./paper";
-export type { Paper, PaperSize, Scale, ScaleLadder, Transform } from "./paper";
+export { IMPERIAL_SCALES, METRIC_SCALES, PAPER_SIZES, SCALES, fitToPaper, toPaper, toPaperLength, transformFor } from "./paper.js";
+export type { Paper, PaperSize, Scale, ScaleLadder, Transform } from "./paper.js";
 
-export { toSvg } from "./svg";
-export type { SvgOptions } from "./svg";
+export { toSvg } from "./svg.js";
+export type { SvgOptions } from "./svg.js";
 
-export { dxfLimitations, toDxf } from "./dxf";
-export type { DxfOptions } from "./dxf";
+export { dxfLimitations, toDxf } from "./dxf.js";
+export type { DxfOptions } from "./dxf.js";
 
-export { pdfLimitations, toPdf } from "./pdf";
-export type { PdfOptions } from "./pdf";
+export { pdfLimitations, toPdf } from "./pdf.js";
+export type { PdfOptions } from "./pdf.js";
 
-export { createPlanProvider, generatePlan } from "./plan";
-export type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider";
+export { createPlanProvider, generatePlan } from "./plan.js";
+export type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider.js";
 
-export { cutTriangle, nestLoops, ringContains, signedArea, stitch } from "./section";
-export type { Seg } from "./section";
+export { cutTriangle, nestLoops, ringContains, signedArea, stitch } from "./section.js";
+export type { Seg } from "./section.js";

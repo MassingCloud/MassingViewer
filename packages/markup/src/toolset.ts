@@ -1,4 +1,4 @@
-import type { TopicPriority, TopicType } from "./topic";
+import type { TopicPriority, TopicType } from "./topic.js";
 
 /**
  * Tool Sets — the most-loved and least-copied feature in AEC review software.

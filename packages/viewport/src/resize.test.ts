@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideResize } from "./resize";
+import { decideResize } from "./resize.js";
 
 /**
  * The zero-width-canvas regression.

@@ -1,7 +1,7 @@
 // Extracted from ibuilder/massing @ de980159585163d11ca88151fbf8e9013c3ba7b2 (apps/web/src/viewer/snapOverride.ts), MIT.
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 
-import { nearestSnaps, perpendicularSnaps, type SnapCandidate, type SnapKind, type Vec2 } from "./snapEngine";
+import { nearestSnaps, perpendicularSnaps, type SnapCandidate, type SnapKind, type Vec2 } from "./snapEngine.js";
 
 /** AUTH-SNAP-OVERRIDE — a one-shot object-snap override: "**this one pick**, take a perpendicular".
  *

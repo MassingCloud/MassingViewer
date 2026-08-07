@@ -943,10 +943,21 @@ void commandIdFor;
 
 // --- status ---------------------------------------------------------------------------------------
 
+/**
+ * The perf readout, and why it stopped writing to `#status`.
+ *
+ * It used to set both `#fps` and `#status`, so every message the app produced was overwritten within 500 ms by
+ * "7 draw calls · 7 geometries". Chromium's timing happened to hide it; **webkit surfaced it** — the plugin
+ * keybinding test pressed Shift+M, the footprint appeared, and the interval clobbered it before the assertion ran.
+ *
+ * Two writers with no coordination, which is the exact failure the selection code in this file already carries a
+ * comment about: *"the shape of the code allowed two places to hold an opinion"*. The fix is the same one — give
+ * each its own element — rather than teaching the interval to skip a recent message, which would be a second
+ * opinion about whose turn it is.
+ */
 setInterval(() => {
   const s = viewport.stats();
-  el("#fps").textContent = `${s.fps} fps`;
-  el("#status").textContent = `${s.drawCalls} draw calls · ${s.geometries} geometries`;
+  el("#fps").textContent = `${s.fps} fps · ${s.drawCalls} draws · ${s.geometries} geoms`;
 }, 500);
 
 el("#status").textContent = "ready";

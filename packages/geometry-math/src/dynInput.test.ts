@@ -2,7 +2,7 @@
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 
 import { describe, expect, it } from "vitest";
-import { dynKeystroke, formatDynConstraint, isDynKey, parseDynConstraint } from "./dynInput";
+import { dynKeystroke, formatDynConstraint, isDynKey, parseDynConstraint } from "./dynInput.js";
 
 describe("SNAP-KIT dynamic-input constraint parser", () => {
   it("parses distance-only, angle-only, and both", () => {

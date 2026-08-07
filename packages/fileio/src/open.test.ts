@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { canPickHandles, createDropTarget, pickFiles, type OpenedFile } from "./open";
+import { canPickHandles, createDropTarget, pickFiles, type OpenedFile } from "./open.js";
 
 /**
  * The drop target's two real bugs, asserted.

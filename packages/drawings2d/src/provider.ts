@@ -1,5 +1,5 @@
 import type { Guid, Result } from "@massingviewer/core";
-import type { Drawing, DrawingKind, ViewDefinition } from "./model";
+import type { Drawing, DrawingKind, ViewDefinition } from "./model.js";
 
 /**
  * `DrawingProvider` — the seam between the drawing model and whatever generates the linework.

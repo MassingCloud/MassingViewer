@@ -57,6 +57,9 @@
       "path": "./packages/observability"
     },
     {
+      "path": "./packages/embed"
+    },
+    {
       "path": "./apps/demo"
     },
     {

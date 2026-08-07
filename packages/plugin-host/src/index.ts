@@ -16,7 +16,7 @@
 // And the model is proved against the real UI: `builtinManifests()` derives the first-party ribbon from
 // `ui-model`'s own tables, and the tests assert it round-trips through `ribbonFrom` to exactly `buildRibbon()`.
 
-export { isLoadable, normaliseChord, validateManifest } from "./manifest";
+export { isLoadable, normaliseChord, validateManifest } from "./manifest.js";
 export type {
   ActivationEvent,
   CommandContribution,
@@ -28,9 +28,9 @@ export type {
   PluginManifest,
   RibbonGroupContribution,
   SettingContribution,
-} from "./manifest";
+} from "./manifest.js";
 
-export { createPluginHost, topologicalOrder } from "./host";
+export { createPluginHost, topologicalOrder } from "./host.js";
 export type {
   HostOptions,
   LoadResult,
@@ -40,8 +40,8 @@ export type {
   PluginRuntime,
   PluginState,
   RegisteredPlugin,
-} from "./host";
+} from "./host.js";
 
-export { commandsNotOnRibbon, ribbonFrom, unknownTabs } from "./ribbon";
+export { commandsNotOnRibbon, ribbonFrom, unknownTabs } from "./ribbon.js";
 
-export { BUILTIN_ID, builtinManifests, commandIdFor } from "./builtin";
+export { BUILTIN_ID, builtinManifests, commandIdFor } from "./builtin.js";

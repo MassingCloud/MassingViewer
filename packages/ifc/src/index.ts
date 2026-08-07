@@ -9,9 +9,9 @@
 // No dependencies beyond @massingviewer/core, no DOM, no WASM. Tessellation and booleans live elsewhere; this
 // package is only about what the file says.
 
-export { EntityTable } from "./step/table";
-export { StepSyntaxError, parseParams, scanEntities } from "./step/parse";
-export type { RawEntity, ScanResult } from "./step/parse";
+export { EntityTable } from "./step/table.js";
+export { StepSyntaxError, parseParams, scanEntities } from "./step/parse.js";
+export type { RawEntity, ScanResult } from "./step/parse.js";
 export {
   DERIVED,
   FALSE,
@@ -27,5 +27,5 @@ export {
   ref,
   str,
   unquote,
-} from "./step/value";
-export type { StepValue } from "./step/value";
+} from "./step/value.js";
+export type { StepValue } from "./step/value.js";

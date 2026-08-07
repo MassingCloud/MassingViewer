@@ -11,13 +11,13 @@
 //     identifiers; an audit entry saying "an element was deleted" without saying which is not an audit entry.
 //   - **flags** and **migrations** both exist because retrofitting them is the expensive kind of impossible.
 
-export { REDACTION_RULES, redact, redactValue, redactionLimits } from "./redact";
-export type { RedactionRule } from "./redact";
+export { REDACTION_RULES, redact, redactValue, redactionLimits } from "./redact.js";
+export type { RedactionRule } from "./redact.js";
 
-export { NOOP_CRASH_SINK, consoleSink, createCrashHandler, httpSink, redactReport } from "./crash";
-export type { CrashHandler, CrashHandlerOptions, CrashReport, CrashSink, HttpSinkOptions } from "./crash";
+export { NOOP_CRASH_SINK, consoleSink, createCrashHandler, httpSink, redactReport } from "./crash.js";
+export type { CrashHandler, CrashHandlerOptions, CrashReport, CrashSink, HttpSinkOptions } from "./crash.js";
 
-export { APP_SCHEMA, DURATION_BUCKETS, NOOP_SINK, bucketDuration, createTelemetry } from "./telemetry";
+export { APP_SCHEMA, DURATION_BUCKETS, NOOP_SINK, bucketDuration, createTelemetry } from "./telemetry.js";
 export type {
   EventSchema,
   FieldKind,
@@ -27,13 +27,13 @@ export type {
   TelemetryOptions,
   TelemetrySchema,
   TelemetrySink,
-} from "./telemetry";
+} from "./telemetry.js";
 
-export { auditCoverage, createAuditLog, teeAudit } from "./audit";
-export type { AuditEntry, AuditLog, AuditSink, Coverage } from "./audit";
+export { auditCoverage, createAuditLog, teeAudit } from "./audit.js";
+export type { AuditEntry, AuditLog, AuditSink, Coverage } from "./audit.js";
 
-export { envelope, isVersioned, migrate, validateChain } from "./migrate";
-export type { MigrateResult, MigrationStep, Versioned } from "./migrate";
+export { envelope, isVersioned, migrate, validateChain } from "./migrate.js";
+export type { MigrateResult, MigrationStep, Versioned } from "./migrate.js";
 
-export { APP_FLAGS, createFlags, expiredFlags, queryFlagSource, storageFlagSource } from "./flags";
-export type { FlagDeclaration, FlagSource, Flags } from "./flags";
+export { APP_FLAGS, createFlags, expiredFlags, queryFlagSource, storageFlagSource } from "./flags.js";
+export type { FlagDeclaration, FlagSource, Flags } from "./flags.js";

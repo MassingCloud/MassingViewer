@@ -1,4 +1,4 @@
-import type { Drawing, Point } from "./model";
+import type { Drawing, Point } from "./model.js";
 
 /**
  * Paper: the render-time transform from model metres to sheet millimetres.

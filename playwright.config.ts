@@ -31,6 +31,22 @@ export default defineConfig({
   // actively making the suite wrong, not merely slow.
   fullyParallel: false,
   workers: 1,
+
+  /**
+   * 60 s per test, up from the 30 s default.
+   *
+   * Not a cover for slowness — every test finishes in one to three seconds. It is headroom for **contention on one
+   * machine**, and the measurement is what makes that the diagnosis rather than a guess: running all four projects
+   * locally, one webkit test times out per run and it is a *different* test each time — "authoring makes no network
+   * requests" on one run, "exports BCF 3.0" on the next. Each passes three times out of three in isolation, and
+   * each project passes 32/32 on its own.
+   *
+   * The cause is the reason `workers: 1` is already set: every test rasterises WebGL in software, so they compete
+   * for one scarce resource, and a fourth project raised the total load. CI does not have this problem at all —
+   * `e2e.yml` runs each project as a separate job on its own runner — so the ceiling exists for the local
+   * all-projects run, which is the only place four browsers share a CPU.
+   */
+  timeout: 60_000,
   // No `.only` reaching main. It silently reduces the suite to one test while still reporting green.
   forbidOnly: !!process.env.CI,
   // One retry in CI, none locally. A test that needs two retries is flaky and should be fixed or moved to

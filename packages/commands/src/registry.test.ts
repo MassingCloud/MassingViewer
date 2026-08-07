@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { err, ok } from "@massingviewer/core";
-import type { CommandContext, CommandDescriptor, CommandInvocation } from "./descriptor";
-import { createRegistry, rankForPalette, replay, type Registry } from "./registry";
+import type { CommandContext, CommandDescriptor, CommandInvocation } from "./descriptor.js";
+import { createRegistry, rankForPalette, replay, type Registry } from "./registry.js";
 
 /**
  * The registry, which is where "one abstraction, seven features" stops being a claim.

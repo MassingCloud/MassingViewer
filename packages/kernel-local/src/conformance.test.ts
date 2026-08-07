@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import { asModelId } from "@massingviewer/core";
 import { describeKernel, describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
 import type { KernelProvider } from "@massingviewer/kernel-api";
-import { createLocalKernel } from "./provider";
-import { messageChannelTransport } from "./transport";
-import { countingGuidMinter } from "./guid";
-import { BLANK_IFC4 } from "./blank";
+import { createLocalKernel } from "./provider.js";
+import { messageChannelTransport } from "./transport.js";
+import { countingGuidMinter } from "./guid.js";
+import { BLANK_IFC4 } from "./blank.js";
 
 /**
  * `LocalKernel` against the conformance suite, **through a real message boundary**.

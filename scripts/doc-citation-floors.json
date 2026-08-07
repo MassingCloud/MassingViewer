@@ -11,6 +11,7 @@
   "docs/adr/0009-ribbon-renders-in-vanilla-dom.md": 4,
   "docs/architecture.md": 25,
   "docs/kernels/authoring.md": 8,
+  "docs/massing-migration.md": 6,
   "docs/plugins/authoring.md": 6,
   "docs/privacy.md": 6,
   "docs/testing.md": 8,

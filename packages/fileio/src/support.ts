@@ -1,4 +1,4 @@
-import type { FileKind, Sniffed } from "./sniff";
+import type { FileKind, Sniffed } from "./sniff.js";
 
 /**
  * What this build can do with a file, and — when it cannot — why, in a sentence a user can act on.

@@ -10,10 +10,10 @@ import type {
 } from "@massingviewer/kernel-api";
 import { kernelFailure, unsupported } from "@massingviewer/kernel-api";
 import { EntityTable, type StepValue } from "@massingviewer/ifc";
-import { BLANK_IFC4 } from "./blank";
-import { type GuidMinter, randomGuidMinter } from "./guid";
-import { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops";
-import { LocalModel } from "./model";
+import { BLANK_IFC4 } from "./blank.js";
+import { type GuidMinter, randomGuidMinter } from "./guid.js";
+import { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops.js";
+import { LocalModel } from "./model.js";
 
 /**
  * The authoring engine, with no transport around it.

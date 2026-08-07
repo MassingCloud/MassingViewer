@@ -2,7 +2,7 @@
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 
 import { describe, expect, it } from "vitest";
-import { coalesced, frameLoop, type FrameApi } from "./raf";
+import { coalesced, frameLoop, type FrameApi } from "./raf.js";
 
 /**
  * R23-PERF-TEST — the perf work was previously unverifiable: the repo has a bundle-size budget and

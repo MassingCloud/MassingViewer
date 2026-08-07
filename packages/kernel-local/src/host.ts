@@ -1,8 +1,8 @@
 import { err, ok } from "@massingviewer/core";
 import { kernelFailure } from "@massingviewer/kernel-api";
-import { LocalKernelCore } from "./core";
-import type { GuidMinter } from "./guid";
-import type { KernelRequest, KernelResponse } from "./protocol";
+import { LocalKernelCore } from "./core.js";
+import type { GuidMinter } from "./guid.js";
+import type { KernelRequest, KernelResponse } from "./protocol.js";
 
 /**
  * Serve a {@link LocalKernelCore} over a message channel.

@@ -1,5 +1,5 @@
-import { SNIFF_BYTES, sniff, type Sniffed } from "./sniff";
-import { supportFor, type Support } from "./support";
+import { SNIFF_BYTES, sniff, type Sniffed } from "./sniff.js";
+import { supportFor, type Support } from "./support.js";
 
 /**
  * Getting files *into* the application — drag-and-drop, and a picker.

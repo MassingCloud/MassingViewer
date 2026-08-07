@@ -1,5 +1,5 @@
-import { hostLocalKernel } from "./host";
-import type { KernelRequest, KernelResponse, KernelTransport } from "./protocol";
+import { hostLocalKernel } from "./host.js";
+import type { KernelRequest, KernelResponse, KernelTransport } from "./protocol.js";
 
 /**
  * Transports for {@link createLocalKernel}.

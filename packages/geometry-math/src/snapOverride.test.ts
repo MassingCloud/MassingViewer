@@ -5,12 +5,12 @@ import { describe, expect, it } from "vitest";
 // PORT NOTE: upstream imports KEY_SHORTCUTS from `./keysDyn`, which is 190 lines of DOM keyboard
 // handling. Only the table moved, to `./shortcuts` — see the note there. The disjointness assertion
 // below is why it had to come along at all.
-import { KEY_SHORTCUTS } from "./shortcuts";
-import { resolveSnap, type SnapKind } from "./snapEngine";
+import { KEY_SHORTCUTS } from "./shortcuts.js";
+import { resolveSnap, type SnapKind } from "./snapEngine.js";
 import {
   ALL_OVERRIDE_KINDS, OVERRIDE_CODES, OVERRIDE_LABEL, createSnapOverride, overrideCandidates,
   type OverrideKind, type PlanBox,
-} from "./snapOverride";
+} from "./snapOverride.js";
 
 // A 4 x 2 footprint, axis-aligned: x 0..4, z 0..2.
 const BOX: PlanBox = { minX: 0, maxX: 4, minZ: 0, maxZ: 2 };

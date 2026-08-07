@@ -15,10 +15,10 @@ import {
   setStatus,
   type Topic,
   type Viewpoint,
-} from "./topic";
-import { bcfManifest, toBcfZip } from "./bcf";
-import { DEFAULT_TOOLSET, parseToolSet, toolSetToJson } from "./toolset";
-import { crc32, makeZip } from "./zip";
+} from "./topic.js";
+import { bcfManifest, toBcfZip } from "./bcf.js";
+import { DEFAULT_TOOLSET, parseToolSet, toolSetToJson } from "./toolset.js";
+import { crc32, makeZip } from "./zip.js";
 
 const guid = (n: number): Guid => asGuid(`0Test${String(n).padStart(17, "0")}`);
 const DATE = "2026-08-07T09:00:00Z";

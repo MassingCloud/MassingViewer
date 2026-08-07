@@ -1,7 +1,7 @@
 import { type Result, type Guid, err, ok } from "@massingviewer/core";
 import { type KernelFailure, type OpDescriptor, type OpParams, kernelFailure } from "@massingviewer/kernel-api";
 import { FALSE, type StepValue, TRUE, integer, list, real, ref, str } from "@massingviewer/ifc";
-import type { LocalModel } from "./model";
+import type { LocalModel } from "./model.js";
 
 /**
  * The operations `LocalKernel` implements, and only those.

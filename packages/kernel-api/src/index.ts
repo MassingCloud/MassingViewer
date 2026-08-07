@@ -28,7 +28,7 @@ export type {
   DrawingIncludes,
   DrawingPayload,
   DrawingProvenance,
-} from "./provider";
+} from "./provider.js";
 
-export { unsupported, kernelFailure, isExpectedFailure } from "./failure";
-export type { KernelErrorCode, KernelFailure, UnsupportedFailure } from "./failure";
+export { unsupported, kernelFailure, isExpectedFailure } from "./failure.js";
+export type { KernelErrorCode, KernelFailure, UnsupportedFailure } from "./failure.js";

@@ -2,7 +2,7 @@
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 
 import { describe, expect, it } from "vitest";
-import { inferDirection, midpoint } from "./inference";
+import { inferDirection, midpoint } from "./inference.js";
 
 describe("E1 drawing inference", () => {
   const prev = { x: 0, z: 0 };

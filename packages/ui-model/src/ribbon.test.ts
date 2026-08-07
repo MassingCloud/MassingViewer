@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { TOOLS, type ToolContext } from "./toolbarLayout";
+import { TOOLS, type ToolContext } from "./toolbarLayout.js";
 import {
   TABS,
   availabilityOf,
@@ -15,7 +15,7 @@ import {
   tabsWithContent,
   toolId,
   type ItemSize,
-} from "./ribbon";
+} from "./ribbon.js";
 
 const ribbon = buildRibbon();
 

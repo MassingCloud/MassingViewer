@@ -8,7 +8,7 @@
 // This is also already the shape an asset pack needs, which is why the eventual `.mvpack` format
 // generalises it rather than introducing a second element description.
 
-export { DRAFT_ELEMENTS, DISCIPLINES, familyToDraftElement } from "./draftCatalog";
+export { DRAFT_ELEMENTS, DISCIPLINES, familyToDraftElement } from "./draftCatalog.js";
 export type {
   Discipline,
   ParamType,
@@ -16,4 +16,4 @@ export type {
   ParamValues,
   DraftElement,
   FamilyDef,
-} from "./draftCatalog";
+} from "./draftCatalog.js";

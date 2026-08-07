@@ -12,7 +12,7 @@
 export {
   assertSerializable,
   availability,
-} from "./descriptor";
+} from "./descriptor.js";
 export type {
   ArgKind,
   ArgSpec,
@@ -22,12 +22,12 @@ export type {
   CommandDescriptor,
   CommandInvocation,
   CommandOrigin,
-} from "./descriptor";
+} from "./descriptor.js";
 
-export { begin, step, toInvocation } from "./prompt";
-export type { PromptEvent, PromptState, PromptStatus } from "./prompt";
+export { begin, step, toInvocation } from "./prompt.js";
+export type { PromptEvent, PromptState, PromptStatus } from "./prompt.js";
 
-export { createRegistry, rankForPalette, replay } from "./registry";
+export { createRegistry, rankForPalette, replay } from "./registry.js";
 export type {
   AnyCommandDescriptor,
   DispatchOptions,
@@ -36,4 +36,4 @@ export type {
   Registry,
   RegistryOptions,
   UndoOutcome,
-} from "./registry";
+} from "./registry.js";

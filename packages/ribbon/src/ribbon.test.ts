@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TOOLS, buildRibbon, type ToolContext } from "@massingviewer/ui-model";
-import { createRibbon, type Ribbon } from "./ribbon";
+import { createRibbon, type Ribbon } from "./ribbon.js";
 
 /**
  * ## Asserting a table is not asserting a render

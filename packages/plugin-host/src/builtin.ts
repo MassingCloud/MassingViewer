@@ -1,5 +1,5 @@
 import { TOOLS, buildRibbon, type ItemSize, type TabId } from "@massingviewer/ui-model";
-import type { CommandContribution, PluginManifest, RibbonGroupContribution } from "./manifest";
+import type { CommandContribution, PluginManifest, RibbonGroupContribution } from "./manifest.js";
 
 /**
  * The first-party ribbon, expressed as plugin manifests.

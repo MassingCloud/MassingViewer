@@ -20,7 +20,7 @@ export {
   newBcfGuid,
   resolveAnchor,
   setStatus,
-} from "./topic";
+} from "./topic.js";
 export type {
   AnchorOutcome,
   Comment,
@@ -31,13 +31,13 @@ export type {
   TopicStatus,
   TopicType,
   Viewpoint,
-} from "./topic";
+} from "./topic.js";
 
-export { bcfManifest, toBcfZip } from "./bcf";
-export type { BcfExportOptions, BcfProject } from "./bcf";
+export { bcfManifest, toBcfZip } from "./bcf.js";
+export type { BcfExportOptions, BcfProject } from "./bcf.js";
 
-export { DEFAULT_TOOLSET, parseToolSet, toolSetToJson } from "./toolset";
-export type { MarkupTool, ToolSet } from "./toolset";
+export { DEFAULT_TOOLSET, parseToolSet, toolSetToJson } from "./toolset.js";
+export type { MarkupTool, ToolSet } from "./toolset.js";
 
-export { crc32, makeZip } from "./zip";
-export type { ZipEntry } from "./zip";
+export { crc32, makeZip } from "./zip.js";
+export type { ZipEntry } from "./zip.js";

@@ -1,6 +1,6 @@
 import { type Guid, isGuid } from "@massingviewer/core";
-import { type RawEntity, StepSyntaxError, parseParams, scanEntities } from "./parse";
-import { type StepValue, formatParams } from "./value";
+import { type RawEntity, StepSyntaxError, parseParams, scanEntities } from "./parse.js";
+import { type StepValue, formatParams } from "./value.js";
 
 /**
  * The authoritative store for an IFC file being edited.

@@ -220,3 +220,55 @@ The repo gates are described in [CONTRIBUTING.md](../CONTRIBUTING.md#repo-gates)
 rather than warning, and each one's failure paths are themselves verified — a gate that has never been
 observed to fail is decoration, so `scripts/check-architecture.mjs`, `scripts/check-licenses.mjs` and
 `scripts/check-provenance.mjs` were each run against deliberate violations before being trusted.
+
+## A flake, and the four wrong diagnoses before the right one
+
+Worth writing down in full, because the *method* transfers and three of the four fixes were plausible.
+
+**The symptom.** Running all four E2E projects locally, about one test per run failed on `webkit` or `ipad` — and
+a *different* test each time: the plan click, the units toggle, the discipline switch, a BCF export. Each passed
+3/3 in isolation. Each project passed 32/32 alone.
+
+**Wrong diagnosis 1: slowness.** `timeout` went from 30 s to 60 s, since `workers: 1` already exists because every
+test rasterises WebGL in software. It reduced nothing — the failures were not near the limit.
+
+**Wrong diagnosis 2: two writers of `#status`.** This *was* a real bug and did fix one test: a 500 ms
+`setInterval` overwrote every message the app produced with "7 draw calls · 7 geometries", so a plugin's output was
+clobbered before the assertion ran. Chromium's timing hid it; webkit surfaced it. Fixed by giving the perf readout
+its own element — the same "two places holding an opinion" pattern the selection code already carries a comment
+about. It was not the main cause.
+
+**Wrong diagnosis 3: ambiguous locators.** `getByRole("button", { name: "Plan" })` is a case-insensitive
+*substring* match, so it also matches the ribbon's "Section plane" — a genuine fragility, and `name: "m"` had
+already broken once. Every header control now uses its id. Also not the cause.
+
+**Wrong diagnosis 4: clicking during startup.** The ribbon relayouts under a `ResizeObserver`, so a click measured
+before a shift could land elsewhere. Waiting for kernel-ready in `beforeEach` was reasonable and changed nothing.
+
+**The actual method that worked: make the failure describe itself.** `cutPlan()` replaced a bare
+`expect(...).toBeVisible()` — which reports "timeout exceeded" for at least three distinct causes — with a probe
+that answers each of them. On the next occurrence it said:
+
+```
+atCentre: "button#plan"          the button is at the click point, nothing covering it
+inViewport: true                 not scrolled out of view
+headerOverflows: false           the header is not even overflowing
+planInfo: "Press Plan to cut one"   generate() never ran
+page errors: (none)              the handler did not throw
+programmaticClickWorks: true     the listener is attached and works
+```
+
+Every app-side explanation is eliminated by that block. The listener works; the *synthetic event delivery* is what
+intermittently fails on WebKit.
+
+**The fix.** Tests whose subject is the plan pipeline dispatch the event directly with `dispatchEvent("click")`,
+which bypasses the input-routing layer that is the flake. Tests whose subject *is* real input keep it — "clicking
+an element selects it" drives `page.mouse`, and "pinch zooms" synthesises pointer events against the canvas.
+Using `dispatchEvent` there would be testing a mock of the interaction.
+
+Result: four consecutive clean all-projects runs at 105/105, and about 20% faster.
+
+**The transferable part.** Four plausible hypotheses cost more than one good diagnostic. A retry would have made
+the suite green immediately and destroyed the only evidence — and two of the four fixes were worth keeping anyway
+(the `#status` collision and the locators were real bugs), which is exactly why "it got greener" is not evidence of
+a correct diagnosis.

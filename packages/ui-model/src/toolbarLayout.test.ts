@@ -14,8 +14,8 @@
 // and nothing on screen had changed. Asserting a table is not asserting a render. The ribbon needs its
 // own version of that assertion or it will reproduce the same bug.
 import { describe, expect, it } from "vitest";
-import { hasIcon } from "./icons";
-import { GROUP_LABELS, MAX_PRIMARY, TOOLS, TOOL_ICON, describe as describeTool, iconFor, primaryTitles, specFor, unlaidTitles } from "./toolbarLayout";
+import { hasIcon } from "./icons.js";
+import { GROUP_LABELS, MAX_PRIMARY, TOOLS, TOOL_ICON, describe as describeTool, iconFor, primaryTitles, specFor, unlaidTitles } from "./toolbarLayout.js";
 /**
  * R26-TOOLBAR. The audit's finding was 25 unlabeled glyphs, all of them, always. The risk in fixing
  * it is losing a tool — so the tests below are mostly about *nothing disappearing*, and only then

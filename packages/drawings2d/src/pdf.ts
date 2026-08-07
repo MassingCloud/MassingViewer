@@ -1,6 +1,6 @@
-import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model";
-import { type Paper, type Transform, transformFor } from "./paper";
-import { type Paint, type Theme, paintFor } from "./theme";
+import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
+import { type Paper, type Transform, transformFor } from "./paper.js";
+import { type Paint, type Theme, paintFor } from "./theme.js";
 
 /**
  * PDF 1.7 serialisation — the third pure function of `(Drawing, Theme, Paper)`.

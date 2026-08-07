@@ -1,5 +1,5 @@
 import type { ElementRef, Guid, ModelId, Result } from "@massingviewer/core";
-import type { KernelFailure } from "./failure";
+import type { KernelFailure } from "./failure.js";
 
 /**
  * The `KernelProvider` contract.

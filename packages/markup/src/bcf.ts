@@ -1,5 +1,5 @@
-import type { Topic, Viewpoint } from "./topic";
-import { makeZip, type ZipEntry } from "./zip";
+import type { Topic, Viewpoint } from "./topic.js";
+import { makeZip, type ZipEntry } from "./zip.js";
 
 /**
  * BCF 3.0 serialisation.

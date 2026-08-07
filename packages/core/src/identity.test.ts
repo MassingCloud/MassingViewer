@@ -13,7 +13,7 @@ import {
   type LocalId,
   type ModelId,
   type ModelIdMap,
-} from "./identity";
+} from "./identity.js";
 
 const G1 = asGuid("1hqA$Xk3v9wBOHu4bPqRcZ");
 const G2 = asGuid("2mnB_Yl4w0xCPIv5cQrSdA");

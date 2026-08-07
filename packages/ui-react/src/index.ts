@@ -13,14 +13,14 @@
 //   - `CommandPalette` is a combobox, which is one of the few widgets where getting ARIA wrong makes it
 //     unusable rather than merely worse.
 
-export { Ribbon, useRibbonHandle } from "./Ribbon";
-export type { RibbonProps } from "./Ribbon";
+export { Ribbon, useRibbonHandle } from "./Ribbon.js";
+export type { RibbonProps } from "./Ribbon.js";
 
-export { CommandPalette, fuzzyScore, rank, usePaletteShortcut } from "./CommandPalette";
-export type { CommandPaletteProps, PaletteEntry } from "./CommandPalette";
+export { CommandPalette, fuzzyScore, rank, usePaletteShortcut } from "./CommandPalette.js";
+export type { CommandPaletteProps, PaletteEntry } from "./CommandPalette.js";
 
-export { PropertyGrid, discrepancyOf } from "./PropertyGrid";
-export type { Discrepancy, Property, PropertyGridProps, PropertySet, PropertyValue } from "./PropertyGrid";
+export { PropertyGrid, discrepancyOf } from "./PropertyGrid.js";
+export type { Discrepancy, Property, PropertyGridProps, PropertySet, PropertyValue } from "./PropertyGrid.js";
 
-export { Dock, loadLayout, saveLayout } from "./Dock";
-export type { DockLayout, DockPanel, DockProps, DockSide } from "./Dock";
+export { Dock, loadLayout, saveLayout } from "./Dock.js";
+export type { DockLayout, DockPanel, DockProps, DockSide } from "./Dock.js";

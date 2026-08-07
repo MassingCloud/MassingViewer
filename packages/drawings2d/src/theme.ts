@@ -1,4 +1,4 @@
-import type { DrawingEntity, EntityRole } from "./model";
+import type { DrawingEntity, EntityRole } from "./model.js";
 
 /**
  * A theme: selectors → paint.

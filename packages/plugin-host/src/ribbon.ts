@@ -1,5 +1,5 @@
 import { type RibbonGroup, type TabId, toolId } from "@massingviewer/ui-model";
-import type { CommandContribution, Contributions, RibbonGroupContribution } from "./manifest";
+import type { CommandContribution, Contributions, RibbonGroupContribution } from "./manifest.js";
 
 /**
  * Contributions → the ribbon layout model.
