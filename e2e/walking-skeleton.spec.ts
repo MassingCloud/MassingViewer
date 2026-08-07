@@ -773,6 +773,33 @@ test("shows the drop hint without letting it swallow the drop", async ({ page })
   await expect(hint).toBeHidden();
 });
 
+test("a plugin's button exists before its code does, and works when pressed", async ({ page }) => {
+  // Lazy activation, end to end. The manifest put this button on the ribbon at startup; the plugin's module is
+  // not fetched until it is pressed. That split is the entire reason the contribution model is declarative, and
+  // it is what lets a hundred installed plugins cost nothing at startup.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+
+  // Analyse is an existing tab. Plugins join tabs; they do not invent them, and `validateManifest` refuses a tab
+  // that is not one of the nine.
+  await page.locator('#ribbon [role="tab"]', { hasText: "Analyse" }).click();
+  const button = page.locator('#ribbon button[data-tool="footprint"]');
+  await expect(button).toBeVisible();
+
+  await button.click();
+  // The command ran, which means the host loaded and activated the plugin on demand.
+  await expect(page.locator("#status")).toContainText("footprint", { timeout: 10_000 });
+  await expect(page.locator("#status")).toContainText("=");
+});
+
+test("a plugin's keybinding comes from its manifest, not from a switch statement", async ({ page }) => {
+  // The payoff of declaring keybindings as data: remapping is an edit to a manifest. massing's `handleKey`
+  // switch statement is the thing this replaces, and a plugin cannot extend a switch statement at all.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await page.locator("#viewport").click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press("Shift+M");
+  await expect(page.locator("#status")).toContainText("footprint", { timeout: 10_000 });
+});
+
 test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
   // A **measured** assertion, and it exists because the unit tests could not catch this. The CSS set
   // `.mv-ribbon-panel { display: flex }`, which beats the `hidden` attribute's UA `display: none`, so every tab's
@@ -796,7 +823,10 @@ test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
 test("the ribbon holds all 30 inherited tools, and dims rather than hides", async ({ page }) => {
   // Asserting the render, not the table: `ui-model` already proves every tool has a home, and that is a
   // different claim from every tool producing a button.
-  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30);
+  // 31 = the 30 inherited tools plus one contributed by the example plugin. Written as a sum rather than as a
+  // magic number, because the composition is the interesting part: the plugin's button is rendered by the same
+  // code, in the same collapse algorithm, as a built-in one.
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30 + 1);
   await expect(page.locator('#ribbon [role="tab"]')).toHaveCount(7);
 
   // With nothing selected, the selection verbs are dimmed — present, focusable, and explaining themselves.
@@ -851,7 +881,10 @@ test("the ribbon collapses groups on a narrow viewport without losing a tool", a
     .toBeGreaterThan(0);
 
   // Still all thirty. Collapsed is not gone.
-  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30);
+  // 31 = the 30 inherited tools plus one contributed by the example plugin. Written as a sum rather than as a
+  // magic number, because the composition is the interesting part: the plugin's button is rendered by the same
+  // code, in the same collapse algorithm, as a built-in one.
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30 + 1);
   // And the ribbon never becomes the thing that makes the page scroll sideways.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(overflow, "the page must not scroll horizontally").toBe(false);

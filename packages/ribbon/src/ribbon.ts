@@ -2,6 +2,7 @@ import {
   type Availability,
   type ItemSize,
   type RibbonGroup,
+  type RibbonItem,
   type TabId,
   availabilityOf,
   buildRibbon,
@@ -32,8 +33,16 @@ import { TOOLS, type ToolContext, type ToolSpec } from "@massingviewer/ui-model"
  */
 
 export interface RibbonHandlers {
-  /** A tool was activated. `id` is the stable `toolId`, which is what a keybinding or macro would carry. */
-  readonly onTool: (id: string, tool: ToolSpec) => void;
+  /**
+   * A tool was activated. `id` is the stable `toolId`, which is what a keybinding or macro would carry.
+   *
+   * The second argument is the layout {@link RibbonItem}, not a `ToolSpec`. That is a deliberate narrowing: a
+   * group contributed by a plugin has no `ToolSpec` behind it, and `RibbonItem` already carries the `id`, `label`
+   * and `title` the renderer and its callers actually read. Handing back a `ToolSpec` would make the whole
+   * renderer unusable for anything but the built-in table — which is the coupling ADR-0009 argues against one
+   * layer up.
+   */
+  readonly onTool: (id: string, item: RibbonItem) => void;
   /** The active tab changed. Hosts may want to persist it. */
   readonly onTab?: (tab: TabId | string) => void;
 }
@@ -43,6 +52,22 @@ export interface RibbonOptions {
   readonly context?: ToolContext;
   /** Override the tool table — for tests, and for a host that has extra verbs. */
   readonly tools?: readonly ToolSpec[];
+  /**
+   * Render these groups instead of deriving them from the tool table.
+   *
+   * How a plugin host renders: `plugin-host`'s `ribbonFrom(contributions)` produces exactly this shape, so a
+   * contributed group collapses by the same algorithm as a built-in one rather than through a second path that
+   * will diverge.
+   */
+  readonly groups?: readonly RibbonGroup[];
+  /**
+   * Decide whether an item is available, and why not.
+   *
+   * Defaults to looking the item up in the tool table and calling `availabilityOf`. A host supplying its own
+   * `groups` supplies this too, because there is no tool table to look anything up in — and an item with no
+   * availability rule must default to *enabled* rather than silently dimmed.
+   */
+  readonly availability?: (item: RibbonItem, context: ToolContext) => Availability;
   /**
    * Measure the available width. Injectable because `clientWidth` is 0 in a detached container and in happy-dom,
    * and a ribbon that silently lays out at zero width collapses everything — which looks like a bug in the
@@ -83,7 +108,7 @@ const GLYPHS: Record<string, string> = {
 
 export function createRibbon(container: HTMLElement, options: RibbonOptions): Ribbon {
   const tools = options.tools ?? TOOLS;
-  const groups = buildRibbon(tools);
+  const groups = options.groups ?? buildRibbon(tools);
   /**
    * Stable id → tool.
    *
@@ -93,13 +118,25 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
    * never be re-enabled: dimmed was a one-way door. Reading back an attribute you also write is the shape of the
    * mistake, not the specific string.
    */
-  const byId = new Map<string, ToolSpec>();
+  const byId = new Map<string, RibbonItem>();
   for (const group of groups) {
-    for (const item of group.items) {
-      const tool = tools.find((t) => t.title === item.title);
-      if (tool !== undefined) byId.set(item.id, tool);
-    }
+    for (const item of group.items) byId.set(item.id, item);
   }
+
+  /**
+   * Availability, from the caller or from the tool table.
+   *
+   * The fallback is `{ state: "enabled" }` for an item with no matching tool, not "dimmed". An unknown item is a
+   * gap in *our* knowledge, and dimming it would tell the user their permissions are wrong when the truth is
+   * that a lookup missed — a refusal for a reason nobody can act on, which is the failure `availabilityOf`'s
+   * required `reason` field exists to make unrepresentable.
+   */
+  const availabilityOfItem =
+    options.availability ??
+    ((item: RibbonItem, ctx: ToolContext): Availability => {
+      const tool = tools.find((t) => t.title === item.title);
+      return tool === undefined ? { state: "enabled" } : availabilityOf(tool, ctx);
+    });
   const tabs = tabsWithContent(groups);
   const measure = options.measure ?? ((el: HTMLElement) => el.clientWidth);
 
@@ -235,10 +272,10 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
       announce(`${button.querySelector(".mv-ribbon-label")?.textContent ?? id}: ${button.dataset.reason ?? "unavailable"}`);
       return;
     }
-    const tool = byId.get(id);
-    if (tool === undefined) return;
-    announce(`${tool.label} armed`);
-    options.handlers.onTool(id, tool);
+    const item = byId.get(id);
+    if (item === undefined) return;
+    announce(`${item.label} armed`);
+    options.handlers.onTool(id, item);
   }
 
   /**
@@ -320,9 +357,9 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
 
   function applyAvailability(): void {
     for (const [id, button] of itemButtons) {
-      const tool = byId.get(id);
-      if (tool === undefined) continue;
-      const state: Availability = availabilityOf(tool, context);
+      const item = byId.get(id);
+      if (item === undefined) continue;
+      const state: Availability = availabilityOfItem(item, context);
       const dimmed = state.state === "dimmed";
       // `aria-disabled` rather than `disabled`: a `disabled` button is unfocusable and unannounced, so a screen
       // reader user cannot discover it exists — which defeats dim-not-hide entirely.
@@ -331,10 +368,10 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
       if (dimmed) {
         button.dataset.reason = state.reason;
         // The reason is on the element, so the CSS `::after` badge and the tooltip say the same thing.
-        button.title = `${tool.title} — ${state.reason}`;
+        button.title = `${item.title} — ${state.reason}`;
       } else {
         delete button.dataset.reason;
-        button.title = tool.title;
+        button.title = item.title;
       }
     }
   }

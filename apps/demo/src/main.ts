@@ -31,6 +31,14 @@ import {
   pickFiles,
   type OpenedFile,
 } from "@massingviewer/fileio";
+import {
+  BUILTIN_ID,
+  builtinManifests,
+  commandIdFor,
+  createPluginHost,
+  ribbonFrom,
+  type PluginManifest,
+} from "@massingviewer/plugin-host";
 import { createRibbon } from "@massingviewer/ribbon";
 import "@massingviewer/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
@@ -773,22 +781,145 @@ const RIBBON_ACTIONS: Record<string, () => void> = {
   "add-door-to-selected-wall": () => ribbon.announce("Add door needs the wall tool first"),
 };
 
+/**
+ * An example plugin, declared and loaded like any third-party one.
+ *
+ * It exists to make the extension story checkable rather than described. Everything a real plugin has: a
+ * namespaced command, a ribbon group joining an *existing* tab, a keybinding, and — the part that matters —
+ * `onCommand:` activation, so its code is not fetched until the button is pressed.
+ *
+ * Deliberately in the demo rather than in a package. A plugin that ships inside the host it extends is not a
+ * plugin; it is a feature with extra ceremony. This one is loaded through the same `load` callback a real one
+ * would be, so it proves the seam instead of decorating it.
+ */
+const EXAMPLE_PLUGIN: PluginManifest = {
+  id: "example.metrics",
+  name: "Quick metrics",
+  version: "1.0.0",
+  description: "Reports the model's footprint. A plugin small enough to read and real enough to prove the seam.",
+  publisher: "MassingCloud",
+  activation: ["onCommand:example.metrics.footprint"],
+  contributes: {
+    commands: [{ id: "example.metrics.footprint", title: "Footprint", capability: "view" }],
+    // Joins Analyse, a tab that already exists. Plugins join tabs; they do not invent them.
+    ribbon: [
+      {
+        id: "example-metrics",
+        label: "Metrics",
+        tab: "analyse",
+        priority: 4,
+        items: [{ command: "example.metrics.footprint", size: "large" }],
+      },
+    ],
+    keybindings: [{ command: "example.metrics.footprint", key: "Shift+M" }],
+  },
+};
+
+/**
+ * The host, with the built-in tools and the example plugin loaded side by side.
+ *
+ * `builtinManifests()` derives the first-party ribbon from `ui-model`'s own tables, so what renders below is the
+ * contribution model exercised on the real UI rather than on a toy. The unit tests assert it reproduces
+ * `buildRibbon()` exactly; this is the same claim, in a browser.
+ */
+const host = createPluginHost({
+  // The loader is where a real deployment would `import()` a chunk. Here it resolves the one example plugin, and
+  // refuses everything else — a loader that silently returns an empty runtime would make a missing plugin look
+  // like a working one.
+  load: async (id) => {
+    if (id !== EXAMPLE_PLUGIN.id) throw new Error(`no module for ${id}`);
+    return {
+      activate: (ctx) => {
+        ctx.registerCommand("example.metrics.footprint", () => {
+          const b = built.bounds;
+          const area = (b.max.x - b.min.x) * (b.max.y - b.min.y);
+          el("#status").textContent = `footprint ${formatLength(b.max.x - b.min.x, units)} x ${formatLength(b.max.y - b.min.y, units)} = ${area.toFixed(1)} m2`;
+        });
+      },
+    };
+  },
+  onFailure: (id, phase, error) => {
+    // Surfaced, not swallowed. A quarantined plugin the user cannot see is a plugin they will report as "the
+    // button does nothing" — which is exactly what rollback prevents and what this makes legible.
+    el("#status").textContent = `plugin ${id} failed to ${phase}: ${error instanceof Error ? error.message : String(error)}`;
+  },
+});
+
+const loaded = host.load([...builtinManifests(), EXAMPLE_PLUGIN]);
+if (loaded.rejected.length > 0) {
+  el("#status").textContent = `rejected ${loaded.rejected.map((r) => r.id).join(", ")}`;
+}
+
 const ribbon = createRibbon(el("#ribbon"), {
   context: { selection: false, canEdit: true },
+  // The groups come from the host, so a contributed group and a built-in one go through one collapse algorithm.
+  // Two paths would diverge, and the divergence would show up as plugin buttons behaving differently at a narrow
+  // window — reported by an author, months later.
+  groups: ribbonFrom(host.contributions()),
   handlers: {
-    onTool: (id, tool) => {
+    onTool: (id, item) => {
+      // A built-in tool with a demo implementation.
       const action = RIBBON_ACTIONS[id];
-      if (action === undefined) {
-        // Honest rather than silent. Thirty verbs came across from massing's toolbar and only a handful have an
-        // implementation here; pretending otherwise is how a demo teaches the wrong thing about the product.
-        ribbon.announce(`${tool.label} is in the ribbon but not implemented in this demo`);
-        el("#status").textContent = `${tool.label}: not implemented in this demo`;
+      if (action !== undefined) {
+        action();
         return;
       }
-      action();
+
+      // Otherwise it is a contributed command. `runCommand` activates the owning plugin on demand, which is the
+      // whole point of `onCommand:` — the button existed from startup, the code arrives now.
+      const command = COMMAND_FOR_ITEM.get(id);
+      if (command !== undefined) {
+        void host.runCommand(command).catch((error: unknown) => {
+          el("#status").textContent = `${item.label}: ${error instanceof Error ? error.message : String(error)}`;
+        });
+        return;
+      }
+
+      // Honest rather than silent. Thirty verbs came across from massing's toolbar and only a handful have an
+      // implementation here; pretending otherwise is how a demo teaches the wrong thing about the product.
+      ribbon.announce(`${item.label} is in the ribbon but not implemented in this demo`);
+      el("#status").textContent = `${item.label}: not implemented in this demo`;
     },
   },
 });
+
+/**
+ * Ribbon item id → command id.
+ *
+ * Needed because `RibbonItem.id` is derived from the *title* — the same derivation built-ins use, so a plugin
+ * command and a built-in tool have ids of one shape and anything keyed on item id treats them alike. The price is
+ * this one lookup, built from the contributions rather than guessed at.
+ */
+const COMMAND_FOR_ITEM = new Map<string, string>(
+  (host.contributions().commands ?? [])
+    .filter((c) => !c.id.startsWith(`${BUILTIN_ID}.`))
+    .map((c) => [ribbonItemIdFor(c.title), c.id]),
+);
+
+function ribbonItemIdFor(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// The keybinding layer, straight from the manifests: remapping is data, not a switch statement.
+window.addEventListener("keydown", (event) => {
+  const parts: string[] = [];
+  if (event.ctrlKey) parts.push("Ctrl");
+  if (event.shiftKey) parts.push("Shift");
+  if (event.altKey) parts.push("Alt");
+  if (event.metaKey) parts.push("Meta");
+  parts.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
+  const command = host.keymap().get(parts.join("+"));
+  if (command === undefined) return;
+  event.preventDefault();
+  void host.runCommand(command).catch(() => {
+    /* reported through onFailure */
+  });
+});
+
+void commandIdFor;
 
 // --- status ---------------------------------------------------------------------------------------
 

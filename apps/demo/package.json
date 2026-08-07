@@ -16,6 +16,7 @@
     "@massingviewer/kernel-api": "0.0.0",
     "@massingviewer/kernel-local": "0.0.0",
     "@massingviewer/markup": "0.0.0",
+    "@massingviewer/plugin-host": "0.0.0",
     "@massingviewer/ribbon": "0.0.0",
     "@massingviewer/ui-model": "0.0.0",
     "@massingviewer/viewport": "0.0.0"

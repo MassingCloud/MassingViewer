@@ -2,7 +2,7 @@
   "name": "massingviewer",
   "version": "0.0.0",
   "private": true,
-  "description": "Standalone IFC-native 3D/2D CAD studio for the browser — view and author models, generate and mark up plans. Offline-capable local kernel, pluggable remote kernel.",
+  "description": "Standalone IFC-native 3D/2D CAD studio for the browser \u2014 view and author models, generate and mark up plans. Offline-capable local kernel, pluggable remote kernel.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
     "test:fast": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run gates",
-    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions && npm run gate:fixtures && npm run gate:packaging && npm run gate:recipes",
+    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions && npm run gate:fixtures && npm run gate:packaging && npm run gate:recipes && npm run gate:doccode",
     "gate:arch": "node scripts/check-architecture.mjs",
     "gate:license": "node scripts/check-licenses.mjs",
     "gate:provenance": "node scripts/check-provenance.mjs",
@@ -48,7 +48,8 @@
     "changeset": "changeset",
     "changeset:version": "changeset version && npm install --package-lock-only",
     "changeset:publish": "npm run build && changeset publish",
-    "gate:bundle": "node scripts/bundle-budget.mjs"
+    "gate:bundle": "node scripts/bundle-budget.mjs",
+    "gate:doccode": "node scripts/check-doc-code.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "0.7.0",

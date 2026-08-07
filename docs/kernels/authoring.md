@@ -39,14 +39,23 @@ npm i -D @massingviewer/kernel-conformance
 ```
 
 ```ts
+import { asModelId } from "@massingviewer/core";
 import { describeKernel } from "@massingviewer/kernel-conformance";
+import { createMemoryKernel } from "@massingviewer/kernel-memory";
+
+// Your factory. `createMemoryKernel` stands in here so this block compiles as written — the reference
+// implementation in `packages/kernel-memory` is also the shortest complete example of the interface.
+const createMyKernel = createMemoryKernel;
 
 describeKernel("MyKernel", {
   create: async () => createMyKernel(),
   modelId: asModelId("conformance"),
   createOp: { op: "add_wall", params: { start: [0, 0], end: [5, 0], height: 3 } },
-  sampleParams: { /* one params object per op you support */ },
-  unsupportedOps: ["program_fit", "derive_analytical"],
+  // One params object per op you support. Required: an op with no entry is checked only for capability
+  // honesty, so leaving it out silently reduces what the suite actually exercises.
+  sampleParams: { add_wall: { start: [0, 0], end: [5, 0], height: 3 } },
+  // Ops you know you do not support, confirmed to refuse cleanly rather than throw or hang.
+  knownUnsupported: ["program_fit", "derive_analytical"],
 });
 ```
 
@@ -83,7 +92,7 @@ allowed is being vague about which 15.
 
 ### `capabilities`
 
-```ts
+```ts ignore
 readonly capabilities: KernelCapabilities;
 ```
 
@@ -104,7 +113,7 @@ intend:
 
 ### `unsupported(op, hint)`
 
-```ts
+```ts ignore
 return err(unsupported(op, `"${op}" runs on the Massing authoring service. Connect a project to use it.`));
 ```
 
@@ -157,10 +166,11 @@ has the implementation if you need it.
 `fixtures/recipes.tsv` lists all 96 operations with a status column per kernel. Add a column for yours:
 
 ```ts
+import { readFileSync } from "node:fs";
 import { describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
 
 const ledger = parseRecipeLedger(readFileSync("fixtures/recipes.tsv", "utf8"));
-describeRecipeParity("MyKernel", { create }, ledger, "mine");
+describeRecipeParity("MyKernel", { create: async () => createMyKernel() }, ledger, "mine");
 ```
 
 It checks both directions: a `yes` your kernel does not declare fails as overstating, and an op you declare that
@@ -194,7 +204,7 @@ second time turns a benign double-unmount into a crash.
 
 ## Using it
 
-```ts
+```ts ignore
 const kernel = createMyKernel();
 const viewer = createMassingViewer({ container, kernel });
 ```
