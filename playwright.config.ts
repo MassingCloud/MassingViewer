@@ -84,6 +84,12 @@ export default defineConfig({
       name: "firefox",
       use: {
         ...devices["Desktop Firefox"],
+        // Headed under a virtual display when E2E_HEADED is set. Two rounds of `webgl.*` prefs and software
+        // WebRender both left the diagnostic reporting "WebGL: UNAVAILABLE", because the missing piece is not
+        // permission or a backend — it is a GL *surface*. Headless Firefox on Linux has no drawable, so there is
+        // nothing for a context to attach to. Xvfb provides one, and this is the mechanism rather than a third
+        // guess at a preference.
+        headless: process.env.E2E_HEADED !== "1",
         launchOptions: {
           // Headless Firefox on a GPU-less CI runner refuses WebGL by default, and the symptom is not an error
           // — the renderer simply fails to construct, the app never finishes initialising, and every test times

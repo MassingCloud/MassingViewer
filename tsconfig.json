@@ -34,6 +34,9 @@
     },
     {
       "path": "./packages/kernel-local"
+    },
+    {
+      "path": "./packages/drawings2d"
     }
   ]
 }

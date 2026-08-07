@@ -52,7 +52,18 @@ jobs:
       - name: Run E2E
         # `npm run e2e`, not `npx playwright test`: this config has no webServer block, and the orchestrator
         # owns building, serving, running and stopping. See scripts/e2e.mjs.
-        run: npm run e2e -- --project=${{ matrix.project }}
+        #
+        # Firefox runs headed under Xvfb. Headless Firefox on Linux has no GL drawable, so WebGL cannot be
+        # created at all and every test fails on an app that never finishes initialising — confirmed twice by the
+        # diagnostic in e2e/global-setup.ts reporting "WebGL: UNAVAILABLE". Xvfb gives it a surface. Chromium
+        # needs none of this because SwiftShader rasterises entirely in software, which is also why Chromium is
+        # the project that carries any pixel-level assertions.
+        run: |
+          if [ "${{ matrix.project }}" = "firefox" ]; then
+            E2E_HEADED=1 xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run e2e -- --project=firefox
+          else
+            npm run e2e -- --project=${{ matrix.project }}
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

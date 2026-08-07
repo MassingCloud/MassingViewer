@@ -10,11 +10,12 @@
 "@massingviewer/viewport": minor
 "@massingviewer/ifc": minor
 "@massingviewer/kernel-local": minor
+"@massingviewer/drawings2d": minor
 ---
 
 First published release.
 
-Eleven packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
+Twelve packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
 That is stated explicitly because SemVer permits it and people reasonably expect otherwise.
 
 What is in this release:
@@ -33,5 +34,9 @@ What is in this release:
   analytical model. See `docs/adr/0008-local-kernel-geometry-stack.md`.
 - `kernel-local` — offline IFC authoring: fifteen operations, GlobalIds minted as real compressed UUIDs,
   snapshot undo, and `unsupported` with a usable hint for the other eighty-one.
+- `drawings2d` — the Semantic Drawing Model. Entity geometry is in model space and paper is a render-time
+  transform, so restyling a plan is a repaint rather than a regeneration, every line carries the GlobalId of its
+  element, and SVG/DXF/PDF are pure functions of (Drawing, Theme, Paper). Includes a plan/section cutter that
+  reports what it could not section instead of quietly omitting it.
 - `viewport` — imperative three.js rendering with per-element identity, picking, adaptive pixel ratio, and
   mouse *and* touch navigation including pinch-to-zoom.
