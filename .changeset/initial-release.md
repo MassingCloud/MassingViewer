@@ -9,11 +9,12 @@
 "@massingviewer/commands": minor
 "@massingviewer/viewport": minor
 "@massingviewer/ifc": minor
+"@massingviewer/kernel-local": minor
 ---
 
 First published release.
 
-Ten packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
+Eleven packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
 That is stated explicitly because SemVer permits it and people reasonably expect otherwise.
 
 What is in this release:
@@ -30,5 +31,7 @@ What is in this release:
 - `ifc` — the IFC file as something you can edit without breaking. It holds the file's own STEP entity table
   and re-emits untouched entities byte-for-byte, so moving one wall cannot silently delete a consultant's
   analytical model. See `docs/adr/0008-local-kernel-geometry-stack.md`.
+- `kernel-local` — offline IFC authoring: fifteen operations, GlobalIds minted as real compressed UUIDs,
+  snapshot undo, and `unsupported` with a usable hint for the other eighty-one.
 - `viewport` — imperative three.js rendering with per-element identity, picking, adaptive pixel ratio, and
   mouse *and* touch navigation including pinch-to-zoom.

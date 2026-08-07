@@ -32,8 +32,14 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
  */
 const LAYERS = [
   ["core", "kernel-api", "kernel-conformance"],
-  ["geometry-math", "ui-model", "catalog", "jobs"],
-  ["geometry-worker", "ifc", "kernel-local", "kernel-remote", "kernel-memory"],
+  // `ifc` sits here rather than at layer 2 where the original plan put it, and the move is a consequence of
+  // docs/adr/0008-local-kernel-geometry-stack.md rather than a convenience. The plan assumed this package would
+  // wrap `web-ifc` and therefore carry WASM; the ADR decided the entity table is ours and web-ifc is used only
+  // for tessellation elsewhere. What actually shipped is pure TypeScript with no DOM, no network and no WASM —
+  // which is the definition of this layer. Leaving it at 2 would have forced a same-layer exception for
+  // `kernel-local -> ifc`, papering over a classification that had simply become wrong.
+  ["geometry-math", "ui-model", "catalog", "jobs", "ifc"],
+  ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory"],
   ["drawings2d", "markup-ui", "commands", "plugin-host", "assets"],
   ["viewport", "ui-react"],
   ["embed", "cli"],
