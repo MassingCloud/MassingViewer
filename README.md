@@ -70,14 +70,18 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**597 unit tests, 21 E2E tests on Chromium, Firefox, WebKit and iPad, and 9 repo gates** are green.
+**647 unit tests, 25 E2E tests on Chromium, Firefox, WebKit and iPad, and 9 repo gates** are green.
 
 - **Exports SVG and DXF from one drawing.** Both are pure functions of `(Drawing, Theme, Paper)`, so a DXF a
   consultant opens measures the same as the SVG a reviewer approved — and `dxfLimitations()` states what R12
   cannot carry, including that GlobalIds do not survive a DXF, rather than leaving it to be discovered.
 
-What is **not** built: the ribbon shell (the UI is a demo panel, not the ribbon in the design above), PDF export,
-and the plugin manifest system. See [the roadmap](#roadmap).
+- **A real ribbon**, in vanilla DOM so massing can mount the same code. All 30 inherited tools across nine tabs,
+  groups that collapse to dropdowns as the window narrows and **never drop a verb** — asserted at every integer
+  width from 320 to 3840 — full keyboard navigation, and controls that dim with a reason instead of vanishing.
+
+What is **not** built: PDF export, the plugin manifest system, and the dockable panel layout. See
+[the roadmap](#roadmap).
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).

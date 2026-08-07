@@ -26,14 +26,22 @@ export default tseslint.config(
       // than by convention, because "don't touch the DOM in core" is exactly the rule that erodes.
       "no-restricted-globals": [
         "error",
-        { name: "window", message: "Core packages must stay DOM-free. Move this to viewport or ui-react." },
-        { name: "document", message: "Core packages must stay DOM-free. Move this to viewport or ui-react." },
+        { name: "window", message: "Core packages must stay DOM-free. Move this to viewport, ribbon or ui-react." },
+        { name: "document", message: "Core packages must stay DOM-free. Move this to viewport, ribbon or ui-react." },
       ],
     },
   },
   {
     // Presentation packages legitimately own the DOM.
-    files: ["packages/viewport/**/*.ts", "packages/ui-react/**/*.{ts,tsx}", "apps/**/*.{ts,tsx}"],
+    files: [
+      "packages/viewport/**/*.ts",
+      // The ribbon renders in vanilla DOM on purpose, so that massing can mount the same code —
+      // see docs/adr/0009-ribbon-renders-in-vanilla-dom.md. It is a presentation package like the
+      // others here, not a core one.
+      "packages/ribbon/**/*.ts",
+      "packages/ui-react/**/*.{ts,tsx}",
+      "apps/**/*.{ts,tsx}",
+    ],
     rules: { "no-restricted-globals": "off" },
   },
   {

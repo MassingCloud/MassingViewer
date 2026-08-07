@@ -1,0 +1,285 @@
+/*
+ * The ribbon's styles.
+ *
+ * Plain CSS with custom properties, no preprocessor and no runtime CSS-in-JS. Two reasons: it has to fit inside
+ * massing's 220 KB budget as an *addition* rather than a replacement, and a host that mounts this needs to be
+ * able to restyle it without adopting our build.
+ *
+ * Every colour is a variable with a fallback, so a host that defines nothing still gets a usable ribbon and a
+ * host with its own tokens gets its own ribbon.
+ */
+
+.mv-ribbon {
+  --mv-ribbon-bg: var(--panel, #1f2329);
+  --mv-ribbon-line: var(--line, #34383d);
+  --mv-ribbon-text: var(--text, #e6e8ea);
+  --mv-ribbon-muted: var(--muted, #9aa3ad);
+  --mv-ribbon-accent: var(--accent, #4ea1ff);
+  --mv-ribbon-hover: #2f353d;
+
+  display: flex;
+  flex-direction: column;
+  background: var(--mv-ribbon-bg);
+  border-bottom: 1px solid var(--mv-ribbon-line);
+  color: var(--mv-ribbon-text);
+  font: inherit;
+  /* The ribbon must never be the thing that makes the page scroll sideways. */
+  overflow: hidden;
+}
+
+/* --- tabs ------------------------------------------------------------------------------------------ */
+
+.mv-ribbon-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--mv-ribbon-line);
+  /* Tabs scroll rather than wrap: a wrapping tab strip changes height, which resizes the viewport below it and
+     starts a layout feedback loop. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.mv-ribbon-tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--mv-ribbon-muted);
+  padding: 7px 12px 5px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mv-ribbon-tab:hover {
+  color: var(--mv-ribbon-text);
+}
+
+.mv-ribbon-tab.mv-active {
+  color: var(--mv-ribbon-text);
+  border-bottom-color: var(--mv-ribbon-accent);
+}
+
+/* A contextual tab is visibly different, because it appears and disappears with the selection and a user needs
+   to know which tabs are permanent. */
+.mv-ribbon-tab-contextual {
+  color: var(--mv-ribbon-accent);
+  font-style: italic;
+}
+
+/* --- panels and groups ----------------------------------------------------------------------------- */
+
+.mv-ribbon-panel {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 4px 8px 2px;
+  min-height: 66px;
+}
+
+/*
+ * An author `display` beats the `hidden` attribute's UA `display: none`, so the rule above made **every** panel
+ * render — the ribbon came out 503px tall with all seven tabs stacked.
+ *
+ * The unit tests could not catch it: they assert `panel.hidden`, which was correctly `true` the whole time. That
+ * is the same failure `docs/pending/toolbarView.test.ts.txt` was preserved for, in a new costume — asserting the
+ * attribute is not asserting the render. It took a real browser and a measured height, so that is where the
+ * regression test lives.
+ */
+.mv-ribbon-panel[hidden] {
+  display: none;
+}
+
+.mv-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 7px;
+  border-right: 1px solid var(--mv-ribbon-line);
+  position: relative;
+}
+
+.mv-ribbon-group:last-child {
+  border-right: 0;
+}
+
+.mv-ribbon-group-label {
+  font-size: 10px;
+  color: var(--mv-ribbon-muted);
+  text-align: center;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+.mv-ribbon-items {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+/* --- items ----------------------------------------------------------------------------------------- */
+
+.mv-ribbon-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--mv-ribbon-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.mv-ribbon-item:hover:not(.mv-dimmed) {
+  background: var(--mv-ribbon-hover);
+  border-color: var(--mv-ribbon-line);
+}
+
+/* 3:1 contrast against the panel, and never removed — a focus ring that only appears on :focus-visible still has
+   to be visible when it appears. */
+.mv-ribbon-item:focus-visible,
+.mv-ribbon-tab:focus-visible,
+.mv-ribbon-more:focus-visible {
+  outline: 2px solid var(--mv-ribbon-accent);
+  outline-offset: 1px;
+}
+
+/* The three sizes the layout model chooses between. `large` stacks the label under a bigger glyph; `medium` puts
+   it beside; `small` drops it entirely and keeps the tooltip. */
+.mv-ribbon-item[data-size="large"] {
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  min-width: 56px;
+}
+
+.mv-ribbon-item[data-size="large"] .mv-ribbon-glyph {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.mv-ribbon-item[data-size="small"] .mv-ribbon-label {
+  /* Hidden from sight but not from assistive technology: the accessible name must survive the size change, or a
+     screen-reader user loses the label the moment the window narrows. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mv-ribbon-glyph {
+  font-size: 14px;
+}
+
+/*
+ * Dimmed, never hidden.
+ *
+ * `aria-disabled` rather than `disabled`, so the control stays focusable and announced — a `disabled` button is
+ * invisible to a screen reader, which defeats the entire point of showing a user what exists.
+ */
+.mv-ribbon-item.mv-dimmed {
+  color: var(--mv-ribbon-muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The explanatory badge. massing's mechanism, kept: `body[data-cap-edit="off"]` dims author verbs wholesale and
+   annotates them, so a user reads why rather than wondering. */
+body[data-cap-edit="off"] .mv-ribbon-item[data-cap="edit"] {
+  color: var(--mv-ribbon-muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body[data-cap-edit="off"] .mv-ribbon-item[data-cap="edit"]::after {
+  content: " (needs Editor)";
+  font-size: 10px;
+  color: var(--mv-ribbon-muted);
+}
+
+/* --- collapsed groups ------------------------------------------------------------------------------ */
+
+.mv-ribbon-more {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--mv-ribbon-line);
+  border-radius: 4px;
+  color: var(--mv-ribbon-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+.mv-ribbon-more::after {
+  content: "▾";
+  font-size: 9px;
+  color: var(--mv-ribbon-muted);
+}
+
+.mv-ribbon-group.mv-collapsed > .mv-ribbon-items {
+  display: none;
+}
+
+.mv-ribbon-group.mv-collapsed > .mv-ribbon-more {
+  display: flex;
+}
+
+/* Opened, the collapsed group's items float over the panel — the one place a floating surface is right, because
+   it is transient and dismissible, unlike the permanent floating bar this ribbon replaces. */
+.mv-ribbon-group.mv-collapsed.mv-open > .mv-ribbon-items {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  background: var(--mv-ribbon-bg);
+  border: 1px solid var(--mv-ribbon-line);
+  border-radius: 5px;
+  padding: 4px;
+  box-shadow: 0 4px 14px #0008;
+  min-width: 150px;
+}
+
+/* Inside the dropdown every item reads the same way, whatever size the strip had chosen. */
+.mv-ribbon-group.mv-collapsed.mv-open .mv-ribbon-item {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+.mv-ribbon-group.mv-collapsed.mv-open .mv-ribbon-item .mv-ribbon-label {
+  position: static;
+  width: auto;
+  height: auto;
+  clip-path: none;
+}
+
+/* --- live region ----------------------------------------------------------------------------------- */
+
+/* Visually hidden, never `display: none` — a display-none live region is not announced at all. */
+.mv-ribbon-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-ribbon * {
+    transition: none !important;
+  }
+}

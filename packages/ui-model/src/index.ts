@@ -29,3 +29,27 @@ export type { ToolContext, ToolGroup, ToolSpec } from "./toolbarLayout";
 // is visually indistinguishable from "this button has no icon yet" — so it has to be a build failure.
 export { ICONS, hasIcon } from "./icons";
 export type { IconName } from "./icons";
+
+export {
+  TABS,
+  availabilityOf,
+  buildRibbon,
+  contextualTabsFor,
+  emptyTabs,
+  everyToolMapped,
+  everyToolReachable,
+  layoutTab,
+  orphanedHomes,
+  reachableIn,
+  tabsWithContent,
+  toolId,
+} from "./ribbon";
+export type {
+  Availability,
+  ItemSize,
+  LaidOutGroup,
+  RibbonGroup,
+  RibbonItem,
+  RibbonLayout,
+  TabId,
+} from "./ribbon";

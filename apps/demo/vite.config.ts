@@ -21,11 +21,26 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
  * `packages/viewport` live-reloads the demo; and dev and build resolve identically, which removes a class of
  * "works in dev, broken in the bundle" difference.
  */
-function workspaceAliases(): Record<string, string> {
-  const aliases: Record<string, string> = {};
+function workspaceAliases(): { find: RegExp; replacement: string }[] {
+  const aliases: { find: RegExp; replacement: string }[] = [];
   for (const name of readdirSync(join(ROOT, "packages"))) {
-    const entry = join(ROOT, "packages", name, "src", "index.ts");
-    if (existsSync(entry)) aliases[`@massingviewer/${name}`] = entry;
+    const src = join(ROOT, "packages", name, "src");
+    if (!existsSync(join(src, "index.ts"))) continue;
+    // A **subpath** alias, and it must come first because Vite matches in order.
+    //
+    // The plain-string form of `alias` does prefix matching, so a single `@massingviewer/ribbon` entry rewrote
+    // `@massingviewer/ribbon/ribbon.css` to `.../src/index.ts/ribbon.css` and the build failed with
+    // "Could not load". Subpath exports are real — a stylesheet today, a worker entry tomorrow — so the mapping
+    // has to handle them rather than assume every specifier is bare.
+    aliases.push({
+      find: new RegExp(`^@massingviewer/${name}/(.*)$`),
+      replacement: `${src}/$1`,
+    });
+    // Anchored, so it matches the bare specifier exactly and cannot swallow a subpath.
+    aliases.push({
+      find: new RegExp(`^@massingviewer/${name}$`),
+      replacement: join(src, "index.ts"),
+    });
   }
   return aliases;
 }

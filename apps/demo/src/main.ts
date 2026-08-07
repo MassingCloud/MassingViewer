@@ -22,6 +22,8 @@ import {
   resolveAnchor,
   toBcfZip,
 } from "@massingviewer/markup";
+import { createRibbon } from "@massingviewer/ribbon";
+import "@massingviewer/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
@@ -48,6 +50,7 @@ app.innerHTML = `
       <button id="units" title="Toggle metric / imperial">m</button>
       <span class="muted" id="fps"></span>
     </header>
+    <div id="ribbon"></div>
     <main>
       <div id="viewport"></div>
       <div id="plan-pane" hidden><div id="plan-svg"></div></div>
@@ -171,9 +174,10 @@ let selectedGuid: string | null = null;
 function applySelection(hit: { expressId: number; guid: string | null } | null): void {
   viewport.select(hit ? [hit.expressId] : []);
   selectedGuid = hit?.guid ?? null;
-  // 3D → plan. Kept in this one function for the same reason the panel is: two places holding an opinion about
-  // what is selected is how they end up disagreeing.
+  // 3D → plan, and 3D → ribbon. Kept in this one function for the same reason the panel is: two places holding
+  // an opinion about what is selected is how they end up disagreeing.
   highlightPlan();
+  ribbon?.update({ selection: hit !== null, canEdit: true });
 
   const dl = el("#sel");
   dl.innerHTML = "";
@@ -592,6 +596,42 @@ window.addEventListener("keydown", (e) => {
 
 renderTools();
 renderTopics();
+
+// --- the ribbon ------------------------------------------------------------------------------------
+//
+// Mounted from `@massingviewer/ribbon`, which is vanilla DOM precisely so that massing can mount the same code.
+// See docs/adr/0009-ribbon-renders-in-vanilla-dom.md — a vanilla renderer works in both hosts, a React one works
+// in one, and the layout decisions live in `ui-model` so the two hosts cannot disagree about where a tool is.
+//
+// The handlers below wire the inherited verbs to what actually exists today. A verb with no implementation yet
+// announces that plainly rather than doing nothing: a button that appears to work and does not is worse than one
+// that says it is not built.
+
+const RIBBON_ACTIONS: Record<string, () => void> = {
+  "measure-distance-m": () => ribbon.announce("Measure is not wired up in this demo yet"),
+  "show-all-h": () => applySelection(null),
+  "isolate-selection": () => ribbon.announce("Isolate is not wired up in this demo yet"),
+  "plan-beside-model": () => generate(),
+  "delete-selected-element": () => void deleteSelected(),
+  "add-door-to-selected-wall": () => ribbon.announce("Add door needs the wall tool first"),
+};
+
+const ribbon = createRibbon(el("#ribbon"), {
+  context: { selection: false, canEdit: true },
+  handlers: {
+    onTool: (id, tool) => {
+      const action = RIBBON_ACTIONS[id];
+      if (action === undefined) {
+        // Honest rather than silent. Thirty verbs came across from massing's toolbar and only a handful have an
+        // implementation here; pretending otherwise is how a demo teaches the wrong thing about the product.
+        ribbon.announce(`${tool.label} is in the ribbon but not implemented in this demo`);
+        el("#status").textContent = `${tool.label}: not implemented in this demo`;
+        return;
+      }
+      action();
+    },
+  },
+});
 
 // --- status ---------------------------------------------------------------------------------------
 

@@ -12,11 +12,12 @@
 "@massingviewer/kernel-local": minor
 "@massingviewer/drawings2d": minor
 "@massingviewer/markup": minor
+"@massingviewer/ribbon": minor
 ---
 
 First published release.
 
-Thirteen packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
+Fourteen packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
 That is stated explicitly because SemVer permits it and people reasonably expect otherwise.
 
 What is in this release:
@@ -43,5 +44,9 @@ What is in this release:
   survives a model change and *visibly orphans* when its element is deleted. Includes Bluebeam-style Tool Sets,
   where the tool carries the issue metadata, and a dependency-free `.bcfzip` writer verified by extracting with
   an independent unzip.
+- `ribbon` — an Office-style ribbon in **vanilla DOM**, so massing and a React shell can both render it. Nine
+  tabs, responsive group collapse that never drops a tool, roving-tabindex keyboard navigation, and controls that
+  dim with a stated reason rather than disappearing. Layout decisions live in `ui-model`, so two hosts cannot
+  disagree about where a tool is. See `docs/adr/0009-ribbon-renders-in-vanilla-dom.md`.
 - `viewport` — imperative three.js rendering with per-element identity, picking, adaptive pixel ratio, and
   mouse *and* touch navigation including pinch-to-zoom.

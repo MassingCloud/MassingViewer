@@ -336,7 +336,10 @@ test("units toggle reformats the model panel", async ({ page }) => {
   const model = page.locator("#model");
   await expect(model).toContainText("8.400 m");
 
-  await page.getByRole("button", { name: "m" }).click();
+  // `#units`, not `getByRole("button", { name: "m" })`. That matched by substring, so adding the ribbon made it
+  // resolve to two elements and the test failed on strict mode rather than on anything real. A locator loose
+  // enough to be ambiguous is a locator that will become ambiguous.
+  await page.locator("#units").click();
   // Architectural notation with the hyphen — the convention on US construction drawings, and its absence is
   // the first thing a reviewer notices.
   await expect(model).toContainText(/\d+'-\d+/);
@@ -620,6 +623,96 @@ test("exports DXF that measures the same as the SVG the reviewer saw", async ({ 
   // And the stated loss is real: no GlobalId survives into a DXF.
   const guid = await page.locator("#plan-svg svg [data-guid]").first().getAttribute("data-guid");
   expect(text).not.toContain(guid!);
+});
+
+test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
+  // A **measured** assertion, and it exists because the unit tests could not catch this. The CSS set
+  // `.mv-ribbon-panel { display: flex }`, which beats the `hidden` attribute's UA `display: none`, so every tab's
+  // panel rendered at once and the ribbon came out 503px tall. `panel.hidden` was correctly `true` throughout —
+  // so asserting the attribute passed while the render was wrong. Same failure as
+  // docs/pending/toolbarView.test.ts.txt, new costume.
+  const ribbon = page.locator("#ribbon");
+  await expect(ribbon).toBeVisible();
+
+  const heights = await page.evaluate(() =>
+    [...document.querySelectorAll("#ribbon .mv-ribbon-panel")].map((p) => p.getBoundingClientRect().height),
+  );
+  expect(heights.filter((h) => h > 0), "exactly one panel should occupy space").toHaveLength(1);
+
+  const ribbonHeight = (await ribbon.boundingBox())!.height;
+  // One panel plus a tab strip. Seven stacked panels measured 503.
+  expect(ribbonHeight).toBeGreaterThan(60);
+  expect(ribbonHeight).toBeLessThan(160);
+});
+
+test("the ribbon holds all 30 inherited tools, and dims rather than hides", async ({ page }) => {
+  // Asserting the render, not the table: `ui-model` already proves every tool has a home, and that is a
+  // different claim from every tool producing a button.
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30);
+  await expect(page.locator('#ribbon [role="tab"]')).toHaveCount(7);
+
+  // With nothing selected, the selection verbs are dimmed — present, focusable, and explaining themselves.
+  await page.locator('#ribbon [data-tab="build"]').click();
+  const move = page.locator('#ribbon [data-tool="move-selected-element-e-n-z-metres"]');
+  await expect(move).toHaveAttribute("aria-disabled", "true");
+  await expect(move).toHaveAttribute("title", /Select an element first/);
+  // `disabled` would make it unfocusable and unannounced, which defeats showing the user what exists.
+  expect(await move.evaluate((el: HTMLButtonElement) => el.disabled)).toBe(false);
+});
+
+test("the ribbon is keyboard-navigable and announces what it armed", async ({ page }) => {
+  // WCAG 2.2 AA in the one place it is most often skipped. `role="toolbar"` per group plus a roving tabindex is
+  // what makes 30 buttons navigable instead of a 30-stop tab sequence in front of the canvas.
+  const tabbablePerGroup = await page.evaluate(() =>
+    [...document.querySelectorAll('#ribbon [role="tabpanel"]:not([hidden]) [role="toolbar"]')].map(
+      (g) => [...g.querySelectorAll("button[data-tool]")].filter((b) => b.getAttribute("tabindex") === "0").length,
+    ),
+  );
+  expect(tabbablePerGroup.every((n) => n === 1), `tabbable per group: ${tabbablePerGroup.join(",")}`).toBe(true);
+
+  const measure = page.locator('#ribbon [data-tool="measure-distance-m"]');
+  await measure.focus();
+  await page.keyboard.press("ArrowRight");
+  // Focus moved within the group, and the roving index followed it.
+  const focused = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.tool ?? null);
+  expect(focused).toBe("measure-area-a");
+
+  // Activating announces through the live region, because nothing visible tells a screen-reader user that the
+  // next click now means something different.
+  //
+  // Measure, not Show all: with nothing selected `show-all-h` is dimmed, and Playwright's actionability check
+  // treats `aria-disabled="true"` as disabled and waits forever. Useful to know — it means the dim state is real
+  // enough that the test harness itself respects it.
+  await page.locator('#ribbon [data-tool="measure-distance-m"]').click();
+  await expect(page.locator("#ribbon [role='status']")).toHaveText(/Measure/);
+});
+
+test("the ribbon collapses groups on a narrow viewport without losing a tool", async ({ page }) => {
+  // The invariant that replaces `MAX_PRIMARY = 8`, checked in a real browser. That cap shipped a bug: promoting
+  // Push/pull silently demoted Move. Here nothing is dropped — groups become dropdowns and every button stays in
+  // the DOM, reachable.
+  await page.locator('#ribbon [data-tab="build"]').click();
+  await page.setViewportSize({ width: 360, height: 800 });
+
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () => document.querySelectorAll("#ribbon [role='tabpanel']:not([hidden]) .mv-ribbon-group.mv-collapsed").length,
+      ),
+    )
+    .toBeGreaterThan(0);
+
+  // Still all thirty. Collapsed is not gone.
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30);
+  // And the ribbon never becomes the thing that makes the page scroll sideways.
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(overflow, "the page must not scroll horizontally").toBe(false);
+
+  // The dropdown reveals the collapsed group's items.
+  const more = page.locator("#ribbon [role='tabpanel']:not([hidden]) .mv-ribbon-group.mv-collapsed .mv-ribbon-more").first();
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await more.click();
+  await expect(more).toHaveAttribute("aria-expanded", "true");
 });
 
 test("nothing is silently skipped by the tessellator", async ({ page }) => {

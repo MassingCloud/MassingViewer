@@ -21,6 +21,29 @@ import { join } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
+/**
+ * Whether `files` ships a given path.
+ *
+ * npm's `files` semantics are prefix-based for directories, so `"src/ribbon.css"` is shipped by an entry of
+ * `"src"`, `"src/"`, `"src/ribbon.css"`, or a glob. Deliberately conservative: it only reports a problem when it
+ * can see that nothing covers the path, because a false accusation here blocks a release for no reason.
+ */
+function shipped(manifest, rel) {
+  const files = manifest.files;
+  if (!Array.isArray(files)) return true; // no `files` means npm ships everything not ignored
+  return files.some((entry) => {
+    const clean = String(entry).replace(/^\.\//, "").replace(/\/$/, "");
+    if (clean === rel) return true;
+    if (rel.startsWith(`${clean}/`)) return true;
+    // A glob: compare the directory part only, which is enough to answer "is this tree included".
+    if (clean.includes("*")) {
+      const dir = clean.split("*")[0].replace(/\/$/, "");
+      return dir === "" || rel.startsWith(dir);
+    }
+    return false;
+  });
+}
+
 const problems = [];
 let checked = 0;
 
@@ -93,6 +116,31 @@ for (const name of readdirSync(packagesDir)) {
       continue;
     }
     const rel = path.slice(2);
+
+    /**
+     * A static asset shipped verbatim is a different promise from a build output.
+     *
+     * `tsc` writes rootDir/**.ts -> outDir/**.{js,d.ts} and copies nothing else, so a stylesheet or a `.wasm`
+     * cannot live in `dist` — but it also cannot go *stale*, because it is committed. What has to be true for
+     * those is that the file exists and that `files` actually ships it; requiring them under `outDir` would push
+     * a package into inventing a copy step for a file that was never generated.
+     *
+     * `@massingviewer/ribbon` is the case that found this: it exports `./ribbon.css` from `src`, which is correct
+     * and which the original rule rejected. The rule was about JS entry points going missing; it was stated as a
+     * rule about paths.
+     */
+    const isBuildOutput = /\.(js|mjs|cjs|d\.ts)$/.test(rel);
+    if (!isBuildOutput) {
+      if (!existsSync(join(packagesDir, name, rel))) {
+        problems.push(`${where}: ${label} = "${path}" does not exist on disk, so consumers get a missing file`);
+      } else if (!shipped(manifest, rel)) {
+        problems.push(
+          `${where}: ${label} = "${path}" exists but "files" does not include it, so it is absent from the tarball`,
+        );
+      }
+      continue;
+    }
+
     // The build writes rootDir/**.ts -> outDir/**.{js,d.ts}. Anything promised outside outDir will never
     // exist in the tarball.
     if (!rel.startsWith(`${outDir}/`)) {

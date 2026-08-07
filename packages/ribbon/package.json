@@ -1,0 +1,22 @@
+{
+  "name": "@massingviewer/ribbon",
+  "version": "0.0.0",
+  "description": "An Office-style ribbon in vanilla DOM — responsive group collapse, roving-tabindex keyboard navigation, and dimmed-with-a-reason controls. No framework, so massing and a React shell can both render it.",
+  "license": "MIT",
+  "keywords": ["ribbon", "toolbar", "ui", "accessibility", "aec"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/ribbon" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./ribbon.css": "./src/ribbon.css"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "src/ribbon.css", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/ui-model": "0.0.0"
+  }
+}
