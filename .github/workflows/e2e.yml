@@ -17,12 +17,19 @@ jobs:
   e2e:
     name: ${{ matrix.project }}
     runs-on: ubuntu-latest
-    # A hard ceiling, not an estimate. The suite takes well under a minute; this exists because a hung job is
-    # worse than a failing one — it burns to GitHub's six-hour default and reports nothing at all. That is not
-    # hypothetical: Playwright's own webServer management hung indefinitely on teardown during development,
-    # which is why the lifecycle now lives in scripts/e2e.mjs. Bounding the job means the next surprise of that
-    # shape costs fifteen minutes instead of six hours.
-    timeout-minutes: 15
+    # A hard ceiling, not an estimate. A hung job is worse than a failing one — it burns to GitHub's six-hour
+    # default and reports nothing at all — and that is not hypothetical: Playwright's own webServer management
+    # hung indefinitely on teardown during development, which is why the lifecycle now lives in scripts/e2e.mjs.
+    #
+    # Raised 15 → 30 because 15 was too tight for the wrong reason. The tests take about 25 seconds; what blew
+    # the budget was `playwright install --with-deps` on a slow apt mirror, where a single 9 MB package took over
+    # four minutes and the iPad leg was cancelled mid-download. Cancelling a green run because a Ubuntu mirror was
+    # slow is a false negative, and a matrix leg that fails for reasons unrelated to the code is how a suite stops
+    # being trusted.
+    #
+    # The install step carries its own tighter timeout below, so a genuinely *hung* download still fails fast and
+    # says which step it was — the job ceiling bounds hangs, the step ceiling localises them.
+    timeout-minutes: 30
     strategy:
       # Do not cancel the whole matrix when one browser fails. A WebKit-only failure is exactly the finding
       # worth having, and killing the Chromium leg alongside it destroys the comparison that identifies it.
@@ -40,14 +47,40 @@ jobs:
           cache: npm
       - run: npm ci
 
-      - name: Install the browser
-        # Only the one this leg needs. Installing all three per leg triples the download for no benefit.
-        # The `ipad` project runs on WebKit.
+      - name: Which browser does this leg need?
+        id: browser
+        # The `ipad` project runs on WebKit, so two of the four legs need the same binary — which is precisely
+        # what makes the cache below worth having.
         run: |
           case "${{ matrix.project }}" in
-            ipad) npx playwright install --with-deps webkit ;;
-            *)    npx playwright install --with-deps "${{ matrix.project }}" ;;
+            ipad) echo "name=webkit" >> "$GITHUB_OUTPUT" ;;
+            *)    echo "name=${{ matrix.project }}" >> "$GITHUB_OUTPUT" ;;
           esac
+          echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser binaries
+        id: browser-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          # Keyed on the Playwright version, because a browser build is pinned to it — a stale cache would serve
+          # a binary Playwright refuses to drive, which fails in a way that looks like a browser bug.
+          key: playwright-${{ runner.os }}-${{ steps.browser.outputs.version }}-${{ steps.browser.outputs.name }}
+
+      - name: Install the browser
+        # Split into binary and system dependencies, because they cache differently and fail differently.
+        #
+        # The binary download is cacheable and skipped entirely on a hit. `install-deps` is apt, which is not
+        # cacheable and is the part that was crawling — so it runs every time and carries the tight timeout. The
+        # combined `--with-deps` form made a cache hit impossible for either half.
+        timeout-minutes: 12
+        run: |
+          if [ "${{ steps.browser-cache.outputs.cache-hit }}" != "true" ]; then
+            npx playwright install "${{ steps.browser.outputs.name }}"
+          else
+            echo "::notice::browser binary restored from cache"
+          fi
+          npx playwright install-deps "${{ steps.browser.outputs.name }}"
 
       - name: Run E2E
         # `npm run e2e`, not `npx playwright test`: this config has no webServer block, and the orchestrator
