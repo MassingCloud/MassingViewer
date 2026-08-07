@@ -1,0 +1,115 @@
+# Recipe parity ledger — the ratchet that makes partial kernel coverage an honest number.
+#
+# All 96 operation names implemented by massing's authoring service, extracted verbatim and in order from
+# RECIPES in services/data/src/aec_data/edit.py @ ibuilder/massing. The order is the source file's order, not
+# alphabetical, so re-extracting produces a reviewable diff rather than a reshuffle.
+#
+# Why this file exists rather than a number in a README: a kernel that supports 15 of 96 operations is fine and
+# expected (see docs/adr/0001-two-kernels.md), but a kernel that is *vague* about which 15 is not. Every gap
+# here is a control the ribbon dims with a specific reason instead of hiding. The count can only go up, and
+# scripts/check-recipe-parity.mjs enforces that against the committed floor.
+#
+# Status vocabulary — and the distinction between the first two is the whole point:
+#   yes      implemented AND verified live by @massingviewer/kernel-conformance. Not a claim; a passing test.
+#   planned  intended for this kernel, not yet implemented. Returns `unsupported` today, honestly.
+#   no       deliberately out of scope for this kernel. Not a TODO.
+#
+# Columns are one per kernel so a single grep answers "what can I do offline?" — the question a user actually
+# has, and the one that decides whether they need a server at all.
+recipe	category	memory	local	remote
+add_wall	architecture	yes	planned	planned
+add_slab	architecture	yes	planned	planned
+add_column	architecture	yes	planned	planned
+add_beam	architecture	no	planned	planned
+add_roof	architecture	no	no	planned
+add_roof_window	architecture	no	no	planned
+add_door	architecture	no	planned	planned
+add_window	architecture	no	planned	planned
+delete_element	edit	yes	planned	planned
+move_element	edit	yes	planned	planned
+rotate_element	edit	no	planned	planned
+set_element_pset	data	yes	planned	planned
+set_props_by_guid	data	no	no	planned
+copy_element	edit	no	planned	planned
+set_pset	data	no	no	planned
+batch_tag	data	no	no	planned
+place_type	types	no	no	planned
+add_family	types	no	no	planned
+add_spaces	spatial	no	no	planned
+furnish_spaces	spatial	no	no	planned
+program_fit	spatial	no	no	planned
+add_storey	spatial	no	planned	planned
+rename_storey	spatial	no	no	planned
+set_storey_elevation	spatial	no	no	planned
+reset_prop_to_type	data	no	no	planned
+resolve_wall_joins	geometry	no	no	planned
+add_steel_column	structure	no	no	planned
+add_steel_beam	structure	no	no	planned
+add_rebar	structure	no	no	planned
+add_footing	architecture	no	no	planned
+add_duct	mep	no	no	planned
+add_pipe	mep	no	no	planned
+add_cable_tray	mep	no	no	planned
+add_wire	mep	no	no	planned
+add_mep_fitting	mep	no	no	planned
+add_mep_terminal	mep	no	no	planned
+add_sprinkler	mep	no	no	planned
+add_fire_equipment	mep	no	no	planned
+add_fa_device	mep	no	no	planned
+add_comms_device	mep	no	no	planned
+add_riser	mep	no	no	planned
+set_system_predefined	mep	no	no	planned
+connect_mep	mep	no	no	planned
+auto_connect_mep	mep	no	no	planned
+connect_elements	mep	no	no	planned
+execute_ifc_code	escape	no	no	planned
+set_wall_slope	geometry	no	no	planned
+extrude_profile	geometry	no	no	planned
+set_extrusion_depth	geometry	yes	planned	planned
+set_profile_dims	geometry	no	planned	planned
+set_wall_thickness	geometry	no	planned	planned
+add_mesh_representation	geometry	no	no	planned
+add_annotation	annotate	no	no	planned
+add_dimension	annotate	no	no	planned
+add_revision_cloud	annotate	no	no	planned
+add_tag	annotate	no	no	planned
+place_content	annotate	no	no	planned
+add_covering	architecture	no	no	planned
+add_stair	architecture	no	no	planned
+add_ramp	architecture	no	no	planned
+add_railing	architecture	no	no	planned
+set_classification	data	no	no	planned
+map_properties	data	no	no	planned
+apply_layers	types	no	no	planned
+create_type	types	no	no	planned
+edit_type_params	types	no	no	planned
+assign_material_set	types	no	no	planned
+create_group	groups	no	no	planned
+create_assembly	groups	no	no	planned
+array_element	edit	no	no	planned
+set_array_params	edit	no	no	planned
+ungroup	groups	no	no	planned
+set_phase	data	no	no	planned
+verify_asbuilt	asbuilt	no	no	planned
+set_manufacturer_info	asbuilt	no	no	planned
+record_asbuilt_dimension	asbuilt	no	no	planned
+ensure_contexts	geometry	no	no	planned
+set_lod	geometry	no	no	planned
+derive_representations	geometry	no	no	planned
+set_spec_link	data	no	no	planned
+classify	data	no	no	planned
+attach_document	data	no	no	planned
+attach_om_document	data	no	no	planned
+apply_detailing_rules	structure	no	no	planned
+add_base_plate	structure	no	no	planned
+add_shear_tab	structure	no	no	planned
+add_connection_assembly	structure	no	no	planned
+add_rebar_cage	structure	no	no	planned
+derive_analytical	structure	no	no	planned
+apply_structural_loads	structure	no	no	planned
+apply_structural_supports	structure	no	no	planned
+add_curtain_wall	architecture	no	no	planned
+purge_orphan_psets	data	no	no	planned
+purge_empty_groups	groups	no	no	planned
+rebase_origin	spatial	no	no	planned
+convert_length_unit	spatial	no	no	planned

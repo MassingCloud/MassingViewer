@@ -568,41 +568,136 @@ export function describeKernel(name: string, fixture: KernelFixture): void {
   });
 }
 
+// ---------------------------------------------------------------------------------------------------
+// Recipe parity ledger
+// ---------------------------------------------------------------------------------------------------
+
+export type RecipeStatus = "yes" | "planned" | "no";
+
+export interface RecipeLedgerRow {
+  readonly recipe: OpId;
+  readonly category: string;
+  /** Status per kernel column. */
+  readonly status: Readonly<Record<string, RecipeStatus>>;
+}
+
+export interface RecipeLedger {
+  readonly kernels: readonly string[];
+  readonly rows: readonly RecipeLedgerRow[];
+}
+
 /**
- * Recipe-parity ledger check.
+ * Parse the tab-separated parity ledger.
  *
- * A **ratchet** over the operations a reference implementation supports, so coverage becomes a visible
- * number that can only go up. `LocalKernel` will trail `RemoteKernel` for a long time; the point is that the
- * gap is counted rather than discovered by a user hitting a dimmed button.
+ * Exported because the ledger format is part of the contract, not a private detail: anyone writing a
+ * `KernelProvider` gets the same ratchet by pointing this at their own table. The file itself stays on the
+ * consumer's disk — a published test library that reads a hardcoded path is a published test library nobody
+ * can use.
  *
- * Separate from {@link describeKernel} because it compares a kernel against an *external* list rather than
- * testing the kernel in isolation.
+ * Comment lines (`#`) and blank lines are skipped, so the table can explain itself in place.
+ */
+export function parseRecipeLedger(tsv: string): RecipeLedger {
+  const lines = tsv.split(/\r?\n/).filter((l) => l.trim() !== "" && !l.startsWith("#"));
+  const header = lines.shift()?.split("\t");
+  if (!header || header[0] !== "recipe" || header[1] !== "category") {
+    throw new Error('recipe ledger: first non-comment line must be a header starting "recipe\\tcategory"');
+  }
+  const kernels = header.slice(2);
+  const valid = new Set<string>(["yes", "planned", "no"]);
+  const rows = lines.map((line, i) => {
+    const cells = line.split("\t");
+    if (cells.length !== header.length) {
+      throw new Error(`recipe ledger line ${i + 2}: ${cells.length} columns, expected ${header.length}`);
+    }
+    const status: Record<string, RecipeStatus> = {};
+    for (const [j, kernel] of kernels.entries()) {
+      const s = cells[j + 2];
+      if (s === undefined || !valid.has(s)) {
+        throw new Error(`recipe ledger line ${i + 2}: bad status ${JSON.stringify(s)} for ${kernel}`);
+      }
+      status[kernel] = s as RecipeStatus;
+    }
+    return { recipe: cells[0] as OpId, category: cells[1]!, status };
+  });
+  return { kernels, rows };
+}
+
+/**
+ * Recipe-parity ledger check — the half of the ratchet that needs a live kernel.
+ *
+ * `scripts/check-recipe-parity.mjs` keeps the table well-formed and its counts monotonic; it cannot know
+ * whether a `yes` is *true*. This does, and it checks both directions:
+ *
+ * - **Overstating** — a `yes` the kernel does not actually declare. This is the failure that matters, because
+ *   a ledger claiming coverage it does not have is worse than no ledger: it is the document a reviewer trusts.
+ * - **Understating** — an op the kernel declares while the ledger says `planned` or `no`. Harmless to a user,
+ *   but it means the table is stale, and a table that drifts in the safe direction stops being read.
+ *
+ * Scope note: ops outside the ledger entirely are ignored here. This function measures *parity with the remote
+ * service's recipe set*, which is what its name claims; a kernel is free to expose local-only operations, and
+ * {@link describeKernel}'s capability-honesty family already asserts that every op a kernel declares works.
  */
 export function describeRecipeParity(
   name: string,
   fixture: { create(): Promise<KernelProvider> },
-  ledger: { readonly all: readonly OpId[]; readonly expectedSupported: number },
+  ledger: RecipeLedger,
+  column: string,
 ): void {
-  describe(`${name} — recipe parity`, () => {
-    it(`supports at least ${ledger.expectedSupported} of ${ledger.all.length} known operations`, async () => {
+  const rows = ledger.rows;
+  if (!ledger.kernels.includes(column)) {
+    throw new Error(
+      `recipe ledger has no column "${column}" — columns are ${ledger.kernels.join(", ")}. ` +
+        `Add the column before wiring the kernel, so its coverage starts being counted at zero rather than untracked.`,
+    );
+  }
+  const claimed = rows.filter((r) => r.status[column] === "yes").map((r) => r.recipe);
+
+  describe(`${name} — recipe parity (${claimed.length}/${rows.length} claimed)`, () => {
+    it("declares every operation the ledger claims for it", async () => {
       const k = await fixture.create();
-      const listed = await k.ops();
-      expect(listed.ok).toBe(true);
-      if (!listed.ok) return;
+      try {
+        const listed = await k.ops();
+        expect(listed.ok).toBe(true);
+        if (!listed.ok) return;
+        const declared = new Set(listed.value.map((d) => d.id));
 
-      const supported = ledger.all.filter((op) => listed.value.some((d) => d.id === op));
-      const pct = Math.round((100 * supported.length) / Math.max(1, ledger.all.length));
+        const overstated = claimed.filter((op) => !declared.has(op));
+        expect(
+          overstated,
+          `the ledger claims these for ${column} but the kernel does not declare them — ` +
+            `either implement them or move them back to "planned"`,
+        ).toEqual([]);
 
-      // Printed so the number is visible in CI output rather than only on failure. A ratchet nobody can see
-      // is a ratchet nobody moves.
-      // eslint-disable-next-line no-console
-      console.log(`  ${name}: ${supported.length}/${ledger.all.length} operations (${pct}%)`);
+        const pct = Math.round((100 * claimed.length) / Math.max(1, rows.length));
+        // Printed so the number is visible in passing CI output, not only on failure. A ratchet nobody can
+        // see is a ratchet nobody moves.
+        // eslint-disable-next-line no-console
+        console.log(`  ${name}: ${claimed.length}/${rows.length} recipes (${pct}%)`);
+      } finally {
+        await k.dispose();
+      }
+    });
 
-      expect(
-        supported.length,
-        `coverage regressed: ${supported.length} supported, expected at least ${ledger.expectedSupported}`,
-      ).toBeGreaterThanOrEqual(ledger.expectedSupported);
-      await k.dispose();
+    it("does not silently exceed the ledger", async () => {
+      const k = await fixture.create();
+      try {
+        const listed = await k.ops();
+        expect(listed.ok).toBe(true);
+        if (!listed.ok) return;
+        const declared = new Set(listed.value.map((d) => d.id));
+
+        const understated = rows
+          .filter((r) => r.status[column] !== "yes" && declared.has(r.recipe))
+          .map((r) => `${r.recipe} (ledger says "${r.status[column]}")`);
+
+        expect(
+          understated,
+          `the kernel declares these but the ledger does not credit them — mark them "yes" and raise the ` +
+            `floor in scripts/check-recipe-parity.mjs`,
+        ).toEqual([]);
+      } finally {
+        await k.dispose();
+      }
     });
   });
 }

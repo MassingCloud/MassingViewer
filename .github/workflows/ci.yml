@@ -125,6 +125,12 @@ jobs:
       - name: Packaging (published entry points match what the build writes)
         run: npm run gate:packaging
 
+      - name: Recipe parity (per-kernel coverage is well-formed and only ratchets up)
+        # Prints the coverage table to the log on success, not only on failure — a ratchet nobody can see is
+        # a ratchet nobody moves. The other half of this check, "is a `yes` actually true", runs against a
+        # live kernel in the unit job.
+        run: npm run gate:recipes
+
   dependency-review:
     # A second, GitHub-native line of defence on the license posture. It sees things a manifest scan does
     # not — and the deny list here is deliberately the same one as scripts/check-licenses.mjs, so a

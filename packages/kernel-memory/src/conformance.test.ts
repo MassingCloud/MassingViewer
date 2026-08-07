@@ -10,9 +10,12 @@
  * difference between "the kernel is wrong" and "the suite is unreasonable".
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { asModelId } from "@massingviewer/core";
-import { describeKernel, describeRecipeParity } from "@massingviewer/kernel-conformance";
+import { describeKernel, describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
 import { createMemoryKernel } from "./index";
 
 const WALL = { start: [0, 0], end: [5, 0], height: 3, thickness: 0.2, name: "Wall-Test" };
@@ -99,28 +102,20 @@ describeKernel("MemoryKernel", {
 /**
  * Recipe coverage, as a ratchet.
  *
- * massing's server implements 96 recipes. `MemoryKernel` implements 7 of them. That gap is fine and expected
- * — what matters is that it is a **counted, visible number that can only go up**, rather than something a
- * user discovers by clicking a dimmed button.
+ * massing's authoring service implements 96 recipes. `MemoryKernel` implements 7. That gap is fine and
+ * expected — what matters is that it is a **counted, visible number that can only go up**, rather than
+ * something a user discovers by clicking a dimmed button.
  *
- * The list below is a representative subset of the real 96, not all of them; the full ledger arrives with
- * `RemoteKernel`, which can discover the server's actual set at runtime.
+ * The list is read from the committed ledger rather than restated here, so there is exactly one place that
+ * says what each kernel covers. An earlier version inlined a 28-recipe subset, which meant the percentage
+ * printed by this test and the percentage a reader would compute from the real 96 were different numbers with
+ * the same name — the specific kind of drift this whole ledger exists to prevent.
  */
-describeRecipeParity(
-  "MemoryKernel",
-  { create: async () => createMemoryKernel() },
-  {
-    all: [
-      "add_wall", "add_slab", "add_column", "add_beam", "add_roof", "add_railing",
-      "add_stair", "add_ramp", "add_footing", "add_storey", "add_door", "add_window",
-      "move_element", "copy_element", "rotate_element", "delete_element",
-      "set_extrusion_depth", "set_profile_dims", "set_wall_thickness", "set_element_pset",
-      "create_group", "array_element", "add_spaces", "resolve_wall_joins",
-      "derive_analytical", "program_fit", "add_connection_assembly", "execute_ifc_code",
-    ],
-    expectedSupported: 7,
-  },
+const ledger = parseRecipeLedger(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/recipes.tsv"), "utf8"),
 );
+
+describeRecipeParity("MemoryKernel", { create: async () => createMemoryKernel() }, ledger, "memory");
 
 /**
  * Behaviour specific to this kernel, beyond the shared contract.
