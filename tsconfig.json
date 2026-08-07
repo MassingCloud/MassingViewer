@@ -49,6 +49,15 @@
     },
     {
       "path": "./packages/plugin-host"
+    },
+    {
+      "path": "./packages/ui-react"
+    },
+    {
+      "path": "./apps/demo"
+    },
+    {
+      "path": "./apps/shell"
     }
   ]
 }

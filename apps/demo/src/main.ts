@@ -614,8 +614,11 @@ function renderTools(): void {
  * sticker on a picture.
  */
 function renderTopics(): void {
-  const live = new Set(built.elements.map((e) => e.guid).filter((g): g is string => g !== null));
-  const exists = (g: string): boolean => live.has(g);
+  // `Guid`, not `string`. `SceneElement.guid` is `Guid | null`, so narrowing it to `string` is a predicate whose
+  // type is not assignable to its parameter — which `tsc` rejects outright. It compiled for months only because
+  // `apps/demo` was missing from the root tsconfig's references and therefore never typechecked at all.
+  const live = new Set(built.elements.map((e) => e.guid).filter((g): g is Guid => g !== null));
+  const exists = (g: Guid): boolean => live.has(g);
 
   el("#topics").innerHTML = topics
     .map((t) => {
@@ -948,6 +951,17 @@ declare global {
       readonly triangles: number;
       readonly authored: number;
       kernelId: string;
+      /**
+       * The markup topics, and the camera distance.
+       *
+       * Both were exposed on the object and **missing from this declaration**, which never failed because
+       * `apps/demo` was absent from the root tsconfig's references and so was never typechecked. The E2E tests
+       * reach them through `page.evaluate`, where the callback is compiled against the browser's `Window` and the
+       * mismatch is invisible. A declaration that does not match what it declares is worse than none: it is a lie
+       * that autocompletes.
+       */
+      readonly topics: typeof topics;
+      readonly cameraDistance: number;
       renderNow(): void;
       /** Coverage over a fixed `grid x grid` of samples — resolution-independent by design. */
       sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };

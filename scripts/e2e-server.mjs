@@ -42,28 +42,48 @@ const PORT = Number(process.env.E2E_PORT ?? 4173);
  */
 const HOST = "127.0.0.1";
 
-const root = fileURLToPath(new URL("../apps/demo/", import.meta.url));
-const configFile = join(root, "vite.config.ts");
+/**
+ * Both apps, in one process.
+ *
+ * `apps/demo` is the vanilla host and `apps/shell` is the React one, and they exist as a pair to test the claim
+ * ADR-0009 rests on: the same ribbon package renders in both. Testing that needs both served.
+ *
+ * Two servers in *one* process rather than two processes, deliberately. This whole file exists because
+ * Playwright's own `webServer` teardown hung for 27 minutes and the fix was owning a single lifecycle — adding a
+ * second process to supervise would re-introduce the shape of that bug.
+ */
+const APPS = [
+  { name: "demo", port: PORT },
+  { name: "shell", port: PORT + 1 },
+];
 
-console.log(`e2e-server: building ${root}`);
-await build({ root, configFile, logLevel: "warn" });
+const servers = [];
+for (const app of APPS) {
+  const root = fileURLToPath(new URL(`../apps/${app.name}/`, import.meta.url));
+  const configFile = join(root, "vite.config.ts");
 
-const server = await preview({
-  root,
-  configFile,
-  logLevel: "warn",
-  // strictPort so a stale server is a loud failure rather than a silent test run against the wrong build —
-  // the exact mistake that once produced twelve unrelated failures here.
-  preview: { host: HOST, port: PORT, strictPort: true },
-});
+  console.log(`e2e-server: building ${root}`);
+  await build({ root, configFile, logLevel: "warn" });
 
-// Playwright waits for this URL, so it must be printed only after the server is actually listening.
-console.log(`e2e-server: serving the built demo on http://${HOST}:${PORT}/`);
+  servers.push(
+    await preview({
+      root,
+      configFile,
+      logLevel: "warn",
+      // strictPort so a stale server is a loud failure rather than a silent test run against the wrong build —
+      // the exact mistake that once produced twelve unrelated failures here.
+      preview: { host: HOST, port: app.port, strictPort: true },
+    }),
+  );
+  // Printed only after it is actually listening: the readiness probe waits for these lines.
+  console.log(`e2e-server: serving the built ${app.name} on http://${HOST}:${app.port}/`);
+}
 
 const shutdown = () => {
-  server.httpServer.close(() => process.exit(0));
+  for (const server of servers) server.httpServer.close();
   // If a keep-alive connection refuses to drain, do not become the hang this file exists to prevent.
   setTimeout(() => process.exit(0), 2000).unref();
+  setTimeout(() => process.exit(0), 100);
 };
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);

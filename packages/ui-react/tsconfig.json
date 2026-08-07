@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // `react-jsx`, so no file needs `import React`. The automatic runtime is what makes a component file
+    // readable as markup rather than as function calls.
+    "jsx": "react-jsx",
+    "types": ["react", "react-dom"]
+  },
+  "references": [{ "path": "../ui-model" }, { "path": "../ribbon" }],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

@@ -16,6 +16,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "e2e",
+  // The shell spec belongs to the `shell` project alone: it needs a different baseURL, and running it against the
+  // demo's port would load the wrong app and fail for a reason that has nothing to do with the test.
+  testIgnore: /react-shell\.spec\.ts/,
 
   // NOT parallel, and this is not a workaround for flakiness — it is recognising what the tests contend for.
   //
@@ -126,6 +129,34 @@ export default defineConfig({
     {
       name: "ipad",
       use: { ...devices["iPad Pro 11"] },
+    },
+    {
+      /**
+       * The React shell, on its own port.
+       *
+       * A separate project rather than more tests in the existing ones, because it has a different `baseURL` and
+       * `testMatch`. Its whole job is to test the claim ADR-0009 rests on: `apps/demo` mounts `createRibbon` from
+       * plain TypeScript, this mounts it through React, and both must produce the same controls from the same
+       * package. Asserted across two hosts, because within one host it is not a claim about anything.
+       */
+      name: "shell",
+      // Project options override the top-level ones, so the empty `testIgnore` is what lets this project see the
+      // file every other project is told to skip. Without it the top-level ignore would apply here too and the
+      // project would silently run zero tests — a green result that proves nothing, which is worse than a failure.
+      testIgnore: [],
+      testMatch: /react-shell\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "http://127.0.0.1:4174",
+        launchOptions: {
+          args: [
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
+            "--enable-unsafe-swiftshader",
+            "--force-device-scale-factor=1",
+          ],
+        },
+      },
     },
   ],
 

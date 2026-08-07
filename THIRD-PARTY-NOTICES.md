@@ -9,14 +9,29 @@ Generated from `package-lock.json` rather than from an installed `node_modules`,
 same on every platform and covers all 61 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-344 package(s) across 11 license(s).
+401 package(s) across 12 license(s).
 
-## MIT (270)
+## MIT (320)
 
+- `@babel/code-frame` 7.29.7
+- `@babel/compat-data` 7.29.7
+- `@babel/core` 7.29.7
+- `@babel/generator` 7.29.8
+- `@babel/helper-compilation-targets` 7.29.7
+- `@babel/helper-globals` 7.29.7
+- `@babel/helper-module-imports` 7.29.7
+- `@babel/helper-module-transforms` 7.29.7
+- `@babel/helper-plugin-utils` 7.29.7
 - `@babel/helper-string-parser` 7.29.7
 - `@babel/helper-validator-identifier` 7.29.7
+- `@babel/helper-validator-option` 7.29.7
+- `@babel/helpers` 7.29.7
 - `@babel/parser` 7.29.8
+- `@babel/plugin-transform-react-jsx-self` 7.29.7
+- `@babel/plugin-transform-react-jsx-source` 7.29.7
 - `@babel/runtime` 7.29.7
+- `@babel/template` 7.29.7
+- `@babel/traverse` 7.29.8
 - `@babel/types` 7.29.8
 - `@bcoe/v8-coverage` 1.0.2
 - `@changesets/apply-release-plan` 7.1.1
@@ -46,6 +61,8 @@ installed on whichever host happened to run the generator.
 - `@eslint-community/regexpp` 4.12.2
 - `@eslint/js` 9.39.5
 - `@inquirer/external-editor` 1.0.3
+- `@jridgewell/gen-mapping` 0.3.13
+- `@jridgewell/remapping` 2.3.5
 - `@jridgewell/resolve-uri` 3.1.2
 - `@jridgewell/sourcemap-codec` 1.5.5
 - `@jridgewell/trace-mapping` 0.3.31
@@ -106,9 +123,17 @@ installed on whichever host happened to run the generator.
 - `@rolldown/binding-win32-x64-msvc` 1.1.5 _(win32/x64)_
 - `@rolldown/binding-win32-x64-msvc` 1.2.3 _(win32/x64)_
 - `@rolldown/pluginutils` 1.0.1
+- `@rolldown/pluginutils` 1.0.0-rc.3
 - `@standard-schema/spec` 1.1.0
+- `@testing-library/dom` 10.4.1
+- `@testing-library/react` 16.3.2
 - `@tweenjs/tween.js` 23.1.3
 - `@tybys/wasm-util` 0.10.3
+- `@types/aria-query` 5.0.4
+- `@types/babel__core` 7.20.5
+- `@types/babel__generator` 7.27.0
+- `@types/babel__template` 7.4.4
+- `@types/babel__traverse` 7.28.0
 - `@types/chai` 5.2.3
 - `@types/deep-eql` 4.0.2
 - `@types/esrecurse` 4.3.1
@@ -116,6 +141,8 @@ installed on whichever host happened to run the generator.
 - `@types/json-schema` 7.0.15
 - `@types/node` 12.20.55
 - `@types/node` 24.10.1
+- `@types/react` 19.2.18
+- `@types/react-dom` 19.2.4
 - `@types/stats.js` 0.17.4
 - `@types/three` 0.184.1
 - `@types/webxr` 0.5.24
@@ -131,6 +158,7 @@ installed on whichever host happened to run the generator.
 - `@typescript-eslint/typescript-estree` 8.65.0
 - `@typescript-eslint/utils` 8.65.0
 - `@typescript-eslint/visitor-keys` 8.65.0
+- `@vitejs/plugin-react` 5.2.0
 - `@vitest/coverage-v8` 4.1.10
 - `@vitest/expect` 4.1.10
 - `@vitest/mocker` 4.1.10
@@ -144,6 +172,7 @@ installed on whichever host happened to run the generator.
 - `ajv` 6.15.0
 - `ansi-colors` 4.1.3
 - `ansi-regex` 5.0.1
+- `ansi-styles` 5.2.0
 - `argparse` 1.0.10
 - `array-union` 2.1.0
 - `assertion-error` 2.0.1
@@ -152,18 +181,24 @@ installed on whichever host happened to run the generator.
 - `better-path-resolve` 1.0.0
 - `brace-expansion` 5.0.9
 - `braces` 3.0.3
+- `browserslist` 4.28.7
 - `chai` 6.2.2
 - `chardet` 2.2.0
 - `convert-source-map` 2.0.0
 - `cross-spawn` 7.0.6
+- `csstype` 3.2.3
 - `debug` 4.4.3
 - `deep-is` 0.1.4
+- `dequal` 2.0.3
 - `detect-indent` 6.1.0
 - `dir-glob` 3.0.1
+- `dom-accessibility-api` 0.5.16
 - `enquirer` 2.4.1
 - `es-module-lexer` 2.3.1
+- `escalade` 3.2.0
 - `escape-string-regexp` 4.0.0
 - `eslint` 10.8.0
+- `eslint-plugin-react-hooks` 6.1.1
 - `estree-walker` 3.0.3
 - `extendable-error` 0.1.7
 - `fast-check` 4.5.0
@@ -182,6 +217,7 @@ installed on whichever host happened to run the generator.
 - `fs-extra` 7.0.1
 - `fsevents` 2.3.3 _(darwin)_
 - `fsevents` 2.3.2 _(darwin)_
+- `gensync` 1.0.0-beta.2
 - `globals` 17.7.0
 - `globby` 11.1.0
 - `happy-dom` 20.8.9
@@ -197,18 +233,22 @@ installed on whichever host happened to run the generator.
 - `is-number` 7.0.0
 - `is-subdir` 1.2.0
 - `is-windows` 1.0.2
+- `js-tokens` 4.0.0
 - `js-tokens` 10.0.0
 - `js-yaml` 4.3.1
 - `js-yaml` 3.15.1
+- `jsesc` 3.1.0
 - `json-buffer` 3.0.1
 - `json-schema-traverse` 0.4.1
 - `json-stable-stringify-without-jsonify` 1.0.1
+- `json5` 2.2.3
 - `jsonfile` 4.0.0
 - `keyv` 4.5.4
 - `levn` 0.4.1
 - `locate-path` 5.0.0
 - `locate-path` 6.0.0
 - `lodash.startcase` 4.4.0
+- `lz-string` 1.5.0
 - `magic-string` 0.30.21
 - `magicast` 0.5.4
 - `make-dir` 4.0.0
@@ -220,6 +260,7 @@ installed on whichever host happened to run the generator.
 - `nanoid` 3.3.17
 - `natural-compare` 1.4.0
 - `node-fetch` 2.7.0
+- `node-releases` 2.0.53
 - `obug` 2.1.4
 - `optionator` 0.9.4
 - `outdent` 0.5.0
@@ -242,10 +283,15 @@ installed on whichever host happened to run the generator.
 - `postcss` 8.5.26
 - `prelude-ls` 1.2.1
 - `prettier` 2.8.8
+- `pretty-format` 27.5.1
 - `punycode` 2.3.1
 - `pure-rand` 7.0.1
 - `quansync` 0.2.11
 - `queue-microtask` 1.2.3
+- `react` 19.2.8
+- `react-dom` 19.2.8
+- `react-is` 17.0.2
+- `react-refresh` 0.18.0
 - `read-yaml-file` 1.1.0
 - `resolve-from` 5.0.0
 - `reusify` 1.1.0
@@ -253,6 +299,7 @@ installed on whichever host happened to run the generator.
 - `rolldown` 1.2.3
 - `run-parallel` 1.2.0
 - `safer-buffer` 2.1.2
+- `scheduler` 0.27.0
 - `shebang-command` 2.0.0
 - `shebang-regex` 3.0.0
 - `slash` 3.0.0
@@ -274,6 +321,7 @@ installed on whichever host happened to run the generator.
 - `typescript-eslint` 8.65.0
 - `undici-types` 7.16.0
 - `universalify` 0.1.2
+- `update-browserslist-db` 1.3.0
 - `vite` 8.1.5
 - `vite` 8.2.1
 - `vitest` 4.1.10
@@ -283,8 +331,10 @@ installed on whichever host happened to run the generator.
 - `word-wrap` 1.2.5
 - `ws` 8.21.2
 - `yocto-queue` 0.1.0
+- `zod` 4.4.3
+- `zod-validation-error` 4.0.2
 
-## Apache-2.0 (19)
+## Apache-2.0 (21)
 
 - `@dimforge/rapier3d-compat` 0.12.0
 - `@eslint/config-array` 0.23.5
@@ -298,6 +348,8 @@ installed on whichever host happened to run the generator.
 - `@humanwhocodes/module-importer` 1.0.1
 - `@humanwhocodes/retry` 0.4.3
 - `@playwright/test` 1.57.0
+- `aria-query` 5.3.0
+- `baseline-browser-mapping` 2.11.12
 - `detect-libc` 2.1.2
 - `eslint-visitor-keys` 3.4.3
 - `eslint-visitor-keys` 5.0.1
@@ -325,19 +377,23 @@ installed on whichever host happened to run the generator.
 - `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
 - `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
 
-## ISC (11)
+## ISC (15)
 
+- `electron-to-chromium` 1.5.402
 - `fastq` 1.20.1
 - `flatted` 3.4.4
 - `glob-parent` 5.1.2
 - `glob-parent` 6.0.2
 - `graceful-fs` 4.2.11
 - `isexe` 2.0.0
+- `lru-cache` 5.1.1
 - `picocolors` 1.1.1
+- `semver` 6.3.1
 - `semver` 7.8.5
 - `siginfo` 2.0.0
 - `signal-exit` 4.1.0
 - `which` 2.0.2
+- `yallist` 3.1.1
 
 ## BSD-2-Clause (10)
 
@@ -379,6 +435,10 @@ installed on whichever host happened to run the generator.
 ## Python-2.0 (1)
 
 - `argparse` 2.0.1
+
+## CC-BY-4.0 (1)
+
+- `caniuse-lite` 1.0.30001809
 
 ## SEE LICENSE IN LICENSE (1)
 

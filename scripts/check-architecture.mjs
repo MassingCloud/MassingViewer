@@ -50,6 +50,18 @@ const SAME_LAYER_ALLOWED = new Set([
   "kernel-api -> core",
   "kernel-conformance -> core",
   "kernel-conformance -> kernel-api",
+  /**
+   * `ui-react -> ribbon` is the whole point of ADR-0009, not a leak.
+   *
+   * The ribbon renders in vanilla DOM so that massing — whose shell is plain TypeScript — and a React host can
+   * both mount the same code. `ui-react` is therefore a *consumer* of the ribbon rather than an alternative
+   * implementation of it, and the dependency has to point this way: a vanilla renderer works in every host, a
+   * React one works in one.
+   *
+   * Moving the ribbon down a layer would be the wrong fix. It is a presentation package that owns the DOM, which
+   * is what layer 4 means; the edge is legitimate and the exception is the honest way to say so.
+   */
+  "ui-react -> ribbon",
 ]);
 
 /**

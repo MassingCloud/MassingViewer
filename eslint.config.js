@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -46,6 +47,25 @@ export default tseslint.config(
       "apps/**/*.{ts,tsx}",
     ],
     rules: { "no-restricted-globals": "off" },
+  },
+  {
+    /**
+     * React's hook rules, for `ui-react` alone.
+     *
+     * Not style. `exhaustive-deps` catches the two bugs that make a React wrapper around imperative UI fail —
+     * a stale closure over props captured at mount, and an effect that rebuilds its widget on every render — and
+     * `rules-of-hooks` catches a conditional hook, which corrupts state in a way that surfaces somewhere else.
+     *
+     * `Ribbon.tsx` carries the one deliberate suppression, with the reasoning written above it: its creating
+     * effect *must* have empty deps, and everything variable is read through a ref. A suppression the linter
+     * knows about is reviewable; a rule that is simply absent is not.
+     */
+    files: ["packages/ui-react/**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
+    },
   },
   {
     // Node-side code: tests, repo gates, benchmarks, config. These legitimately print to stdout — a gate

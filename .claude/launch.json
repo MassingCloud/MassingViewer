@@ -4,8 +4,24 @@
     {
       "name": "demo",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@massingviewer/demo"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@massingviewer/demo"
+      ],
       "port": 5173
+    },
+    {
+      "name": "shell",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@massingviewer/shell"
+      ],
+      "port": 5174
     }
   ]
 }

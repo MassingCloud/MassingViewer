@@ -1,0 +1,471 @@
+/*
+ * Styles for the React shell.
+ *
+ * Plain CSS with custom properties, like `packages/ribbon/src/ribbon.css` and for the same two reasons: it has to
+ * fit massing's 220 KB budget as an addition rather than a replacement, and a host that mounts this needs to be
+ * able to restyle it without adopting our build. No runtime CSS-in-JS — a styling library that ships a runtime is
+ * a styling library whose cost scales with the number of components rendered.
+ */
+
+.mv-dock,
+.mv-palette,
+.mv-props {
+  --mv-bg: var(--panel, #1f2329);
+  --mv-line: var(--line, #34383d);
+  --mv-text: var(--text, #e6e8ea);
+  --mv-muted: var(--muted, #9aa3ad);
+  --mv-accent: var(--accent, #4ea1ff);
+  --mv-warn: var(--warn, #e0a458);
+  color: var(--mv-text);
+}
+
+/* --- dock ------------------------------------------------------------------------------------------ */
+
+.mv-dock {
+  display: flex;
+  flex-direction: column;
+  /* `min-height: 0` on a flex child is what lets it shrink below its content. Without it the centre grows to fit
+     the canvas and pushes the bottom panel off screen — the same min-content trap that made the demo's header
+     force the document to 659px and stop the ribbon collapsing. */
+  min-height: 0;
+  height: 100%;
+}
+
+.mv-dock-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.mv-dock-centre {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.mv-dock-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--mv-bg);
+  min-height: 0;
+  position: relative;
+}
+
+.mv-dock-left,
+.mv-dock-right {
+  /* `--mv-dock-size` is written straight to this element by the pointermove handler, so a drag costs no React
+     renders. One name for every panel, scoped by the element — an id-derived variable name gave the handler and
+     this rule two different strings, and dragging silently did nothing. */
+  width: var(--mv-dock-size, 280px);
+  flex: 0 0 auto;
+}
+
+.mv-dock-left {
+  border-right: 1px solid var(--mv-line);
+}
+
+.mv-dock-right {
+  border-left: 1px solid var(--mv-line);
+}
+
+.mv-dock-bottom {
+  height: var(--mv-dock-size, 200px);
+  border-top: 1px solid var(--mv-line);
+  flex: 0 0 auto;
+}
+
+/* Collapsed overrides the variable rather than clearing it, so the size survives a collapse and the panel
+   reopens at the width the user chose. Setting the variable to 0 instead would lose it. */
+.mv-dock-panel.mv-collapsed {
+  width: auto;
+  height: auto;
+}
+
+.mv-dock-header button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--mv-line);
+  color: var(--mv-muted);
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mv-dock-header button::before {
+  content: "▾";
+  font-size: 9px;
+}
+
+.mv-dock-header button[aria-expanded="false"]::before {
+  content: "▸";
+}
+
+.mv-dock-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+/*
+ * An author `display` beats the `hidden` attribute's UA `display: none`, so this rule is required rather than
+ * defensive. It is the third time this exact bug has been fixed in this repository — `.mv-ribbon-panel` rendered
+ * all seven tabs stacked at 503px, and `#plan-pane` silently halved the viewport — which is why it is written
+ * here before anyone reports it.
+ */
+.mv-dock-body[hidden] {
+  display: none;
+}
+
+.mv-dock-handle {
+  position: absolute;
+  background: transparent;
+  z-index: 2;
+}
+
+/* 6px, not 1px. A resize handle the width of its border is a handle nobody can hit; the visible line stays thin
+   and the target is what a pointer can actually acquire. */
+.mv-dock-left .mv-dock-handle,
+.mv-dock-right .mv-dock-handle {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+
+.mv-dock-left .mv-dock-handle {
+  right: -3px;
+}
+
+.mv-dock-right .mv-dock-handle {
+  left: -3px;
+}
+
+.mv-dock-bottom .mv-dock-handle {
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 6px;
+  cursor: row-resize;
+}
+
+.mv-dock-handle:hover,
+.mv-dock-handle:focus-visible {
+  background: var(--mv-accent);
+  /* Never removed. A focus ring that only appears on :focus-visible still has to be visible when it appears —
+     and this control is invisible until hovered, so it is the only affordance a keyboard user gets. */
+  outline: none;
+}
+
+/*
+ * Narrow viewports: side panels become overlays.
+ *
+ * Two fixed side panels of 220 and 320 pixels need 540, so at 360 the row could not fit and the page scrolled
+ * sideways — found by the phone-width E2E assertion, not by looking at it.
+ *
+ * The obvious fix is `max-width` so they shrink, and it is wrong: two panels clamped to fit a 360px window leave
+ * the 3D view about 40 pixels wide, which is "no horizontal scrollbar" and "unusable" at the same time. So the
+ * panels come *out of the flow* and float over the centre, which is what every application does on a phone — the
+ * viewport keeps its full width, and a panel is something you open over it.
+ *
+ * The breakpoint is on the container, not on the device: an embedded viewer in a 600px column has the same
+ * problem as a phone, and a device query would miss it.
+ */
+@media (max-width: 720px) {
+  .mv-dock-left,
+  .mv-dock-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 6;
+    /* Capped so the panel never covers everything: a user must always be able to see what they are looking at,
+       and an overlay with no visible edge is one nobody realises they can dismiss. */
+    width: min(var(--mv-dock-size, 280px), 80%);
+    box-shadow: 0 0 24px #000a;
+  }
+
+  .mv-dock-left {
+    left: 0;
+  }
+
+  .mv-dock-right {
+    right: 0;
+  }
+
+  /* Collapsed, an overlay shrinks to just its header so the toggle stays reachable — a collapsed panel that
+     occupied nothing would leave no way to open it again. */
+  .mv-dock-panel.mv-collapsed {
+    width: auto;
+    box-shadow: none;
+  }
+
+  /* The row is the positioning context. Without this the overlays escape to the viewport and sit over the ribbon
+     and the footer, which is a worse bug than the one being fixed. */
+  .mv-dock-row {
+    position: relative;
+  }
+
+  /* The drag handle is a pointer-precision affordance, and a touch screen does not have that precision. The
+     keyboard path still works because the header toggle does. */
+  .mv-dock-handle {
+    display: none;
+  }
+}
+
+/* --- command palette ------------------------------------------------------------------------------- */
+
+.mv-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: #0009;
+}
+
+.mv-palette {
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--mv-bg);
+  border: 1px solid var(--mv-line);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px #000a;
+  overflow: hidden;
+}
+
+.mv-palette-input {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--mv-line);
+  color: var(--mv-text);
+  font: inherit;
+  font-size: 15px;
+  padding: 12px 14px;
+}
+
+.mv-palette-input:focus {
+  outline: none;
+}
+
+.mv-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-height: 0;
+}
+
+.mv-palette-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* A class, not `:hover`. The highlight follows the keyboard as well as the pointer, and `:hover` cannot represent
+   "the third row is active because you pressed Down twice". */
+.mv-palette-row.mv-active {
+  background: #ffffff14;
+}
+
+.mv-palette-row.mv-dimmed {
+  color: var(--mv-muted);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mv-palette-category {
+  color: var(--mv-muted);
+  font-size: 11px;
+  flex: 0 0 auto;
+  min-width: 60px;
+}
+
+.mv-palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-palette-reason {
+  color: var(--mv-warn);
+  font-size: 11px;
+}
+
+.mv-palette-chord {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--mv-muted);
+  border: 1px solid var(--mv-line);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.mv-palette-footer {
+  border-top: 1px solid var(--mv-line);
+  color: var(--mv-muted);
+  font-size: 11px;
+  padding: 5px 12px;
+}
+
+/* --- property grid --------------------------------------------------------------------------------- */
+
+.mv-props {
+  font-size: 12px;
+  padding: 8px;
+}
+
+.mv-props-empty,
+.mv-props-none {
+  color: var(--mv-muted);
+  padding: 12px 8px;
+}
+
+.mv-props-subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--mv-line);
+}
+
+.mv-props-class {
+  color: var(--mv-muted);
+}
+
+.mv-props-guid {
+  font-size: 10px;
+  color: var(--mv-muted);
+  /* Selectable and complete. Someone will need to paste this into an issue tracker, and truncating a GlobalId
+     makes that impossible for no gain — it is 22 characters. */
+  user-select: all;
+  word-break: break-all;
+}
+
+.mv-props-warning {
+  color: var(--mv-warn);
+  margin: 6px 0;
+}
+
+.mv-props-set h3 {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mv-props-set h3 button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--mv-muted);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.mv-props-set h3 button::before {
+  content: "▾";
+  font-size: 9px;
+}
+
+.mv-props-set h3 button[aria-expanded="false"]::before {
+  content: "▸";
+}
+
+.mv-props-count {
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.mv-props-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mv-props-table th,
+.mv-props-table td {
+  text-align: left;
+  padding: 2px 4px;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.mv-props-table thead th {
+  color: var(--mv-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--mv-line);
+}
+
+.mv-props-table tbody th {
+  color: var(--mv-muted);
+  width: 40%;
+}
+
+.mv-props-table input {
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: inherit;
+  font: inherit;
+  padding: 1px 3px;
+}
+
+.mv-props-table input:hover {
+  border-color: var(--mv-line);
+}
+
+.mv-props-table input:focus-visible {
+  outline: 2px solid var(--mv-accent);
+  outline-offset: 0;
+}
+
+/* Marked on the row, not only on the delta, so the disagreement is findable by scanning rather than by reading
+   every number. */
+.mv-props-mismatch {
+  background: #e0a4581a;
+}
+
+.mv-props-delta {
+  color: var(--mv-warn);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-dock *,
+  .mv-palette *,
+  .mv-props * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

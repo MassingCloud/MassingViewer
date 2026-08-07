@@ -1,6 +1,7 @@
 import { readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -49,9 +50,19 @@ function workspaceAliases(): { find: RegExp; replacement: string }[] {
 // import-graph and provenance gates are repo-wide assertions that need to see every file at once, and
 // splitting the run would let a package pass in isolation while violating a layering rule.
 export default defineConfig({
+  // The JSX transform, for `packages/ui-react` alone. esbuild could handle the syntax, but the plugin also
+  // supplies React's dev-mode component stacks — and a React test whose failure names an anonymous component
+  // instead of the one that broke is a test nobody can act on.
+  plugins: [react()],
   resolve: { alias: workspaceAliases() },
   test: {
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "fixtures/**/*.test.ts", "scripts/**/*.test.mjs"],
+    include: [
+      "packages/**/*.test.ts",
+      "packages/**/*.test.tsx",
+      "apps/**/*.test.ts",
+      "fixtures/**/*.test.ts",
+      "scripts/**/*.test.mjs",
+    ],
     exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
     environment: "node",
     // Only the packages that touch the DOM opt into happy-dom, via `// @vitest-environment happy-dom`
@@ -60,8 +71,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "json-summary", "lcov"],
-      include: ["packages/*/src/**/*.ts"],
-      exclude: ["**/*.test.ts", "**/index.ts", "**/*.d.ts"],
+      include: ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"],
+      exclude: ["**/*.test.ts", "**/*.test.tsx", "**/index.ts", "**/*.d.ts"],
       thresholds: {
         // Per-package floors. geometry-math and kernel-api are the load-bearing pure layers; the
         // conformance suite depends on them being right, so they carry the highest floor.

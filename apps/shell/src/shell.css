@@ -1,0 +1,127 @@
+/*
+ * The React shell's own layout. Everything visual inside the ribbon, dock, palette and property grid comes from
+ * the packages; this file is the page frame and nothing else.
+ */
+
+:root {
+  --panel: #1f2329;
+  --line: #34383d;
+  --text: #e6e8ea;
+  --muted: #9aa3ad;
+  --accent: #4ea1ff;
+  --warn: #e0a458;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #16191d;
+  color: var(--text);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* An author `display` beats the `hidden` attribute's UA `display: none`. Written once, globally, because this
+   repository has now fixed the same bug three times in three different files — the ribbon rendered all seven
+   panels stacked at 503px, and a hidden plan pane silently halved the viewport. */
+[hidden] {
+  display: none !important;
+}
+
+.shell {
+  display: grid;
+  /* `1fr` for the dock row and `min-height: 0` inside it: a grid track sized to content grows to fit the canvas
+     and pushes the footer off screen. The same min-content trap that once forced the demo's document to 659px
+     and stopped the ribbon collapsing. */
+  grid-template-rows: 40px auto 1fr 26px;
+  height: 100%;
+  min-width: 0;
+}
+
+header,
+footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  background: var(--panel);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+header button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+header kbd {
+  font: inherit;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+#ribbon {
+  min-width: 0;
+}
+
+.shell-viewport {
+  position: absolute;
+  inset: 0;
+}
+
+.shell-tree {
+  list-style: none;
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.shell-tree li {
+  padding: 2px 0;
+  color: var(--muted);
+}
+
+#selection {
+  font-size: 10px;
+  user-select: all;
+}

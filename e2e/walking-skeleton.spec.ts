@@ -703,7 +703,7 @@ async function dropFiles(
 test("opens a dropped IFC, and does not navigate the session away", async ({ page }) => {
   await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
   const url = page.url();
-  const before = await page.evaluate(() => window.__massingviewer.elements.length);
+  const before = await page.evaluate(() => window.__massingviewer!.elements.length);
   expect(before).toBeGreaterThan(0);
 
   // The same fixture the app starts with, arriving the way a user's file arrives. Using the same bytes is
@@ -717,7 +717,7 @@ test("opens a dropped IFC, and does not navigate the session away", async ({ pag
   // The assertion that matters most, and the one a unit test cannot make: the page is still the page. Without
   // `preventDefault` on `dragover` the browser navigates to the dropped file and the session is gone.
   expect(page.url()).toBe(url);
-  expect(await page.evaluate(() => window.__massingviewer.elements.length)).toBe(before);
+  expect(await page.evaluate(() => window.__massingviewer!.elements.length)).toBe(before);
 
   // And the model is live: the kernel was reopened on the new bytes, so authoring still works. Leaving the
   // kernel on the previous model would give a correct-looking viewport whose first edit writes the wrong file.

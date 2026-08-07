@@ -1,0 +1,27 @@
+{
+  "name": "@massingviewer/ui-react",
+  "version": "0.0.0",
+  "description": "React for the parts React is good at — panels, a docking layout, a property grid that shows declared against measured, and a Ctrl+K palette. The ribbon it wraps stays vanilla, so massing can mount the same code.",
+  "license": "MIT",
+  "keywords": ["react", "ui", "dock", "command-palette", "aec"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/ui-react" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./ui-react.css": "./src/ui-react.css"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "src/ui-react.css", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/ribbon": "0.0.0",
+    "@massingviewer/ui-model": "0.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}

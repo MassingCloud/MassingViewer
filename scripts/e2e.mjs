@@ -47,9 +47,9 @@ const READY_TIMEOUT_MS = 180_000;
  * The lesson generalises past this file: a cleanup handler is a best effort, not a guarantee, so anything that
  * depends on cleanup having happened needs to detect the case where it did not.
  */
-async function portIsHeld() {
+async function portIsHeld(port = PORT) {
   try {
-    await fetch(`http://127.0.0.1:${PORT}/`, { signal: AbortSignal.timeout(1500) });
+    await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
     return true;
   } catch (error) {
     // A refused connection is the expected, healthy answer. A timeout means something is listening but wedged,
@@ -58,14 +58,15 @@ async function portIsHeld() {
   }
 }
 
-if (await portIsHeld()) {
+const heldPort = (await portIsHeld(PORT)) ? PORT : (await portIsHeld(PORT + 1)) ? PORT + 1 : null;
+if (heldPort !== null) {
   console.error(
-    `e2e: something is already serving http://127.0.0.1:${PORT}/ — almost certainly an orphaned\n` +
+    `e2e: something is already serving http://127.0.0.1:${heldPort}/ — almost certainly an orphaned\n` +
       `     e2e-server from a run that was killed rather than stopped. Running against it would test a stale\n` +
       `     build, so this stops instead. To clear it:\n\n` +
-      `       PowerShell:  Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ` +
+      `       PowerShell:  Get-NetTCPConnection -LocalPort ${heldPort} -State Listen | ` +
       `ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n` +
-      `       POSIX:       kill $(lsof -ti tcp:${PORT})\n\n` +
+      `       POSIX:       kill $(lsof -ti tcp:${heldPort})\n\n` +
       `     Or point this run somewhere else with E2E_PORT.`,
   );
   process.exit(1);
@@ -100,13 +101,25 @@ process.on("SIGINT", () => {
   process.exit(130);
 });
 
+/**
+ * Both apps have to answer, not just the first.
+ *
+ * Waiting only for the demo would start Playwright while the shell was still building, and the `shell` project's
+ * first navigation would fail with a connection refused — a failure that reads as a broken test rather than as a
+ * race in the harness.
+ */
+const URLS = [URL_, `http://127.0.0.1:${PORT + 1}/`];
+
 async function answers() {
-  try {
-    const response = await fetch(URL_, { signal: AbortSignal.timeout(2000) });
-    return response.ok;
-  } catch {
-    return false;
+  for (const url of URLS) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      if (!response.ok) return false;
+    } catch {
+      return false;
+    }
   }
+  return true;
 }
 
 const deadline = Date.now() + READY_TIMEOUT_MS;
