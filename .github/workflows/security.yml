@@ -57,6 +57,29 @@ jobs:
         # newly-staged secret is only visible to the second.
         run: gitleaks dir --redact --verbose --exit-code 1 .
 
+  action-pins:
+    name: action pins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+      - name: Every pinned action SHA resolves
+        # Not in `npm run gates`, which must pass offline. `zizmor` checks that actions are pinned rather than
+        # floating on a tag; nothing else checks that the SHA is real, and a wrong pin fails only when the
+        # workflow runs — which for a release workflow is the worst possible moment.
+        #
+        # The script validates its own resolver against a SHA that cannot exist before believing any answer, and
+        # exits non-zero if it cannot discriminate. "Could not check" and "checked and fine" are different
+        # answers, and an earlier version of this conflated them.
+        run: node scripts/check-action-pins.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   audit:
     name: npm audit
     runs-on: ubuntu-latest

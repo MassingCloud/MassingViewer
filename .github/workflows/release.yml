@@ -70,7 +70,11 @@ jobs:
 
       - name: Generate SBOM for the release
         if: steps.guard.outputs.skip == 'false'
-        run: npx --yes @cyclonedx/cyclonedx-npm@latest --output-format JSON --output-file sbom.cdx.json
+        # Written **outside the working tree**, deliberately. It used to land in the repo root, and the changesets
+        # action runs `git add .` — so the first release run committed a 486 KB generated SBOM onto the
+        # `changeset-release/main` branch, and every release after it would have done the same. A generated
+        # artifact in version control is noise that grows, and it arrived without anyone choosing it.
+        run: npx --yes @cyclonedx/cyclonedx-npm@latest --output-format JSON --output-file "$RUNNER_TEMP/sbom.cdx.json"
 
       - name: Create a version PR, or publish
         if: steps.guard.outputs.skip == 'false'
@@ -94,5 +98,5 @@ jobs:
         if: steps.guard.outputs.skip == 'false'
         with:
           name: sbom-release
-          path: sbom.cdx.json
+          path: ${{ runner.temp }}/sbom.cdx.json
           retention-days: 365

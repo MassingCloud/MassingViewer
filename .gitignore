@@ -26,3 +26,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Generated SBOMs. Belt-and-braces: release.yml writes these to RUNNER_TEMP so they cannot be swept into a
+# commit by `git add .`, but a local `npm run` should not leave one lying around either.
+sbom*.json
