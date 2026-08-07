@@ -1,6 +1,16 @@
 import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type UnitSystem } from "@massingviewer/core";
 import { createViewport } from "@massingviewer/viewport";
 import { browserWorkerTransport, createLocalKernel } from "@massingviewer/kernel-local";
+import {
+  ARCHITECTURAL,
+  FIRE_SAFETY,
+  PAPER_SIZES,
+  type Drawing,
+  type ElementMesh,
+  fitToPaper,
+  generatePlan,
+  toSvg,
+} from "@massingviewer/drawings2d";
 import { tessellate } from "./tessellate";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
@@ -19,16 +29,21 @@ app.innerHTML = `
       <span class="spacer"></span>
       <button id="fit" title="Frame the model (F)">Fit</button>
       <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
+      <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
+      <button id="theme" title="Repaint the plan — no regeneration" disabled>Arch</button>
       <button id="units" title="Toggle metric / imperial">m</button>
       <span class="muted" id="fps"></span>
     </header>
     <main>
       <div id="viewport"></div>
+      <div id="plan-pane" hidden><div id="plan-svg"></div></div>
       <aside>
         <h2>Model</h2>
         <dl id="model"></dl>
         <h2>Kernel</h2>
         <dl id="kernel"><dd class="muted">starting worker…</dd></dl>
+        <h2>Plan</h2>
+        <dl id="plan-info"><dd class="muted">Press Plan to cut one</dd></dl>
         <h2>Selection</h2>
         <dl id="sel"><dd class="muted">Click an element</dd></dl>
         <h2 id="skipped-h" hidden>Not rendered</h2>
@@ -43,6 +58,16 @@ app.innerHTML = `
   </div>
 `;
 
+/**
+ * `IFCWALL` → `IfcWall`, the class name IFC itself uses.
+ *
+ * Shared by the properties panel and the drawing input because there were two conversions and they disagreed:
+ * the panel did `replace(/^IFC/, "Ifc")` and displayed **IfcWALL**, which is not a class name in any schema and
+ * reads as a bug in the data rather than in the label.
+ */
+const pascalIfc = (upper: string): string =>
+  /^IFC./.test(upper) ? `Ifc${upper.charAt(3)}${upper.slice(4).toLowerCase()}` : upper;
+
 const el = <T extends HTMLElement>(sel: string): T => {
   const node = app.querySelector<T>(sel);
   if (!node) throw new Error(`missing ${sel}`);
@@ -52,6 +77,11 @@ const el = <T extends HTMLElement>(sel: string): T => {
 const t0 = performance.now();
 const { meshes, guids, skipped } = tessellate(sampleIfc);
 const parseMs = performance.now() - t0;
+
+// The meshes a plan is cut from. Held rather than discarded after upload to the GPU, because a plan is a *view*
+// of the model — regenerating it after an edit must not require re-reading the file.
+let sourceMeshes = meshes;
+let sourceGuids = guids;
 
 const viewport = createViewport({ container: el("#viewport") });
 
@@ -118,8 +148,14 @@ const elementAt = (expressId: number) => built.elements.find((e) => e.expressId 
  * allowed two places to hold an opinion about what is selected. Routing both through here means they cannot
  * disagree, and a future third caller (the palette, a plugin, a plan-pane click) gets it right by default.
  */
+let selectedGuid: string | null = null;
+
 function applySelection(hit: { expressId: number; guid: string | null } | null): void {
   viewport.select(hit ? [hit.expressId] : []);
+  selectedGuid = hit?.guid ?? null;
+  // 3D → plan. Kept in this one function for the same reason the panel is: two places holding an opinion about
+  // what is selected is how they end up disagreeing.
+  highlightPlan();
 
   const dl = el("#sel");
   dl.innerHTML = "";
@@ -128,7 +164,7 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
     return;
   }
   const element = elementAt(hit.expressId);
-  row(dl, "Class", element?.ifcType.replace(/^IFC/, "Ifc") ?? "?");
+  row(dl, "Class", element === undefined ? "?" : pascalIfc(element.ifcType));
   row(dl, "expressID", `#${hit.expressId}`);
   // Both ids, deliberately: expressID is what the parse layer and the drawing generator speak, GlobalId is
   // the only one safe to persist. Showing both is how the distinction stays visible.
@@ -241,6 +277,10 @@ async function authorWall(): Promise<void> {
     const next = tessellate(ifc);
     const rebuilt = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
     built = rebuilt;
+    sourceMeshes = next.meshes;
+    sourceGuids = next.guids;
+    // A plan is a *view*: if one is open it must follow the edit, not go stale until someone presses the button.
+    if (drawing !== null) generate();
     renderModelPanel();
     renderSkipped(next.skipped);
     renderKernelPanel(`authored ${applied.value.created.length} element · v${applied.value.modelVersion}`, "ok");
@@ -251,6 +291,95 @@ async function authorWall(): Promise<void> {
 
 el("#author").addEventListener("click", () => void authorWall());
 void startKernel();
+
+// --- the plan pane: a plan is a live view of the model ---------------------------------------------
+//
+// The loop nobody else has closed, in one screen: cut a plan from the model, click a line in it, and the element
+// highlights in 3D. Both directions, because both are needed — a reviewer clicks a plan, and a modeller selects
+// in 3D and wants to see where it is on the sheet.
+//
+// The drawing is generated once and *repainted* to switch discipline. That is the claim `drawings2d` exists to
+// make good on, and the Arch/Fire button is here so it can be seen rather than read about.
+
+let drawing: Drawing | null = null;
+let planTheme = ARCHITECTURAL;
+
+/** The tessellated model as drawing input, carrying the identity each line must keep. */
+function planInput(): { name: string; meshes: ElementMesh[] } {
+  return {
+    name: "L1 Plan",
+    meshes: sourceMeshes.map((m) => ({
+      guid: toGuid(sourceGuids.get(m.expressId)),
+      ifcClass: pascalIfc(m.ifcType ?? "IFCPRODUCT"),
+      positions: m.positions,
+      indices: m.indices,
+    })),
+  };
+}
+
+function paintPlan(): void {
+  if (drawing === null) return;
+  const paper = fitToPaper(drawing, PAPER_SIZES.find((p) => p.name === "A3")!, 10);
+  if (paper === null) {
+    el("#plan-svg").innerHTML = `<p class="warn">This plan does not fit on A3 at any standard scale.</p>`;
+    return;
+  }
+  // `interactive` adds the transparent fat twins that make 0.5 mm linework clickable. Without them plan↔3D
+  // selection is technically present and practically unusable.
+  el("#plan-svg").innerHTML = toSvg(drawing, planTheme, paper, { interactive: true, border: true });
+  highlightPlan();
+}
+
+function generate(): void {
+  drawing = generatePlan(planInput(), { kind: "plan", cutHeight: 1.2 });
+  el("#plan-pane").hidden = false;
+  el<HTMLButtonElement>("#theme").disabled = false;
+  paintPlan();
+
+  const dl = el("#plan-info");
+  dl.innerHTML = "";
+  row(dl, "Entities", String(drawing.entities.length));
+  const pct = Math.round(drawing.provenance.guidCoverage * 100);
+  // The KPI. Below 100% means linework that cannot be marked up, and it is shown rather than logged.
+  row(dl, "Identified", `${pct}%`, pct === 100 ? "ok" : "warn");
+  row(dl, "Cut at", formatLength(drawing.view.cutHeight ?? 0, units));
+  if (drawing.provenance.incomplete.length > 0) {
+    row(dl, "Incomplete", String(drawing.provenance.incomplete.length), "warn");
+  }
+}
+
+/** Outline the plan entities belonging to the current 3D selection. */
+function highlightPlan(): void {
+  const svg = el("#plan-svg").querySelector("svg");
+  if (svg === null) return;
+  for (const node of svg.querySelectorAll<SVGElement>("[data-guid]")) {
+    node.classList.remove("sel");
+  }
+  if (selectedGuid === null) return;
+  // Every entity for the element, not the first: one L-shaped wall produces several loops, and lighting one leg
+  // looks like a bug in the model.
+  for (const node of svg.querySelectorAll<SVGElement>(`[data-guid="${CSS.escape(selectedGuid)}"]`)) {
+    node.classList.add("sel");
+  }
+}
+
+el("#plan").addEventListener("click", generate);
+el("#theme").addEventListener("click", () => {
+  planTheme = planTheme === ARCHITECTURAL ? FIRE_SAFETY : ARCHITECTURAL;
+  el("#theme").textContent = planTheme === ARCHITECTURAL ? "Arch" : "Fire";
+  // No regeneration. Same Drawing, different stylesheet.
+  paintPlan();
+});
+
+// Plan → 3D. The markup story in miniature: a click on linework resolves to a GlobalId, not to a coordinate.
+el("#plan-pane").addEventListener("click", (event) => {
+  const target = (event.target as Element | null)?.closest("[data-guid]");
+  const guid = target?.getAttribute("data-guid");
+  if (guid === null || guid === undefined) return;
+  const element = built.elements.find((e) => e.guid === guid);
+  if (element === undefined) return;
+  applySelection({ expressId: element.expressId, guid });
+});
 
 // --- status ---------------------------------------------------------------------------------------
 
@@ -297,6 +426,22 @@ window.__massingviewer = {
   },
   get authored() {
     return authored;
+  },
+  /**
+   * Distance from the camera to the model centre, in metres.
+   *
+   * Exposed because it is what "zoom" actually means, and the obvious proxy is wrong: an E2E test asserted that
+   * pinching out *reduces* framebuffer coverage, and it does not — zooming out reveals more of the ground grid,
+   * which counts as non-background, so coverage went from 0.17 to 0.21 while the camera correctly moved away.
+   * Coverage is a fine signal for "did anything draw"; it is not a signal for direction of zoom.
+   */
+  get cameraDistance() {
+    const b = built.bounds;
+    const cx = (b.min.x + b.max.x) / 2;
+    const cy = (b.min.y + b.max.y) / 2;
+    const cz = (b.min.z + b.max.z) / 2;
+    const p = viewport.camera.position;
+    return Math.hypot(p.x - cx, p.y - cy, p.z - cz);
   },
   kernelId: kernel.id,
   renderNow() {

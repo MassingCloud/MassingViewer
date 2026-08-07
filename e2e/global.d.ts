@@ -12,6 +12,7 @@ declare global {
       readonly elements: readonly SceneElement[];
       readonly triangles: number;
       readonly authored: number;
+      readonly cameraDistance: number;
       kernelId: string;
       renderNow(): void;
       sampleFramebuffer(step?: number): { sampled: number; nonBackground: number; coverage: number };

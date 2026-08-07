@@ -99,11 +99,34 @@ async function zoomOut(page: Page, isMobile: boolean | undefined): Promise<void>
   for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 240);
 }
 
+/**
+ * Console messages that are the browser talking about itself, not the app failing.
+ *
+ * Exactly one entry, and it is deliberately a precise string rather than a pattern that could swallow real
+ * errors. `ResizeObserver loop completed with undelivered notifications` means a resize callback changed layout,
+ * so the browser deferred the remaining notifications to the next frame. It is logged at error level, it is not
+ * an application fault, and it appears on the narrow iPad viewport where the panel and viewport settle over two
+ * frames instead of one.
+ *
+ * That the resize genuinely *settles* is not assumed — it is what "the canvas tracks its container" asserts, and
+ * that test passes on iPad. If the loop did not settle, `decideResize` would keep reporting a change and that
+ * test would fail. The canvas is also `width:100%;height:100%` inside a `position:relative` container with
+ * `min-height:0`, so resizing it cannot feed back into the grid at all.
+ *
+ * Filtered on **both** channels, because browsers deliver it as an uncaught error event rather than as a console
+ * message — filtering only `console` left it arriving through `pageerror` and the test still failing.
+ */
+const BENIGN = ["ResizeObserver loop completed with undelivered notifications."];
+
+const isBenign = (text: string): boolean => BENIGN.some((benign) => text.includes(benign));
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("pageerror", (e) => {
+    if (!isBenign(e.message)) errors.push(e.message);
+  });
   page.on("console", (m) => {
-    if (m.type() === "error") errors.push(m.text());
+    if (m.type() === "error" && !isBenign(m.text())) errors.push(m.text());
   });
   await page.goto("/");
 
@@ -256,18 +279,22 @@ test("orbiting changes what is drawn", async ({ page }) => {
 });
 
 test("pinch zooms — the only way to zoom on a tablet", async ({ page }) => {
-  // Runs on every project, not just the iPad one. There is no wheel on a touch screen, so before this existed
-  // an iPad user could not change the zoom level at all — and single-finger orbit worked, which is exactly why
-  // nobody noticed. Safari and iPad support is a stated differentiator, so this is a required behaviour.
-  const before = await page.evaluate(() => window.__massingviewer!.sampleFramebuffer(16).coverage);
+  // Runs on every project, not just the iPad one. There is no wheel on a touch screen, so before this existed an
+  // iPad user could not change the zoom level at all — and single-finger orbit worked, which is exactly why
+  // nobody noticed. Safari and iPad support is a stated differentiator, so this is required behaviour.
+  //
+  // Asserted on camera distance, not on framebuffer coverage. A first version used coverage and failed at
+  // 0.17 → 0.21: pinching out moves the camera away *and* reveals more of the ground grid, which counts as
+  // non-background. Coverage answers "did anything draw"; it does not answer "which way did the zoom go".
+  const distance = () => page.evaluate(() => window.__massingviewer!.cameraDistance);
+  const before = await distance();
 
   await pinch(page, 0.3); // fingers together → zoom out
-  const out = await page.evaluate(() => window.__massingviewer!.sampleFramebuffer(16).coverage);
-  expect(out, "pinching together should show less of the frame").toBeLessThan(before);
+  const out = await distance();
+  expect(out, "pinching together should move the camera away").toBeGreaterThan(before);
 
   await pinch(page, 3); // fingers apart → zoom back in
-  const back = await page.evaluate(() => window.__massingviewer!.sampleFramebuffer(16).coverage);
-  expect(back, "pinching apart should show more of the frame").toBeGreaterThan(out);
+  expect(await distance(), "pinching apart should bring the camera closer").toBeLessThan(out);
 });
 
 test("units toggle reformats the model panel", async ({ page }) => {
@@ -366,6 +393,87 @@ test("authoring makes no network requests", async ({ page }) => {
   await page.getByRole("button", { name: "+ Wall" }).click();
   await expect(page.locator("#kernel")).toContainText("authored 1 element", { timeout: 20_000 });
   expect(requests, "authoring must not touch the network").toEqual([]);
+});
+
+test("the loop: cut a plan, click a line, and the element selects in 3D", async ({ page }) => {
+  // The thing no competitor has closed, in one test. A plan is a live view of the model, and a click on its
+  // linework resolves to a GlobalId rather than to a page coordinate — which is the difference between this and
+  // every PDF-based review tool.
+  await page.getByRole("button", { name: "Plan" }).click();
+
+  const svg = page.locator("#plan-svg svg");
+  await expect(svg).toBeVisible();
+  await expect(svg).toHaveAttribute("data-kind", "plan");
+  // Real AIA layers, not one flat group — DXF export and layer visibility both need them.
+  await expect(svg.locator('g[data-layer="A-WALL"]')).toBeVisible();
+  // The KPI, displayed rather than logged: below 100% means linework nobody can mark up.
+  await expect(page.locator("#plan-info")).toContainText("100%");
+
+  // Click through a fat hit twin, which is the only way a 0.5 mm line is clickable at all.
+  const hit = svg.locator("[data-hit][data-guid]").first();
+  const guid = await hit.getAttribute("data-guid");
+  expect(guid).toMatch(/^[0-9A-Za-z_$]{22}$/);
+  await hit.click({ force: true });
+
+  // 3D followed: the properties panel names the same element the plan line came from.
+  const sel = page.locator("#sel");
+  await expect(sel).toContainText(guid!);
+  // And IFC's own class name, not `IfcWALL` — a label that is not a class in any schema reads as bad data.
+  await expect(sel).toContainText(/Ifc[A-Z][a-z]/);
+
+  // 3D → plan, the other direction: every entity for that element is lit, not just the first, because one
+  // L-shaped wall produces several loops.
+  await expect(svg.locator('[data-guid].sel').first()).toBeVisible();
+  const lit = await svg.locator(`[data-guid="${guid}"].sel`).count();
+  expect(lit).toBeGreaterThan(1);
+
+  await page.keyboard.press("Escape");
+  await expect(svg.locator("[data-guid].sel")).toHaveCount(0);
+});
+
+test("switching discipline repaints the plan without regenerating it", async ({ page }) => {
+  // The claim the Semantic Drawing Model exists to make good on. massing's generator takes discipline as a
+  // *generation* flag, so a restyle is a round trip through the geometry kernel.
+  await page.getByRole("button", { name: "Plan" }).click();
+  const svg = page.locator("#plan-svg svg");
+  await expect(svg).toHaveAttribute("data-theme", "Architectural");
+
+  const geometry = () =>
+    page.evaluate(() =>
+      Object.fromEntries(
+        [...document.querySelectorAll("#plan-svg svg path[id]")].map((p) => [p.id, p.getAttribute("d")]),
+      ),
+    );
+  const before = await geometry();
+
+  await page.getByRole("button", { name: "Arch" }).click();
+  await expect(svg).toHaveAttribute("data-theme", "Fire safety");
+  const after = await geometry();
+
+  // Every entity present in both themes has byte-identical geometry — the same drawing, repainted.
+  const shared = Object.keys(before).filter((k) => k in after);
+  expect(shared.length).toBeGreaterThan(5);
+  for (const id of shared) expect(after[id], id).toBe(before[id]);
+
+  // The fire theme hides below-cut linework, and hiding means *absent* rather than invisible-but-clickable.
+  expect(Object.keys(after).length).toBeLessThan(Object.keys(before).length);
+});
+
+test("an open plan follows an edit instead of going stale", async ({ page }) => {
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Plan" }).click();
+
+  const cuts = page.locator('#plan-svg svg path[data-role="cut"]');
+  const before = await cuts.count();
+  expect(before).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "+ Wall" }).click();
+  await expect(page.locator("#kernel")).toContainText("authored 1 element", { timeout: 20_000 });
+
+  // "A plan is a live view of the model" is only true if it tracks the model. A plan that needs a manual refresh
+  // is an export with extra steps.
+  await expect(cuts).toHaveCount(before + 1);
+  await expect(page.locator("#plan-info")).toContainText("100%");
 });
 
 test("nothing is silently skipped by the tessellator", async ({ page }) => {

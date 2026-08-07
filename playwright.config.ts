@@ -109,8 +109,13 @@ export default defineConfig({
             "gfx.webrender.all": true,
           },
           env: {
-            // And the third half: Mesa must fall back to llvmpipe. Without this, the software WebRender path
-            // still asks for a GL context the runner cannot provide.
+            // `launchOptions.env` **replaces** the browser's environment, it does not extend it. Setting only
+            // the two variables below launched Firefox with no `DISPLAY`, so running under Xvfb failed with
+            // "no DISPLAY environment variable specified" — a bug introduced by the fix for the previous bug.
+            // Spreading the parent environment is what makes it additive.
+            ...process.env,
+            // Mesa must fall back to llvmpipe, or the software WebRender path still asks for a GL context the
+            // runner cannot provide.
             LIBGL_ALWAYS_SOFTWARE: "1",
             MOZ_ENABLE_WAYLAND: "0",
           },

@@ -53,3 +53,37 @@ dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
 ul { margin: 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
 code { font-family: ui-monospace, Consolas, monospace; }
+
+/* --- the plan pane ---------------------------------------------------------------------------------
+   A real sheet on a grey desk. A drawing floating on a dark UI reads as a diagram rather than as a
+   document, and the whole point of the Semantic Drawing Model is that this is a document. */
+#plan-pane {
+  overflow: auto;
+  background: #2a2d31;
+  border-left: 1px solid #34383d;
+  padding: 12px;
+  display: grid;
+  place-items: start center;
+}
+
+#plan-svg svg {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 2px 12px #0008;
+}
+
+/* Selection recolours the existing stroke rather than drawing an overlay: an overlay sits on top of the
+   linework and hides the very thing being selected. */
+#plan-svg [data-guid].sel {
+  stroke: #4ea1ff !important;
+  stroke-width: 1.2 !important;
+}
+
+/* The transparent hit twins must stay transparent when selected, or every selection paints an 8 mm band. */
+#plan-svg [data-hit].sel {
+  stroke: transparent !important;
+}
+
+main:has(#plan-pane:not([hidden])) {
+  grid-template-columns: 1fr 1fr 290px;
+}
