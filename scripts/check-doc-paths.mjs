@@ -31,16 +31,35 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
  * still reads plausibly while having lost all its links looks fine in review.
  */
 const FLOORS_PATH = "scripts/doc-citation-floors.json";
-const GATED = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "NOTICE", "docs/architecture.md"];
+const GATED = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "NOTICE"];
 
-/** Every ADR is gated too, discovered rather than listed so a new one cannot skip the check. */
-try {
-  for (const f of readdirSync(join(ROOT, "docs", "adr"))) {
-    if (f.endsWith(".md")) GATED.push(`docs/adr/${f}`);
+/**
+ * Every markdown file under `docs/`, discovered recursively.
+ *
+ * Discovery rather than a list, so a new doc cannot skip the check — which was already the stated intent for
+ * ADRs, and was not being honoured for anything else. An earlier version listed `docs/architecture.md` by hand
+ * and walked only `docs/adr/`, which meant `docs/testing.md` had never been gated at all, and a new
+ * subdirectory (`docs/kernels/`) was silently ignored: the gate reported the same doc count before and after a
+ * 200-line guide was added. A gate with a blind spot is worse than no gate, because its green is trusted.
+ */
+function collectDocs(dir, prefix) {
+  for (const entry of readdirSync(join(ROOT, dir))) {
+    const rel = `${dir}/${entry}`;
+    if (statSync(join(ROOT, rel)).isDirectory()) {
+      // `pending/` holds extraction leftovers that deliberately cite massing's paths, not ours.
+      if (entry === "pending") continue;
+      collectDocs(rel, prefix);
+    } else if (entry.endsWith(".md")) {
+      GATED.push(rel);
+    }
   }
-} catch {
-  /* no ADRs yet */
 }
+try {
+  collectDocs("docs");
+} catch {
+  /* no docs yet */
+}
+GATED.sort();
 
 const UPDATE = process.argv.includes("--update");
 let floors = {};

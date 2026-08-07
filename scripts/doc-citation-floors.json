@@ -7,7 +7,10 @@
   "docs/adr/0005-clean-history-with-provenance-ledger.md": 5,
   "docs/adr/0006-react-shell-vanilla-core.md": 6,
   "docs/adr/0007-massingifc-boundary.md": 8,
+  "docs/adr/0008-local-kernel-geometry-stack.md": 6,
   "docs/architecture.md": 25,
+  "docs/kernels/authoring.md": 8,
+  "docs/testing.md": 8,
   "NOTICE": 1,
   "README.md": 6,
   "SECURITY.md": 0
