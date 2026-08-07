@@ -95,6 +95,18 @@ export default defineConfig({
             "webgl.force-enabled": true,
             "webgl.disabled": false,
             "webgl.disable-fail-if-major-performance-caveat": true,
+            // Firefox draws through WebRender, and on a runner with no GPU the hardware path fails and takes
+            // WebGL with it. Forcing WebRender's software backend is the other half of the fix; the prefs above
+            // alone were not enough, which the diagnostic in e2e/global-setup reported as
+            // "WebGL: UNAVAILABLE" rather than as a timeout.
+            "gfx.webrender.software": true,
+            "gfx.webrender.all": true,
+          },
+          env: {
+            // And the third half: Mesa must fall back to llvmpipe. Without this, the software WebRender path
+            // still asks for a GL context the runner cannot provide.
+            LIBGL_ALWAYS_SOFTWARE: "1",
+            MOZ_ENABLE_WAYLAND: "0",
           },
         },
       },
