@@ -17,20 +17,20 @@
 # Columns are one per kernel so a single grep answers "what can I do offline?" — the question a user actually
 # has, and the one that decides whether they need a server at all.
 recipe	category	memory	local	remote
-add_wall	architecture	yes	planned	planned
-add_slab	architecture	yes	planned	planned
-add_column	architecture	yes	planned	planned
-add_beam	architecture	no	planned	planned
+add_wall	architecture	yes	yes	planned
+add_slab	architecture	yes	yes	planned
+add_column	architecture	yes	yes	planned
+add_beam	architecture	no	yes	planned
 add_roof	architecture	no	no	planned
 add_roof_window	architecture	no	no	planned
-add_door	architecture	no	planned	planned
-add_window	architecture	no	planned	planned
-delete_element	edit	yes	planned	planned
-move_element	edit	yes	planned	planned
-rotate_element	edit	no	planned	planned
-set_element_pset	data	yes	planned	planned
+add_door	architecture	no	yes	planned
+add_window	architecture	no	yes	planned
+delete_element	edit	yes	yes	planned
+move_element	edit	yes	yes	planned
+rotate_element	edit	no	yes	planned
+set_element_pset	data	yes	yes	planned
 set_props_by_guid	data	no	no	planned
-copy_element	edit	no	planned	planned
+copy_element	edit	no	yes	planned
 set_pset	data	no	no	planned
 batch_tag	data	no	no	planned
 place_type	types	no	no	planned
@@ -38,7 +38,7 @@ add_family	types	no	no	planned
 add_spaces	spatial	no	no	planned
 furnish_spaces	spatial	no	no	planned
 program_fit	spatial	no	no	planned
-add_storey	spatial	no	planned	planned
+add_storey	spatial	no	yes	planned
 rename_storey	spatial	no	no	planned
 set_storey_elevation	spatial	no	no	planned
 reset_prop_to_type	data	no	no	planned
@@ -65,9 +65,9 @@ connect_elements	mep	no	no	planned
 execute_ifc_code	escape	no	no	planned
 set_wall_slope	geometry	no	no	planned
 extrude_profile	geometry	no	no	planned
-set_extrusion_depth	geometry	yes	planned	planned
-set_profile_dims	geometry	no	planned	planned
-set_wall_thickness	geometry	no	planned	planned
+set_extrusion_depth	geometry	yes	yes	planned
+set_profile_dims	geometry	no	yes	planned
+set_wall_thickness	geometry	no	yes	planned
 add_mesh_representation	geometry	no	no	planned
 add_annotation	annotate	no	no	planned
 add_dimension	annotate	no	no	planned

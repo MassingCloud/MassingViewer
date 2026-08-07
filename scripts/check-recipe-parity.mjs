@@ -31,10 +31,15 @@ const TOTAL = 96;
 /**
  * Minimum `yes` count per kernel. **Only ever increases.**
  *
- * `local` is 0 because `LocalKernel` does not exist yet, and a floor of 0 is the honest statement of that —
- * writing 15 here to match the `planned` column would make the gate assert a wish.
+ * `local` went 0 → 15 when `LocalKernel`'s conformance suite went green, and not one commit sooner. While the
+ * fifteen were merely intended they sat in the `planned` column and this floor read 0, because a floor of 0 was
+ * the honest statement of "nothing verified yet" — writing 15 to match an intention would have made the gate
+ * assert a wish. The suite promoted them by failing until the ledger caught up, which is the ratchet working in
+ * the direction it was built for.
+ *
+ * `remote` stays 0: `RemoteKernel` needs a reachable massing server.
  */
-const FLOOR = { memory: 7, local: 0, remote: 0 };
+const FLOOR = { memory: 7, local: 15, remote: 0 };
 
 const STATUSES = new Set(["yes", "planned", "no"]);
 

@@ -5,6 +5,11 @@
 // docs/adr/0008-local-kernel-geometry-stack.md for why this one owns the file's entity table rather than a
 // reduced model of it.
 
+export { createLocalKernel } from "./provider";
+export type { LocalKernelOptions } from "./provider";
+export { browserWorkerTransport, messageChannelTransport } from "./transport";
+export { hostLocalKernel } from "./host";
+export type { KernelRequest, KernelResponse, KernelTransport } from "./protocol";
 export { LocalKernelCore } from "./core";
 export { LocalModel } from "./model";
 export { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops";

@@ -30,6 +30,7 @@ import { LocalModel } from "./model";
 export class LocalKernelCore {
   private readonly models = new Map<string, ModelState>();
   private readonly mint: GuidMinter;
+  private txSeq = 0;
 
   constructor(mint: GuidMinter = randomGuidMinter()) {
     this.mint = mint;
@@ -50,7 +51,7 @@ export class LocalKernelCore {
       );
     }
     const model = new LocalModel(table, this.mint);
-    this.models.set(modelId, { model, version: 1, geometryVersion: 1, undo: [] });
+    this.models.set(modelId, { model, version: 1, geometryVersion: 1, undo: [], transactions: new Map() });
     return ok({ elements: table.size, created: model.created });
   }
 
@@ -165,6 +166,62 @@ export class LocalKernelCore {
     state.value.version += 1;
     state.value.geometryVersion += 1;
     return ok({ label: entry.label, modelVersion: String(state.value.version) });
+  }
+
+  /**
+   * Open a transaction: snapshot now, and be able to get back here.
+   *
+   * Separate from the undo stack rather than layered on it. Rolling back by calling undo N times needs an
+   * accurate N, and N is wrong the moment anything else touches the model — another tab, a plugin, an
+   * autosave. A named snapshot is correct regardless of what happened in between, which is the property a
+   * transaction is supposed to have.
+   */
+  begin(modelId: ModelId, label: string): Result<{ id: string; label: string }, KernelFailure> {
+    const state = this.state(modelId);
+    if (!state.ok) return state;
+    const id = `tx${++this.txSeq}`;
+    state.value.transactions.set(id, {
+      label,
+      ifc: state.value.model.table.emit(),
+      version: state.value.version,
+      geometryVersion: state.value.geometryVersion,
+      undoDepth: state.value.undo.length,
+    });
+    return ok({ id, label });
+  }
+
+  commit(modelId: ModelId, txId: string): Result<OpResult, KernelFailure> {
+    const state = this.state(modelId);
+    if (!state.ok) return state;
+    const tx = state.value.transactions.get(txId);
+    if (!tx) return err(kernelFailure("refused", `no open transaction ${txId}`, { txId }));
+    state.value.transactions.delete(txId);
+    // Committing discards the snapshot; the model is already in its post-commit state because every op wrote
+    // through. Nothing to apply, which is what makes commit cheap and rollback the expensive direction.
+    return ok({
+      created: [],
+      modified: [],
+      deleted: [],
+      summary: { transaction: txId, label: tx.label },
+      geometryVersion: String(state.value.geometryVersion),
+      modelVersion: String(state.value.version),
+    });
+  }
+
+  rollback(modelId: ModelId, txId: string): Result<void, KernelFailure> {
+    const state = this.state(modelId);
+    if (!state.ok) return state;
+    const tx = state.value.transactions.get(txId);
+    if (!tx) return err(kernelFailure("refused", `no open transaction ${txId}`, { txId }));
+    state.value.transactions.delete(txId);
+    this.restore(state.value, tx.ifc);
+    state.value.version = tx.version;
+    state.value.geometryVersion = tx.geometryVersion;
+    // The undo stack is truncated to the transaction's start too: entries recorded inside a rolled-back
+    // transaction describe states that no longer exist, and undoing into one would resurrect work the user
+    // just discarded.
+    state.value.undo = state.value.undo.filter((_, i) => i < tx.undoDepth);
+    return ok(undefined);
   }
 
   versions(modelId: ModelId): Result<{ modelVersion: string; geometryVersion: string }, KernelFailure> {
@@ -389,6 +446,16 @@ interface ModelState {
   version: number;
   geometryVersion: number;
   undo: { label: string; ifc: string }[];
+  transactions: Map<string, Snapshot>;
+}
+
+interface Snapshot {
+  label: string;
+  ifc: string;
+  version: number;
+  geometryVersion: number;
+  /** Undo-stack depth when the transaction opened, so a rollback discards only what it should. */
+  undoDepth: number;
 }
 
 /** A linear element's length and plan rotation, from its profile and placement. */
