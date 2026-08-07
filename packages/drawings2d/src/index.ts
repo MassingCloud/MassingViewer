@@ -36,6 +36,9 @@ export type { SvgOptions } from "./svg";
 export { dxfLimitations, toDxf } from "./dxf";
 export type { DxfOptions } from "./dxf";
 
+export { pdfLimitations, toPdf } from "./pdf";
+export type { PdfOptions } from "./pdf";
+
 export { createPlanProvider, generatePlan } from "./plan";
 export type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider";
 

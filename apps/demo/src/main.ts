@@ -10,7 +10,9 @@ import {
   fitToPaper,
   generatePlan,
   dxfLimitations,
+  pdfLimitations,
   toDxf,
+  toPdf,
   toSvg,
 } from "@massingviewer/drawings2d";
 import {
@@ -45,6 +47,7 @@ app.innerHTML = `
       <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
       <button id="theme" title="Repaint the plan — no regeneration" disabled>Arch</button>
       <button id="delete" title="Delete the selected element (Del) — watch any markup on it orphan">Delete</button>
+      <button id="pdf" title="Export the plan as a layered PDF that keeps its GlobalIds" disabled>PDF</button>
       <button id="dxf" title="Export the plan as DXF R12" disabled>DXF</button>
       <button id="bcf" title="Export every markup as BCF 3.0" disabled>BCF</button>
       <button id="units" title="Toggle metric / imperial">m</button>
@@ -402,6 +405,7 @@ function generate(): void {
   el("#plan-pane").hidden = false;
   el<HTMLButtonElement>("#theme").disabled = false;
   el<HTMLButtonElement>("#dxf").disabled = false;
+  el<HTMLButtonElement>("#pdf").disabled = false;
   paintPlan();
 
   const dl = el("#plan-info");
@@ -545,6 +549,36 @@ el("#tools").addEventListener("click", (event) => {
   if (id === null || id === undefined) return;
   armedTool = id;
   renderTools();
+});
+
+/**
+ * Download the current plan as a PDF — the third serialiser, and the one to reach for.
+ *
+ * The difference from the DXF button next to it is not fidelity, it is **identity**. A DXF R12 has nowhere to
+ * put a GlobalId, so a markup made on one cannot come back. This PDF carries every element's GlobalId twice —
+ * in marked content inside the page, and in an attached JSON index mapping GlobalId to paper coordinates — so a
+ * reviewer can mark it up in Bluebeam or Acrobat, tools that know nothing about IFC, and the result still
+ * resolves to the wall it was about. That is the loop the competitive research found nobody had closed.
+ */
+el("#pdf").addEventListener("click", () => {
+  if (drawing === null) return;
+  const paper = fitToPaper(drawing, PAPER_SIZES.find((p) => p.name === "A3")!, 10);
+  if (paper === null) {
+    renderKernelPanel("this plan does not fit on A3 at any standard scale", "warn");
+    return;
+  }
+  const bytes = toPdf(drawing, planTheme, paper, { border: true, title: `${drawing.name} — 1:${paper.scale}` });
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `plan-1-${paper.scale}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const guids = new Set(drawing.entities.map((e) => e.guid).filter((g) => g !== undefined)).size;
+  renderKernelPanel(
+    `PDF at 1:${paper.scale} — ${guids} GlobalId(s) carried, ${pdfLimitations().length} stated limitations`,
+    "ok",
+  );
 });
 
 /**

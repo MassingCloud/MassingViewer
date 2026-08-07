@@ -36,6 +36,41 @@ const PORT = Number(process.env.E2E_PORT ?? 4173);
 const URL_ = `http://127.0.0.1:${PORT}/`;
 const READY_TIMEOUT_MS = 180_000;
 
+/**
+ * Preflight: refuse to start if something already holds the port, and say what to do about it.
+ *
+ * `stopServer` below is supposed to make this impossible, and the comment there says so. It happened anyway —
+ * a hard kill of this script (a `timeout` wrapper, a closed terminal, SIGKILL) never runs an `exit` handler, so
+ * the child outlives it and holds 4173. What arrived at the next run was vite's `Port 4173 is already in use`,
+ * which is true, unhelpful, and points at the wrong run.
+ *
+ * The lesson generalises past this file: a cleanup handler is a best effort, not a guarantee, so anything that
+ * depends on cleanup having happened needs to detect the case where it did not.
+ */
+async function portIsHeld() {
+  try {
+    await fetch(`http://127.0.0.1:${PORT}/`, { signal: AbortSignal.timeout(1500) });
+    return true;
+  } catch (error) {
+    // A refused connection is the expected, healthy answer. A timeout means something is listening but wedged,
+    // which still blocks strictPort — so that counts as held too.
+    return error instanceof Error && error.name === "TimeoutError";
+  }
+}
+
+if (await portIsHeld()) {
+  console.error(
+    `e2e: something is already serving http://127.0.0.1:${PORT}/ — almost certainly an orphaned\n` +
+      `     e2e-server from a run that was killed rather than stopped. Running against it would test a stale\n` +
+      `     build, so this stops instead. To clear it:\n\n` +
+      `       PowerShell:  Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ` +
+      `ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n` +
+      `       POSIX:       kill $(lsof -ti tcp:${PORT})\n\n` +
+      `     Or point this run somewhere else with E2E_PORT.`,
+  );
+  process.exit(1);
+}
+
 const serverOutput = [];
 const server = spawn(process.execPath, ["scripts/e2e-server.mjs"], {
   stdio: ["ignore", "pipe", "pipe"],

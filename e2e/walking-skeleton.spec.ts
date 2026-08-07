@@ -625,6 +625,62 @@ test("exports DXF that measures the same as the SVG the reviewer saw", async ({ 
   expect(text).not.toContain(guid!);
 });
 
+test("exports a PDF whose GlobalIds survive, unlike the DXF's", async ({ page }, testInfo) => {
+  // The paired assertion. The DXF test above ends by proving a GlobalId is **absent**; this one proves it is
+  // **present**, twice. That contrast is the whole reason there are two buttons, and stating it as two tests
+  // that must both hold keeps it from decaying into "we support both formats".
+  await page.getByRole("button", { name: "Plan" }).click();
+  const svgScale = await page.locator("#plan-svg svg").getAttribute("data-scale");
+  const guid = await page.locator("#plan-svg svg [data-guid]").first().getAttribute("data-guid");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe(`plan-1-${svgScale!.replace("1:", "")}.pdf`);
+
+  const saved = testInfo.outputPath("plan.pdf");
+  await file.saveAs(saved);
+  const bytes = readFileSync(saved);
+  // Latin-1, matching how the writer encodes. Reading this as UTF-8 corrupts every high byte, including the
+  // binary marker on line 2 that this then checks for.
+  const text = bytes.toString("latin1");
+
+  expect(text.startsWith("%PDF-1.7\n")).toBe(true);
+  expect([...bytes.subarray(9, 14)]).toEqual([0x25, 0xe2, 0xe3, 0xcf, 0xd3]);
+  expect(text.trimEnd().endsWith("%%EOF")).toBe(true);
+
+  // Follow startxref and land on the xref keyword, then follow one entry and land on an object header. This is
+  // the check that decides whether the file opens at all, and it is worth repeating outside the unit tests
+  // because the bytes here have been through a Blob, a download and a filesystem.
+  const startxref = Number(/startxref\s+(\d+)\s+%%EOF\s*$/.exec(text)![1]);
+  expect(text.slice(startxref, startxref + 4)).toBe("xref");
+  const firstOffset = Number(text.slice(startxref + 5 + 4, startxref + 5 + 4 + 100).match(/(\d{10}) 00000 n/)![1]);
+  expect(text.slice(firstOffset)).toMatch(/^\d+ 0 obj\n/);
+
+  // Identity, in the page.
+  expect(text).toContain(`/GUID (${guid})`);
+  // Identity, in the attached index — the half that lets a markup made in someone else's PDF tool come back.
+  expect(text).toContain("massingviewer-index.json");
+  expect(text).toContain('"format":"massingviewer-pdf-index"');
+
+  // Slice the attached stream by its declared /Length, exactly as a reader does. Two earlier versions of these
+  // four lines were wrong in the same way — trying to describe PDF structure with one regex. The first matched
+  // the JSON with a non-greedy `{...]}` and stopped at a nested `]}` inside `incomplete`; the second used
+  // `[^>]*` for the dictionary, which cannot cross the `>>` closing the nested `/Params` dict, so it never
+  // reached `stream`. Byte-counting is both correct and the stronger assertion: it fails if /Length is wrong.
+  const embeddedAt = text.indexOf("/Type /EmbeddedFile");
+  const streamAt = text.indexOf("stream\n", embeddedAt);
+  const length = Number(/\/Length (\d+)/.exec(text.slice(embeddedAt, streamAt))![1]);
+  const start = streamAt + "stream\n".length;
+  const index = JSON.parse(text.slice(start, start + length));
+  expect(index.paper.scale).toBe(Number(svgScale!.replace("1:", "")));
+  expect(index.entities.some((e: { guid: string }) => e.guid === guid)).toBe(true);
+
+  // Layers survive as Optional Content Groups, so a reviewer can switch the grid off.
+  expect(text).toContain("/Type /OCG");
+  expect(text).toContain("/OCProperties");
+});
+
 test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
   // A **measured** assertion, and it exists because the unit tests could not catch this. The CSS set
   // `.mv-ribbon-panel { display: flex }`, which beats the `hidden` attribute's UA `display: none`, so every tab's
