@@ -13,7 +13,8 @@
     { "path": "../../packages/core" },
     { "path": "../../packages/viewport" },
     { "path": "../../packages/plugin-host" },
-    { "path": "../../packages/ui-react" }
+    { "path": "../../packages/ui-react" },
+    { "path": "../../packages/observability" }
   ],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { envelope, migrate, type MigrationStep } from "@massingviewer/observability";
 
 /**
  * The dockable panel layout.
@@ -254,34 +255,61 @@ export function Dock(props: DockProps): React.ReactElement {
 }
 
 /**
+ * The layout's migration chain.
+ *
+ * Empty today, because v1 is the first version — and that is exactly when this is worth writing. Once a v2 exists,
+ * a reader has to distinguish "no version field" from "version 1", and the only way to do that is a heuristic over
+ * the contents. Adding the envelope now costs nothing; retrofitting it means maintaining that heuristic forever.
+ */
+const LAYOUT_VERSION = 1;
+const LAYOUT_MIGRATIONS: readonly MigrationStep[] = [];
+
+/**
  * Persist and restore a layout.
  *
- * Versioned, and an unknown version is **discarded rather than migrated**. A layout is regenerable from defaults
- * in one render, so the cost of throwing it away is nearly zero — and the cost of misreading an old shape is a
- * panel sized `NaN`, which renders as a collapsed sliver the user cannot grab. Cheap to lose, expensive to get
- * wrong: discard.
+ * Versioned through `@massingviewer/observability`'s `migrate` rather than by a hand-rolled check here. The policy
+ * a hand-rolled check gets right — refuse a future version — is the easy half; the half every copy gets differently
+ * is what happens on a *partial* match, and the wrong answer there writes back a half-read object and destroys the
+ * user's settings the moment they open an older tab.
+ *
+ * A layout is also the cheapest possible thing to lose: it regenerates from defaults in one render. So when the
+ * envelope is unreadable this discards it, and the interesting property is that `migrate` reports *why* — a caller
+ * holding something expensive, like a user's custom tool set, can refuse to start instead.
  */
 export function loadLayout(storage: Pick<Storage, "getItem">, key = "mv.dock"): DockLayout | undefined {
+  let raw: string | null;
   try {
-    const raw = storage.getItem(key);
-    if (raw === null) return undefined;
-    const parsed = JSON.parse(raw) as { version?: number; layout?: DockLayout };
-    if (parsed.version !== 1 || parsed.layout === undefined) return undefined;
-    // Non-finite sizes are dropped individually: one bad number should not discard a whole layout.
-    const sizes: Record<string, number> = {};
-    for (const [id, size] of Object.entries(parsed.layout.sizes ?? {})) {
-      if (typeof size === "number" && Number.isFinite(size) && size >= 0) sizes[id] = size;
-    }
-    return { sizes, collapsed: (parsed.layout.collapsed ?? []).filter((id) => typeof id === "string") };
+    raw = storage.getItem(key);
+  } catch {
+    // Storage can throw on read as well as write — a `SecurityError` under a restrictive policy, for instance.
+    return undefined;
+  }
+  if (raw === null) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
   } catch {
     // Corrupt JSON is the same as no layout. Throwing here would take down the whole shell over a preference.
     return undefined;
   }
+
+  const result = migrate<DockLayout>(parsed, LAYOUT_MIGRATIONS, LAYOUT_VERSION);
+  if (!result.ok) return undefined;
+
+  // Field-level tolerance on top of the version check, because they catch different things: the envelope proves
+  // *which shape* this is, and this proves the values inside it are usable. A `NaN` width renders as a sliver the
+  // user cannot grab, and one bad number should not cost them every other panel width they set.
+  const sizes: Record<string, number> = {};
+  for (const [id, size] of Object.entries(result.data.sizes ?? {})) {
+    if (typeof size === "number" && Number.isFinite(size) && size >= 0) sizes[id] = size;
+  }
+  return { sizes, collapsed: (result.data.collapsed ?? []).filter((id) => typeof id === "string") };
 }
 
 export function saveLayout(storage: Pick<Storage, "setItem">, layout: DockLayout, key = "mv.dock"): void {
   try {
-    storage.setItem(key, JSON.stringify({ version: 1, layout }));
+    storage.setItem(key, JSON.stringify(envelope(LAYOUT_VERSION, layout)));
   } catch {
     // Private browsing, a full quota, or storage disabled by policy. A preference that cannot be saved is not a
     // reason to interrupt anyone.

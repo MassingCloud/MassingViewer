@@ -9,7 +9,7 @@
     "jsx": "react-jsx",
     "types": ["react", "react-dom"]
   },
-  "references": [{ "path": "../ui-model" }, { "path": "../ribbon" }],
+  "references": [{ "path": "../ui-model" }, { "path": "../ribbon" }, { "path": "../observability" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

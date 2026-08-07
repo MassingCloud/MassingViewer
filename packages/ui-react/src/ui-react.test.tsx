@@ -592,11 +592,17 @@ describe("Dock", () => {
 describe("layout persistence", () => {
   const reader = (raw: string | null) => ({ getItem: () => raw });
 
-  it("discards an unknown version rather than migrating it", () => {
-    // A layout regenerates from defaults in one render, so losing it costs nearly nothing — while misreading an
-    // old shape produces a panel sized NaN, which renders as a sliver the user cannot grab. Cheap to lose,
-    // expensive to get wrong.
-    expect(loadLayout(reader(JSON.stringify({ version: 99, layout: { sizes: {}, collapsed: [] } })))).toBeUndefined();
+  it("discards a future version rather than partially reading it", () => {
+    // A layout regenerates from defaults in one render, so losing it costs nearly nothing — while reading the
+    // fields a newer build wrote and writing them back destroys the rest. Cheap to lose, expensive to get wrong.
+    expect(loadLayout(reader(JSON.stringify({ schemaVersion: 99, data: { sizes: {}, collapsed: [] } })))).toBeUndefined();
+  });
+
+  it("discards anything that is not a versioned envelope", () => {
+    // Including the shape this used to write. Unversioned data is indistinguishable from a future version's data
+    // without a heuristic over the contents, which is the thing the envelope exists to avoid needing.
+    expect(loadLayout(reader(JSON.stringify({ sizes: { a: 1 }, collapsed: [] })))).toBeUndefined();
+    expect(loadLayout(reader(JSON.stringify({ version: 1, layout: { sizes: {}, collapsed: [] } })))).toBeUndefined();
   });
 
   it("survives corrupt JSON", () => {
@@ -608,8 +614,8 @@ describe("layout persistence", () => {
   it("drops one bad size without discarding the layout", () => {
     // One NaN should not cost the user every other panel width they set.
     const raw = JSON.stringify({
-      version: 1,
-      layout: { sizes: { good: 300, bad: null, worse: -5 }, collapsed: ["x", 7] },
+      schemaVersion: 1,
+      data: { sizes: { good: 300, bad: null, worse: -5 }, collapsed: ["x", 7] },
     });
     expect(loadLayout(reader(raw))).toEqual({ sizes: { good: 300 }, collapsed: ["x"] });
   });

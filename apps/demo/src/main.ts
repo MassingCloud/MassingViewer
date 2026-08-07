@@ -39,6 +39,7 @@ import {
   ribbonFrom,
   type PluginManifest,
 } from "@massingviewer/plugin-host";
+import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massingviewer/observability";
 import { createRibbon } from "@massingviewer/ribbon";
 import "@massingviewer/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
@@ -47,6 +48,22 @@ import { tessellate } from "./tessellate";
 // paint the demo makes zero network requests, so it is provably working without a backend. massing's own Pages
 // demo fetches a model that does not exist and therefore shows no geometry at all.
 import sampleIfc from "../../../fixtures/sample.ifc?raw";
+
+/**
+ * The crash handler, installed before anything else can throw.
+ *
+ * `consoleSink` in development and `NOOP_CRASH_SINK` in a build — so a deployed copy of this demo sends nothing
+ * anywhere. That default is the actual privacy control: `httpSink(url)` exists for a deployment that wants
+ * reports, and choosing it is one argument rather than an unread page.
+ *
+ * Installed at the top of the module, because a handler attached after initialisation cannot report a failure
+ * during it — and initialisation is where the interesting failures are.
+ */
+const crash = createCrashHandler({
+  where: "demo",
+  sink: import.meta.env.DEV ? consoleSink() : NOOP_CRASH_SINK,
+});
+crash.install(window);
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("#app missing");

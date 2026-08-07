@@ -57,18 +57,32 @@ const APPS = [
   { name: "shell", port: PORT + 1 },
 ];
 
-const servers = [];
+/**
+ * Build **everything first**, then start the servers.
+ *
+ * The first version interleaved them — build demo, serve demo, build shell, serve shell — and the suite went
+ * flaky: two webkit tests failed with different assertions on consecutive runs, and one run failed with
+ * `ERR_CONNECTION_REFUSED` on the demo's port. The cause is that a vite build is heavy, largely synchronous work
+ * in *this* process, so while the shell was building the demo's server was listening and unable to answer.
+ *
+ * Separating the phases removes the window entirely. It also means the readiness probe means what it says: when
+ * both ports answer, nothing else is competing for the event loop.
+ */
+const built = [];
 for (const app of APPS) {
   const root = fileURLToPath(new URL(`../apps/${app.name}/`, import.meta.url));
   const configFile = join(root, "vite.config.ts");
-
   console.log(`e2e-server: building ${root}`);
   await build({ root, configFile, logLevel: "warn" });
+  built.push({ ...app, root, configFile });
+}
 
+const servers = [];
+for (const app of built) {
   servers.push(
     await preview({
-      root,
-      configFile,
+      root: app.root,
+      configFile: app.configFile,
       logLevel: "warn",
       // strictPort so a stale server is a loud failure rather than a silent test run against the wrong build —
       // the exact mistake that once produced twelve unrelated failures here.

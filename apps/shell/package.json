@@ -2,7 +2,7 @@
   "name": "@massingviewer/shell",
   "version": "0.0.0",
   "private": true,
-  "description": "The React shell — the second host for the same vanilla ribbon, which is what ADR-0009 claims and this proves.",
+  "description": "The React shell \u2014 the second host for the same vanilla ribbon, which is what ADR-0009 claims and this proves.",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
@@ -13,6 +13,7 @@
     "@massingviewer/core": "0.0.0",
     "@massingviewer/fileio": "0.0.0",
     "@massingviewer/kernel-local": "0.0.0",
+    "@massingviewer/observability": "0.0.0",
     "@massingviewer/plugin-host": "0.0.0",
     "@massingviewer/ribbon": "0.0.0",
     "@massingviewer/ui-model": "0.0.0",

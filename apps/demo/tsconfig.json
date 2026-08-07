@@ -8,7 +8,7 @@
     "noEmit": false,
     "types": ["vite/client"]
   },
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/viewport" }],
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/viewport" }, { "path": "../../packages/observability" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

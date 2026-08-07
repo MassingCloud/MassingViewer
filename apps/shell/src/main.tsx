@@ -6,6 +6,7 @@ import { builtinManifests, createPluginHost, ribbonFrom, type PluginManifest } f
 import { CommandPalette, Dock, PropertyGrid, Ribbon, loadLayout, saveLayout } from "@massingviewer/ui-react";
 import type { PaletteEntry, PropertySet } from "@massingviewer/ui-react";
 import type { RibbonItem } from "@massingviewer/ui-model";
+import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massingviewer/observability";
 import "@massingviewer/ribbon/ribbon.css";
 import "@massingviewer/ui-react/ui-react.css";
 import "./shell.css";
@@ -32,6 +33,13 @@ import sampleIfc from "../../../fixtures/sample.ifc?raw";
  * which is what a component tree is for. The ribbon is the opposite kind of thing, which is exactly why it is
  * not written in React.
  */
+
+// The crash handler, before anything else can throw. A handler attached after initialisation cannot report a
+// failure during it, and initialisation is where the interesting failures are.
+createCrashHandler({
+  where: "shell",
+  sink: import.meta.env.DEV ? consoleSink() : NOOP_CRASH_SINK,
+}).install(window);
 
 const MODEL = asModelId("sample");
 

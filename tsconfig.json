@@ -54,6 +54,9 @@
       "path": "./packages/ui-react"
     },
     {
+      "path": "./packages/observability"
+    },
+    {
       "path": "./apps/demo"
     },
     {

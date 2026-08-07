@@ -1,0 +1,16 @@
+{
+  "name": "@massingviewer/observability",
+  "version": "0.0.0",
+  "description": "Crash reporting, telemetry, audit and feature flags with the sinks inverted — the default sends nothing, and the telemetry emitter cannot transmit a field it does not declare.",
+  "license": "MIT",
+  "keywords": ["telemetry", "crash", "audit", "privacy", "feature-flags"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/observability" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" }
+}
