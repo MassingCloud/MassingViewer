@@ -1,0 +1,19 @@
+{
+  "name": "@massingviewer/ifc",
+  "version": "0.0.0",
+  "description": "IFC/STEP entity table with byte-preserving emit. Reads a file, lets you edit entities, and writes back the bytes it did not touch — so editing a wall cannot delete a consultant's analytical model.",
+  "license": "MIT",
+  "keywords": ["ifc", "step", "iso-10303-21", "bim", "aec", "parser"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/ifc" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/core": "0.0.0"
+  }
+}

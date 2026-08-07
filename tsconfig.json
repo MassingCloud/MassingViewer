@@ -28,6 +28,9 @@
     },
     {
       "path": "./packages/commands"
+    },
+    {
+      "path": "./packages/ifc"
     }
   ]
 }
