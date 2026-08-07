@@ -41,12 +41,26 @@ MassingViewer closes that loop:
 [ibuilder/massing](https://github.com/ibuilder/massing) — an existing production BIM platform — and
 rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 
-**What works today:** `npm run dev` loads a real IFC4 building, renders it, orbits/pans/zooms it, and picks
-elements — with no backend, no WASM and no network after first paint. Every picked element resolves to an IFC
-GlobalId, which is the property everything else depends on. There is a published conformance suite and a
-reference kernel that passes it, so writing a kernel is already a supported thing to do. 317 tests and 6 repo
-gates are green. See
-[the roadmap](#roadmap) for what is still scaffolding.
+**What works today**, with no backend, no account and no network after first paint:
+
+- **Loads and renders a real IFC4 building.** Orbit, pan and zoom with a mouse *or* pinch-to-zoom on a
+  touchscreen. Pick an element and see both its `expressID` and its IFC `GlobalId`.
+- **Authors offline.** `LocalKernel` runs in a Web Worker and writes IFC in your browser. The demo's
+  `+ Wall` button does a full round trip — apply the operation, export IFC, re-tessellate — so the *file*
+  changes, not just the picture. An E2E test asserts it makes **zero network requests** while doing so.
+- **Fifteen of the ninety-six authoring operations**, verified by the published conformance suite rather
+  than claimed. The other eighty-one return a refusal naming what would unlock them, and the count is a
+  ratchet in [`fixtures/recipes.tsv`](fixtures/recipes.tsv) that CI will not let regress.
+- **Editing an IFC does not destroy what it does not understand.** The authoritative store is the file's own
+  entity table, and an entity nobody touched is re-emitted byte-for-byte — so moving one wall cannot delete a
+  structural consultant's analytical model. See
+  [ADR-0008](docs/adr/0008-local-kernel-geometry-stack.md).
+- **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
+  reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
+
+**506 unit tests, 15 E2E tests across Chromium/WebKit/iPad, and 9 repo gates** are green. See
+[the roadmap](#roadmap) for what is still scaffolding — the 2D drawing and markup half of the loop is
+designed and not yet built, which is the largest gap.
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).
@@ -80,8 +94,9 @@ features.
 | | `LocalKernel` (default) | `RemoteKernel` |
 |---|---|---|
 | Runs | Entirely in your browser, in a Worker | Against a [massing](https://github.com/ibuilder/massing) server |
-| Writes IFC with | `web-ifc` + `manifold-3d` + `clipper2` | `ifcopenshell` |
-| Operations | A core set, growing | All 96 server recipes, **discovered at runtime** |
+| Writes IFC with | Its own STEP entity table, patched in place | `ifcopenshell` |
+| Operations | **15 of 96**, conformance-verified | All 96, **discovered at runtime** |
+| Undo | Snapshot — always works | Inverse replay — only where the server has one |
 | Offline | Yes | No |
 
 Operations the active kernel can't perform are **dimmed with the reason**, never hidden. You see the
