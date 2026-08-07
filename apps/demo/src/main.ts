@@ -1,5 +1,6 @@
 import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type UnitSystem } from "@massingviewer/core";
 import { createViewport } from "@massingviewer/viewport";
+import { browserWorkerTransport, createLocalKernel } from "@massingviewer/kernel-local";
 import { tessellate } from "./tessellate";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
@@ -17,6 +18,7 @@ app.innerHTML = `
       <span class="muted" id="file">sample.ifc</span>
       <span class="spacer"></span>
       <button id="fit" title="Frame the model (F)">Fit</button>
+      <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
       <button id="units" title="Toggle metric / imperial">m</button>
       <span class="muted" id="fps"></span>
     </header>
@@ -25,6 +27,8 @@ app.innerHTML = `
       <aside>
         <h2>Model</h2>
         <dl id="model"></dl>
+        <h2>Kernel</h2>
+        <dl id="kernel"><dd class="muted">starting worker…</dd></dl>
         <h2>Selection</h2>
         <dl id="sel"><dd class="muted">Click an element</dd></dl>
         <h2 id="skipped-h" hidden>Not rendered</h2>
@@ -52,7 +56,8 @@ const parseMs = performance.now() - t0;
 const viewport = createViewport({ container: el("#viewport") });
 
 const resolveGuid = (expressId: number): Guid | null => toGuid(guids.get(expressId));
-const built = viewport.showModel(meshes, resolveGuid, asModelId("sample"));
+// Reassigned when the kernel authors something and the model is re-tessellated from its IFC output.
+let built = viewport.showModel(meshes, resolveGuid, asModelId("sample"));
 
 let units: UnitSystem = METRIC;
 
@@ -90,16 +95,19 @@ renderModelPanel();
 // Anything the tessellator could not handle is listed, not hidden. A viewer silently missing half a building
 // is the failure mode this codebase keeps designing against — and this tessellator ignores openings by
 // design, so saying so is the honest thing.
-if (skipped.length > 0) {
-  el("#skipped-h").hidden = false;
-  el("#skipped").innerHTML = skipped
+function renderSkipped(list: typeof skipped): void {
+  el("#skipped-h").hidden = list.length === 0;
+  el("#skipped").innerHTML = list
     .map((s) => `<li><code>#${s.expressId}</code> ${s.type} — ${s.reason}</li>`)
     .join("");
 }
+renderSkipped(skipped);
 
 // --- selection ------------------------------------------------------------------------------------
 
-const byExpressId = new Map(built.elements.map((e) => [e.expressId, e]));
+// Derived on demand rather than captured once. Authoring replaces the whole model, and a map built at startup
+// would show "?" for the class of anything created afterwards — the panel quietly disagreeing with the model.
+const elementAt = (expressId: number) => built.elements.find((e) => e.expressId === expressId);
 
 /**
  * The ONE way selection changes — the viewport highlight and the panel are written together.
@@ -119,7 +127,7 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
     dl.innerHTML = `<dd class="muted">Click an element</dd>`;
     return;
   }
-  const element = byExpressId.get(hit.expressId);
+  const element = elementAt(hit.expressId);
   row(dl, "Class", element?.ifcType.replace(/^IFC/, "Ifc") ?? "?");
   row(dl, "expressID", `#${hit.expressId}`);
   // Both ids, deliberately: expressID is what the parse layer and the drawing generator speak, GlobalId is
@@ -145,6 +153,105 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") applySelection(null);
 });
 
+// --- offline authoring, in a real Worker -----------------------------------------------------------
+//
+// This is the claim the whole product rests on, so the demo makes it checkable rather than stating it:
+// **the model is edited in your browser, by a kernel in a Worker, with no network.**
+//
+// It is also the only place thread isolation is actually verified. The unit suite drives `LocalKernel` over a
+// `MessageChannel` — real serialisation, real asynchrony, same thread — because a `node:worker_threads` variant
+// could not load its own TypeScript module graph. So "runs off the main thread" is tested *here*, by an E2E
+// test that authors a wall through a genuine `new Worker(...)` and asserts the model changed.
+
+const MODEL = asModelId("sample");
+let authored = 0;
+
+// A genuine Worker, constructed here because only the app knows its bundler. Vite sees this form and emits the
+// worker as its own chunk; a `new URL` inside the package would resolve against a module that has already been
+// inlined, and no chunk would be emitted at all — which is exactly what happened first time.
+const kernelWorker = new Worker(new URL("./kernel.worker.ts", import.meta.url), {
+  type: "module",
+  name: "massingviewer-local-kernel",
+});
+const kernel = createLocalKernel(browserWorkerTransport(kernelWorker));
+// `open` is not part of KernelProvider — it is how a model gets into a kernel — so it is reached through the
+// concrete type rather than the interface.
+const openable = kernel as typeof kernel & {
+  open(id: typeof MODEL, ifc?: string): Promise<{ ok: boolean; error?: { message: string } }>;
+};
+
+function renderKernelPanel(note: string, cls?: string): void {
+  const dl = el("#kernel");
+  dl.innerHTML = "";
+  row(dl, "Provider", `${kernel.id} · offline`);
+  row(dl, "Ops", String(kernelOps));
+  row(dl, "Authored", String(authored));
+  row(dl, "Status", note, cls);
+}
+
+let kernelOps = 0;
+let kernelReady = false;
+
+async function startKernel(): Promise<void> {
+  const opened = await openable.open(MODEL, sampleIfc);
+  if (!opened.ok) {
+    renderKernelPanel(opened.error?.message ?? "could not open the model", "warn");
+    return;
+  }
+  const ops = await kernel.ops();
+  kernelOps = ops.ok ? ops.value.length : 0;
+  kernelReady = ops.ok;
+  renderKernelPanel(kernelReady ? "ready — no network" : "worker did not answer", kernelReady ? "ok" : "warn");
+}
+
+/**
+ * Author a wall, then re-render from the kernel's own IFC output.
+ *
+ * Deliberately a full round trip — apply, export, re-tessellate — rather than adding a mesh locally. Anything
+ * less would prove the button worked and not that the *file* changed, and the file is what a user keeps.
+ */
+async function authorWall(): Promise<void> {
+  if (!kernelReady) return;
+  const button = el<HTMLButtonElement>("#author");
+  button.disabled = true;
+  try {
+    // Spaced apart so successive clicks are visibly separate walls rather than one wall drawn twice.
+    const y = 6 + authored * 1.5;
+    const applied = await kernel.apply(MODEL, "add_wall", {
+      start: [0, y],
+      end: [8.4, y],
+      height: 3,
+      thickness: 0.2,
+      name: `Wall-Authored-${authored + 1}`,
+    });
+    if (!applied.ok) {
+      // A refusal is a normal outcome, not an incident: it is shown in the panel and the button stays usable.
+      renderKernelPanel(`${applied.error.code}: ${applied.error.message}`, "warn");
+      return;
+    }
+
+    const exported = await kernel.exportIfc(MODEL);
+    if (!exported.ok) {
+      renderKernelPanel(exported.error.message, "warn");
+      return;
+    }
+    authored += 1;
+
+    const ifc = new TextDecoder().decode(exported.value);
+    const next = tessellate(ifc);
+    const rebuilt = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
+    built = rebuilt;
+    renderModelPanel();
+    renderSkipped(next.skipped);
+    renderKernelPanel(`authored ${applied.value.created.length} element · v${applied.value.modelVersion}`, "ok");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+el("#author").addEventListener("click", () => void authorWall());
+void startKernel();
+
 // --- status ---------------------------------------------------------------------------------------
 
 setInterval(() => {
@@ -168,8 +275,10 @@ declare global {
   interface Window {
     __massingviewer?: {
       viewport: typeof viewport;
-      elements: typeof built.elements;
-      triangles: number;
+      readonly elements: typeof built.elements;
+      readonly triangles: number;
+      readonly authored: number;
+      kernelId: string;
       renderNow(): void;
       sampleFramebuffer(step?: number): { sampled: number; nonBackground: number; coverage: number };
     };
@@ -178,8 +287,18 @@ declare global {
 
 window.__massingviewer = {
   viewport,
-  elements: built.elements,
-  triangles: built.triangles,
+  // Getters, not values: authoring replaces the model, and a snapshot captured at startup would make an E2E
+  // test assert the state before the edit while appearing to assert the state after it.
+  get elements() {
+    return built.elements;
+  },
+  get triangles() {
+    return built.triangles;
+  },
+  get authored() {
+    return authored;
+  },
+  kernelId: kernel.id,
   renderNow() {
     viewport.renderer.render(viewport.scene, viewport.camera);
   },

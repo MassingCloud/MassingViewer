@@ -9,17 +9,39 @@ import type { KernelRequest, KernelResponse, KernelTransport } from "./protocol"
  */
 
 /**
- * A dedicated Worker in the browser.
+ * Wrap a `Worker` the **caller** constructed.
  *
- * The `new URL(..., import.meta.url)` form is what lets a bundler find and emit the worker chunk. A string path
- * works in dev and produces a 404 in a production build, which is the kind of break that only shows up after
- * deploy — the reason the deployed smoke test exists.
+ * ## Why this does not create the Worker itself
+ *
+ * The tempting signature is `browserWorkerTransport()`, doing `new Worker(new URL("./worker.js",
+ * import.meta.url))` internally. It does not work, and the way it fails is instructive: the demo built and
+ * emitted no worker chunk at all, so the app would have shipped and then failed at runtime on the one code path
+ * that matters.
+ *
+ * Two reasons it cannot work. From source the entry is `worker.ts`, not `.js`. And from a *published* package
+ * the URL is relative to a module inside `node_modules` that a bundler has already inlined — there is nothing
+ * left for `new URL` to resolve against. Worker construction needs bundler-specific knowledge
+ * (`new URL(..., import.meta.url)` for Vite and Rollup, `?worker` suffixes, `worker-loader` for older webpack),
+ * and that knowledge belongs in the application, which is the only place that knows which bundler it has.
+ *
+ * So the app writes four lines, and they are the same four lines in every bundler:
+ *
+ * ```ts
+ * // app/src/kernel.worker.ts
+ * import { hostLocalKernel } from "@massingviewer/kernel-local";
+ * const handle = hostLocalKernel((response) => self.postMessage(response));
+ * self.addEventListener("message", (event) => handle(event.data));
+ * ```
+ *
+ * ```ts
+ * // app/src/main.ts
+ * const worker = new Worker(new URL("./kernel.worker.ts", import.meta.url), { type: "module" });
+ * const kernel = createLocalKernel(browserWorkerTransport(worker));
+ * ```
+ *
+ * `hostLocalKernel` is exported for exactly this. See `apps/demo/src/kernel.worker.ts` for the real one.
  */
-export function browserWorkerTransport(): KernelTransport {
-  const worker = new Worker(new URL("./worker.js", import.meta.url), {
-    type: "module",
-    name: "massingviewer-local-kernel",
-  });
+export function browserWorkerTransport(worker: Worker): KernelTransport {
   let terminated = false;
   return {
     post(message) {

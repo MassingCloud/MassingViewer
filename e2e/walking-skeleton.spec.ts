@@ -21,6 +21,7 @@ interface Handle {
   canvas: { w: number; h: number };
   container: { w: number; h: number };
   pixelRatio: number;
+  authored: number;
 }
 
 /** Read the app's state, forcing one synchronous frame first. */
@@ -41,6 +42,7 @@ async function readHandle(page: Page): Promise<Handle> {
       canvas: { w: canvas.width, h: canvas.height },
       container: { w: container.clientWidth, h: container.clientHeight },
       pixelRatio: mv.viewport.renderer.getPixelRatio(),
+      authored: mv.authored,
     };
   });
 }
@@ -316,6 +318,54 @@ test("makes ZERO network requests after first paint", async ({ page, isMobile })
   await page.waitForTimeout(500);
 
   expect(requests, "the app must work with no network").toEqual([]);
+});
+
+test("authors a wall offline, in a Worker, and the model actually changes", async ({ page }) => {
+  // The headline claim, made checkable rather than stated: the model is edited in the browser, by a kernel in a
+  // real Worker, with no network. It is also the **only** place thread isolation is verified — the unit suite
+  // drives LocalKernel over a MessageChannel (same thread), because a node:worker_threads variant could not load
+  // its own TypeScript module graph. See packages/kernel-local/src/transport.ts.
+  const kernel = page.locator("#kernel");
+  await expect(kernel).toContainText("ready — no network", { timeout: 20_000 });
+  // Fifteen ops, discovered from the worker rather than hardcoded in the page.
+  await expect(kernel).toContainText("15");
+
+  const before = await readHandle(page);
+  expect(before.elements).toHaveLength(6);
+
+  await page.getByRole("button", { name: "+ Wall" }).click();
+  await expect(kernel).toContainText("authored 1 element", { timeout: 20_000 });
+
+  const after = await readHandle(page);
+  // Seven elements, and more triangles: the round trip really went apply → export IFC → re-tessellate, so this
+  // asserts the *file* changed rather than that a mesh was appended locally.
+  expect(after.elements).toHaveLength(7);
+  expect(after.triangles).toBeGreaterThan(before.triangles);
+  expect(after.authored).toBe(1);
+
+  // Every element still resolves to a GlobalId, including the one the kernel just minted. This is the invariant
+  // the whole product rests on, checked at the moment it is most likely to break.
+  const unresolved = after.elements.filter((e) => e.guid === null);
+  expect(unresolved, "elements with no GlobalId after authoring").toEqual([]);
+  expect(new Set(after.elements.map((e) => e.guid)).size).toBe(7);
+  await expect(page.locator("#model")).toContainText("7/7 (100%)");
+});
+
+test("authoring makes no network requests", async ({ page }) => {
+  // Separate from the test above so a failure says which claim broke: "authoring is broken" and "authoring
+  // phones home" are different problems with different owners.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+
+  const requests: string[] = [];
+  page.on("request", (r) => {
+    const url = r.url();
+    if (url.startsWith("ws:") || url.startsWith("wss:") || url.includes("__vite")) return;
+    requests.push(url);
+  });
+
+  await page.getByRole("button", { name: "+ Wall" }).click();
+  await expect(page.locator("#kernel")).toContainText("authored 1 element", { timeout: 20_000 });
+  expect(requests, "authoring must not touch the network").toEqual([]);
 });
 
 test("nothing is silently skipped by the tessellator", async ({ page }) => {

@@ -7,8 +7,12 @@ declare global {
   interface Window {
     __massingviewer?: {
       viewport: Viewport;
-      elements: readonly SceneElement[];
-      triangles: number;
+      // Getters on the app side, because authoring replaces the model. Declared readonly here so a spec cannot
+      // capture one and then assert against a stale snapshot while appearing to assert the current state.
+      readonly elements: readonly SceneElement[];
+      readonly triangles: number;
+      readonly authored: number;
+      kernelId: string;
       renderNow(): void;
       sampleFramebuffer(step?: number): { sampled: number; nonBackground: number; coverage: number };
     };
