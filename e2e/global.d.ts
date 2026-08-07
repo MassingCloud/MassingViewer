@@ -13,9 +13,10 @@ declare global {
       readonly triangles: number;
       readonly authored: number;
       readonly cameraDistance: number;
+      readonly topics: readonly { guid: string; title: string; type: string; pin?: { guids: readonly string[] } }[];
       kernelId: string;
       renderNow(): void;
-      sampleFramebuffer(step?: number): { sampled: number; nonBackground: number; coverage: number };
+      sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };
     };
   }
 }

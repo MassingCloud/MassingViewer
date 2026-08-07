@@ -40,7 +40,7 @@ const LAYERS = [
   // `kernel-local -> ifc`, papering over a classification that had simply become wrong.
   ["geometry-math", "ui-model", "catalog", "jobs", "ifc"],
   ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory"],
-  ["drawings2d", "markup-ui", "commands", "plugin-host", "assets"],
+  ["drawings2d", "markup", "markup-ui", "commands", "plugin-host", "assets"],
   ["viewport", "ui-react"],
   ["embed", "cli"],
 ];

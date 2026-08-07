@@ -1,0 +1,19 @@
+{
+  "name": "@massingviewer/markup",
+  "version": "0.0.0",
+  "description": "BCF 3.0-native markup: topics anchored to IFC GlobalIds rather than to page coordinates, with Bluebeam-style Tool Sets and a dependency-free .bcfzip writer.",
+  "license": "MIT",
+  "keywords": ["bcf", "ifc", "bim", "markup", "issues", "aec"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/markup" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" },
+  "dependencies": {
+    "@massingviewer/core": "0.0.0"
+  }
+}

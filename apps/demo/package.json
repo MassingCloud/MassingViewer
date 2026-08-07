@@ -14,7 +14,8 @@
     "@massingviewer/viewport": "0.0.0",
     "@massingviewer/kernel-local": "0.0.0",
     "@massingviewer/kernel-api": "0.0.0",
-    "@massingviewer/drawings2d": "0.0.0"
+    "@massingviewer/drawings2d": "0.0.0",
+    "@massingviewer/markup": "0.0.0"
   },
   "devDependencies": {
     "vite": "8.1.5"

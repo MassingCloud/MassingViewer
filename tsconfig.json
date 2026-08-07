@@ -37,6 +37,9 @@
     },
     {
       "path": "./packages/drawings2d"
+    },
+    {
+      "path": "./packages/markup"
     }
   ]
 }

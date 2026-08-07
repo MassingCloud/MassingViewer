@@ -11,6 +11,15 @@ import {
   generatePlan,
   toSvg,
 } from "@massingviewer/drawings2d";
+import {
+  DEFAULT_TOOLSET,
+  type Topic,
+  anchoredGuids,
+  createTopic,
+  isLive,
+  resolveAnchor,
+  toBcfZip,
+} from "@massingviewer/markup";
 import { tessellate } from "./tessellate";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
@@ -31,6 +40,8 @@ app.innerHTML = `
       <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
       <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
       <button id="theme" title="Repaint the plan — no regeneration" disabled>Arch</button>
+      <button id="delete" title="Delete the selected element (Del) — watch any markup on it orphan">Delete</button>
+      <button id="bcf" title="Export every markup as BCF 3.0" disabled>BCF</button>
       <button id="units" title="Toggle metric / imperial">m</button>
       <span class="muted" id="fps"></span>
     </header>
@@ -44,6 +55,10 @@ app.innerHTML = `
         <dl id="kernel"><dd class="muted">starting worker…</dd></dl>
         <h2>Plan</h2>
         <dl id="plan-info"><dd class="muted">Press Plan to cut one</dd></dl>
+        <h2>Markup</h2>
+        <dl id="markup-info"><dd class="muted">Pick a tool, then click an element</dd></dl>
+        <div id="tools"></div>
+        <ul id="topics"></ul>
         <h2>Selection</h2>
         <dl id="sel"><dd class="muted">Click an element</dd></dl>
         <h2 id="skipped-h" hidden>Not rendered</h2>
@@ -281,6 +296,8 @@ async function authorWall(): Promise<void> {
     sourceGuids = next.guids;
     // A plan is a *view*: if one is open it must follow the edit, not go stale until someone presses the button.
     if (drawing !== null) generate();
+    // An edit is exactly when an anchor can break, so the markup list is re-resolved rather than left stale.
+    renderTopics();
     renderModelPanel();
     renderSkipped(next.skipped);
     renderKernelPanel(`authored ${applied.value.created.length} element · v${applied.value.modelVersion}`, "ok");
@@ -289,6 +306,49 @@ async function authorWall(): Promise<void> {
   }
 }
 
+/**
+ * Delete the selected element through the kernel.
+ *
+ * Here for two reasons. `delete_element` is one of the fifteen operations and is otherwise undemonstrated — and
+ * more importantly, deleting an element a markup points at is the only way to *see* the orphaning behaviour that
+ * separates a GlobalId anchor from a sticker on a picture. A feature whose distinguishing property cannot be
+ * observed is one nobody will believe.
+ */
+async function deleteSelected(): Promise<void> {
+  if (!kernelReady || selectedGuid === null) {
+    renderKernelPanel("select an element to delete", "warn");
+    return;
+  }
+  const button = el<HTMLButtonElement>("#delete");
+  button.disabled = true;
+  try {
+    const applied = await kernel.apply(MODEL, "delete_element", { guid: selectedGuid });
+    if (!applied.ok) {
+      renderKernelPanel(`${applied.error.code}: ${applied.error.message}`, "warn");
+      return;
+    }
+    const exported = await kernel.exportIfc(MODEL);
+    if (!exported.ok) {
+      renderKernelPanel(exported.error.message, "warn");
+      return;
+    }
+    const next = tessellate(new TextDecoder().decode(exported.value));
+    built = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
+    sourceMeshes = next.meshes;
+    sourceGuids = next.guids;
+    applySelection(null);
+    if (drawing !== null) generate();
+    // The moment an anchor breaks. Re-resolving here is what turns a deleted element into a visibly orphaned
+    // issue rather than an issue that quietly refers to nothing.
+    renderTopics();
+    renderModelPanel();
+    renderKernelPanel(`deleted 1 element · v${applied.value.modelVersion}`, "ok");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+el("#delete").addEventListener("click", () => void deleteSelected());
 el("#author").addEventListener("click", () => void authorWall());
 void startKernel();
 
@@ -381,6 +441,128 @@ el("#plan-pane").addEventListener("click", (event) => {
   applySelection({ expressId: element.expressId, guid });
 });
 
+// --- markup: an issue that knows which wall it is about --------------------------------------------
+//
+// The other half of the loop. Every PDF-based review tool stores a shape on a flattened raster that has forgotten
+// what it refers to. Here a markup carries the element's IFC GlobalId, so it survives a model change, can be
+// filtered by element, and exports as BCF that opens in Solibri, BIMcollab, Revizto and Bonsai.
+//
+// Delete the element a markup points at and it becomes *orphaned* — visibly, with a reason. That outcome is the
+// one every other tool lacks, and it is why an issue log here cannot quietly look resolved.
+
+let topics: Topic[] = [];
+let armedTool = DEFAULT_TOOLSET.tools[0]!.id;
+
+function renderTools(): void {
+  el("#tools").innerHTML = DEFAULT_TOOLSET.tools
+    .map(
+      (t) =>
+        `<button class="tool${t.id === armedTool ? " armed" : ""}" data-tool="${t.id}" ` +
+        `title="${t.label} — creates a ${t.topicDefaults?.type ?? "Issue"}">${t.glyph ?? t.label}</button>`,
+    )
+    .join("");
+}
+
+/**
+ * Re-resolve every markup against the model as it is *now*.
+ *
+ * Called after any edit, because that is the moment an anchor can break. Reporting the outcome per topic — live,
+ * partial, or orphaned with a reason — is the entire difference between a markup that means something and a
+ * sticker on a picture.
+ */
+function renderTopics(): void {
+  const live = new Set(built.elements.map((e) => e.guid).filter((g): g is string => g !== null));
+  const exists = (g: string): boolean => live.has(g);
+
+  el("#topics").innerHTML = topics
+    .map((t) => {
+      if (t.pin === undefined) return `<li>${t.title}</li>`;
+      const outcome = resolveAnchor(t.pin, exists as never);
+      const badge =
+        outcome.kind === "resolved"
+          ? `<span class="ok">live</span>`
+          : outcome.kind === "partial"
+            ? `<span class="warn">partial (${outcome.missing.length} gone)</span>`
+            : `<span class="warn" title="${outcome.reason}">orphaned</span>`;
+      const tool = DEFAULT_TOOLSET.tools.find((x) => x.topicDefaults?.type === t.type);
+      return (
+        `<li data-topic="${t.guid}" data-live="${isLive(outcome)}">` +
+        `<code>${tool?.glyph ?? "•"}</code> ${t.title} — ${badge}</li>`
+      );
+    })
+    .join("");
+
+  const dl = el("#markup-info");
+  dl.innerHTML = "";
+  row(dl, "Topics", String(topics.length));
+  const orphaned = topics.filter(
+    (t) => t.pin !== undefined && !isLive(resolveAnchor(t.pin, exists as never)),
+  ).length;
+  row(dl, "Orphaned", String(orphaned), orphaned === 0 ? "" : "warn");
+  row(dl, "Anchored to", String(anchoredGuids(topics).length));
+  el<HTMLButtonElement>("#bcf").disabled = topics.length === 0;
+}
+
+/** Raise a markup against whatever is selected, using the armed tool's defaults. */
+function raiseMarkup(): void {
+  if (selectedGuid === null) {
+    renderKernelPanel("select an element first — a markup with no anchor is a sticker", "warn");
+    return;
+  }
+  const tool = DEFAULT_TOOLSET.tools.find((t) => t.id === armedTool)!;
+  const element = built.elements.find((e) => e.guid === selectedGuid);
+  const label = element === undefined ? "element" : pascalIfc(element.ifcType);
+
+  topics = [
+    ...topics,
+    createTopic({
+      // A tool with its own template supplies the whole prefix; without one the label is the prefix. Using both
+      // produced "RFI: RFI on IfcWall", which is the kind of wording that makes a tool look unfinished.
+      title:
+        tool.topicDefaults?.titleTemplate === undefined
+          ? `${tool.label} on ${label}`
+          : `${tool.topicDefaults.titleTemplate}${label}`,
+      author: "demo@massingviewer",
+      // Passed in rather than read inside the model, so an export is reproducible.
+      date: new Date().toISOString(),
+      ...tool.topicDefaults,
+      pin: { guids: [selectedGuid as never], at: { x: 0, y: 0 }, drawing: drawing?.name ?? "3D" },
+    }),
+  ];
+  renderTopics();
+}
+
+el("#tools").addEventListener("click", (event) => {
+  const id = (event.target as Element | null)?.closest("[data-tool]")?.getAttribute("data-tool");
+  if (id === null || id === undefined) return;
+  armedTool = id;
+  renderTools();
+});
+
+el("#bcf").addEventListener("click", () => {
+  const bytes = toBcfZip(topics, { project: { guid: "0000-demo", name: "MassingViewer demo" } });
+  // A Blob and an object URL: no server, no upload. The export happens entirely in the page, which is the same
+  // claim as the rest of the tool.
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/octet-stream" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "issues.bcfzip";
+  a.click();
+  URL.revokeObjectURL(url);
+  renderKernelPanel(`exported ${topics.length} topic(s) as BCF 3.0`, "ok");
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey) return;
+  // `m` raises a markup on the selection; Delete removes the element, so the two halves of the anchoring story
+  // are both one keystroke away.
+  if (e.key === "m" || e.key === "M") raiseMarkup();
+  if (e.key === "Delete") void deleteSelected();
+});
+
+renderTools();
+renderTopics();
+
 // --- status ---------------------------------------------------------------------------------------
 
 setInterval(() => {
@@ -409,7 +591,8 @@ declare global {
       readonly authored: number;
       kernelId: string;
       renderNow(): void;
-      sampleFramebuffer(step?: number): { sampled: number; nonBackground: number; coverage: number };
+      /** Coverage over a fixed `grid x grid` of samples — resolution-independent by design. */
+      sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };
     };
   }
 }
@@ -435,6 +618,9 @@ window.__massingviewer = {
    * which counts as non-background, so coverage went from 0.17 to 0.21 while the camera correctly moved away.
    * Coverage is a fine signal for "did anything draw"; it is not a signal for direction of zoom.
    */
+  get topics() {
+    return topics;
+  },
   get cameraDistance() {
     const b = built.bounds;
     const cx = (b.min.x + b.max.x) / 2;
@@ -447,15 +633,35 @@ window.__massingviewer = {
   renderNow() {
     viewport.renderer.render(viewport.scene, viewport.camera);
   },
-  sampleFramebuffer(step = 24) {
+  /**
+   * Coverage over a fixed `grid × grid` of samples, **independent of resolution**.
+   *
+   * `grid` used to be a pixel *step*, which made the sample count a function of the framebuffer size — so when
+   * the pixel governor legitimately halved the resolution, the count halved with it and an assertion of
+   * `sampled > 100` failed at 80 with nothing wrong. That is the second time an assertion here fought the
+   * governor, and the fix belongs in the instrument rather than in each assertion: a coverage metric that
+   * changes when the resolution changes is measuring the wrong thing.
+   *
+   * Sampling proportionally makes both `sampled` and `coverage` comparable between runs, machines and pixel
+   * ratios — which is the whole point of having the number.
+   */
+  sampleFramebuffer(grid = 24) {
     const canvas = viewport.renderer.domElement;
     const gl = viewport.renderer.getContext();
     viewport.renderer.render(viewport.scene, viewport.camera);
     const px = new Uint8Array(4);
     let sampled = 0;
     let nonBackground = 0;
-    for (let y = Math.floor(canvas.height * 0.2); y < canvas.height * 0.85; y += step) {
-      for (let x = Math.floor(canvas.width * 0.15); x < canvas.width * 0.9; x += step) {
+    // Inset from the edges: the outer band is empty on any fitted camera, and including it would dilute coverage
+    // by a factor that depends on the aspect ratio rather than on what was drawn.
+    const x0 = canvas.width * 0.15;
+    const y0 = canvas.height * 0.2;
+    const spanX = canvas.width * 0.75;
+    const spanY = canvas.height * 0.65;
+    for (let iy = 0; iy < grid; iy++) {
+      for (let ix = 0; ix < grid; ix++) {
+        const x = Math.min(canvas.width - 1, Math.floor(x0 + (spanX * ix) / grid));
+        const y = Math.min(canvas.height - 1, Math.floor(y0 + (spanY * iy) / grid));
         gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
         sampled++;
         // Clear colour is 0x1a1d21 = (26,29,33). Anything meaningfully different is geometry or the grid.

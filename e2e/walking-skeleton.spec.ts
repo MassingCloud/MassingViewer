@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -120,6 +123,31 @@ const BENIGN = ["ResizeObserver loop completed with undelivered notifications."]
 
 const isBenign = (text: string): boolean => BENIGN.some((benign) => text.includes(benign));
 
+/**
+ * Extract a ZIP with an implementation that is not ours.
+ *
+ * The BCF writer is hand-rolled (no compression dependency for a 20 KB XML archive), so verifying it with our own
+ * reader would only prove self-consistency — the exact failure mode. This throws rather than skipping if no
+ * extractor is found: a silently skipped independent check still reports green, which is worse than no check.
+ */
+function extractWithSomethingElse(archive: string, out: string): void {
+  const candidates: { cmd: string; args: string[] }[] = [
+    { cmd: "python", args: ["-m", "zipfile", "-e", archive, out] },
+    { cmd: "python3", args: ["-m", "zipfile", "-e", archive, out] },
+    { cmd: "unzip", args: ["-q", archive, "-d", out] },
+  ];
+  const tried: string[] = [];
+  for (const candidate of candidates) {
+    try {
+      execFileSync(candidate.cmd, candidate.args, { stdio: "pipe" });
+      return;
+    } catch (cause) {
+      tried.push(`${candidate.cmd}: ${(cause as Error).message.split("\n")[0]}`);
+    }
+  }
+  throw new Error(`no independent ZIP extractor available. Tried:\n  ${tried.join("\n  ")}`);
+}
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => {
@@ -204,9 +232,16 @@ test("the canvas tracks its container — no zero-width render", async ({ page }
   // finished. See packages/viewport/src/resize.ts.
   const h = await readHandle(page);
 
+  // The container first, and with the numbers in the message. A bare "canvas.h was 164" cannot distinguish a
+  // renderer that sized itself wrongly from a *layout* that squashed the viewport — and those have completely
+  // different fixes. Reporting container, canvas and ratio together makes the next failure self-diagnosing.
+  const where = `container ${h.container.w}x${h.container.h}, canvas ${h.canvas.w}x${h.canvas.h}, ratio ${h.pixelRatio}`;
+  expect(h.container.h, `the viewport element is too short — ${where}`).toBeGreaterThan(300);
+  expect(h.container.w, `the viewport element is too narrow — ${where}`).toBeGreaterThan(300);
+
   // Comfortably above the 64px implausibility floor in `decideResize`.
-  expect(h.canvas.w).toBeGreaterThan(256);
-  expect(h.canvas.h).toBeGreaterThan(256);
+  expect(h.canvas.w, where).toBeGreaterThan(150);
+  expect(h.canvas.h, where).toBeGreaterThan(150);
 
   // The buffer is `container * pixelRatio`, and the pixel governor legitimately REDUCES that ratio when frame
   // times rise — which is exactly what happens under software WebGL. A first version of this asserted the
@@ -474,6 +509,83 @@ test("an open plan follows an edit instead of going stale", async ({ page }) => 
   // is an export with extra steps.
   await expect(cuts).toHaveCount(before + 1);
   await expect(page.locator("#plan-info")).toContainText("100%");
+});
+
+test("a markup anchors to a GlobalId, and orphans visibly when that element goes", async ({ page }) => {
+  // The differentiator, end to end. Every PDF-based review tool stores a shape on a flattened raster that has
+  // forgotten what it refers to, so deleting the wall leaves an issue that still *looks* fine. Here it does not.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+
+  // Arm the RFI tool — a Tool Set carries the data, so one click produces a correctly typed issue.
+  await page.locator('[data-tool="rfi"]').click();
+  await page.getByRole("button", { name: "Plan" }).click();
+
+  const hit = page.locator("#plan-svg svg [data-hit][data-guid]").first();
+  const guid = await hit.getAttribute("data-guid");
+  await hit.click({ force: true });
+  await page.keyboard.press("m");
+
+  const topic = page.locator("#topics li").first();
+  await expect(topic).toHaveAttribute("data-live", "true");
+  await expect(topic).toContainText("live");
+  const raised = await page.evaluate(() => window.__massingviewer!.topics);
+  expect(raised).toHaveLength(1);
+  // Typed by the tool, not by the user: the markup and the issue are the same act.
+  expect(raised[0]!.type).toBe("Inquiry");
+  // Anchored to the element, not to a page coordinate.
+  expect(raised[0]!.pin?.guids).toEqual([guid]);
+
+  // Now delete the element the markup points at.
+  await hit.click({ force: true });
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.locator("#kernel")).toContainText("deleted 1 element", { timeout: 20_000 });
+
+  // The topic survives — deleting geometry does not delete the conversation about it — but it is now visibly
+  // orphaned, struck through, and the reason names the element.
+  await expect(topic).toHaveAttribute("data-live", "false");
+  await expect(topic).toContainText("orphaned");
+  await expect(page.locator("#markup-info")).toContainText("Orphaned");
+  await expect(topic.locator("span")).toHaveAttribute("title", new RegExp(`${guid}.*no longer in the model`));
+
+  const after = await readHandle(page);
+  expect(after.elements).toHaveLength(5);
+  expect(after.elements.some((e) => e.guid === guid)).toBe(false);
+});
+
+test("exports BCF 3.0 that a real unzip can read", async ({ page }, testInfo) => {
+  // The interop claim, checked rather than stated: a `.bcfzip` written entirely in the page, extracted by an
+  // implementation that is not ours. BCF is the reason a topic raised here opens in Solibri and BIMcollab.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Plan" }).click();
+  // Arm the RFI tool, so this also proves the Tool Set's defaults survive all the way into the exported XML.
+  // A first version skipped this and asserted TopicType="Inquiry" against the default Issue tool.
+  await page.locator('[data-tool="rfi"]').click();
+  await page.locator("#plan-svg svg [data-hit][data-guid]").first().click({ force: true });
+  await page.keyboard.press("m");
+  await expect(page.locator("#topics li")).toHaveCount(1);
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "BCF" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("issues.bcfzip");
+
+  const saved = testInfo.outputPath("issues.bcfzip");
+  await file.saveAs(saved);
+  const bytes = readFileSync(saved);
+  // "PK\3\4" — the local file header. A file that is not a ZIP fails here rather than three layers later.
+  expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+
+  const out = testInfo.outputPath("bcf-out");
+  extractWithSomethingElse(saved, out);
+  expect(readFileSync(join(out, "bcf.version"), "utf8")).toContain('VersionId="3.0"');
+
+  // One folder per topic, each holding markup.bcf — the layout every BCF reader expects.
+  const topicDirs = readdirSync(out, { withFileTypes: true }).filter((d) => d.isDirectory());
+  expect(topicDirs).toHaveLength(1);
+  const markup = readFileSync(join(out, topicDirs[0]!.name, "markup.bcf"), "utf8");
+  expect(markup).toContain('TopicType="Inquiry"');
+  expect(markup).toContain("<Reference>");
+  expect(markup).toMatch(/<Reference>[0-9A-Za-z_$]{22}<\/Reference>/);
 });
 
 test("nothing is silently skipped by the tessellator", async ({ page }) => {

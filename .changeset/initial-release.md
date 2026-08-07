@@ -11,11 +11,12 @@
 "@massingviewer/ifc": minor
 "@massingviewer/kernel-local": minor
 "@massingviewer/drawings2d": minor
+"@massingviewer/markup": minor
 ---
 
 First published release.
 
-Twelve packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
+Thirteen packages, all `0.x` — where **minor bumps may break**, per the versioning note in CONTRIBUTING.md.
 That is stated explicitly because SemVer permits it and people reasonably expect otherwise.
 
 What is in this release:
@@ -38,5 +39,9 @@ What is in this release:
   transform, so restyling a plan is a repaint rather than a regeneration, every line carries the GlobalId of its
   element, and SVG/DXF/PDF are pure functions of (Drawing, Theme, Paper). Includes a plan/section cutter that
   reports what it could not section instead of quietly omitting it.
+- `markup` — BCF 3.0-native topics anchored to IFC GlobalIds rather than to page coordinates, so a markup
+  survives a model change and *visibly orphans* when its element is deleted. Includes Bluebeam-style Tool Sets,
+  where the tool carries the issue metadata, and a dependency-free `.bcfzip` writer verified by extracting with
+  an independent unzip.
 - `viewport` — imperative three.js rendering with per-element identity, picking, adaptive pixel ratio, and
   mouse *and* touch navigation including pinch-to-zoom.

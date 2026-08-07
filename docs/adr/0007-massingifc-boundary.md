@@ -58,8 +58,23 @@ Concretely:
    `packages/kernel-api` ships `geometryBackendFromKernel()` so existing massingifc authoring plugins run
    against both kernels unchanged. The ecosystem does not split.
 
-3. **Rename to remove the collision.** MassingViewer's markup package is `markup-ui`, not `markup`, making
-   it unambiguous that the *contract* is upstream and the *UI* is here.
+3. **Rename to remove the collision.** MassingViewer's markup packages are named so that it is unambiguous
+   which side of the boundary they sit on.
+
+   **Amended 2026-08-07, when the package was actually built.** This originally said the package is
+   `markup-ui`, "making it unambiguous that the *contract* is upstream and the *UI* is here". That framing
+   turned out to be wrong about what got built: `@massingviewer/markup` is the BCF 3.0 domain model, the
+   anchoring logic and the `.bcfzip` writer — no DOM, no renderer, and in the same *kind* of layer as the
+   upstream contract package rather than above it.
+
+   Calling it `markup-ui` would have been two mistakes. It would describe a DOM-free model as UI, and it would
+   spend the one accurate name on the wrong package — the React pin palette and PDF surface still need to be
+   called something, and `markup-ui` is what they are.
+
+   So: **`@massingviewer/markup`** is the model, and `markup-ui` is reserved for the presentation layer that
+   consumes it. The collision this point worried about is a *human* one rather than a technical one — npm scopes
+   already make `@massingviewer/markup` and `@massingifc/markup` different packages — and the honest way to
+   address confusion is that the two do different things and say so, not that one carries a misleading suffix.
 
 4. **Depend, do not re-vendor.** Copying 18,192 lines of another repo's source into a package meant to be
    published is not viable: path aliases do not survive publication, `apps/web/vendorAlias.ts` only works
