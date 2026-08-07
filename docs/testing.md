@@ -137,6 +137,31 @@ iPad support is a stated differentiator (the nearest competitor is Chrome/Edge o
 nightly afterthought. iPad runs emulated per-PR plus a **weekly real-device run** — emulated WebKit does not
 reproduce real iOS memory pressure or WASM limits, which is precisely where an iPad fails.
 
+### The suite runs serially, on purpose
+
+`fullyParallel: false`, `workers: 1`. This is not a flakiness workaround — it is what the tests contend for.
+
+Every E2E test rasterises WebGL in software (SwiftShader, so the bytes are host-independent), which means they
+are all CPU-bound on the same scarce resource. Running them in parallel makes each one *slower*, and slower
+frames make the adaptive pixel-ratio governor step the resolution down mid-test. The canvas then changes size
+underneath assertions written against its previous size, and pick coordinates shift.
+
+Two failures in the first full run were exactly this, and both were the harness being wrong rather than the app:
+
+| Symptom | Actual cause |
+|---|---|
+| A click found no element; the same test passed in isolation | Parallel contention. Nothing about the app was wrong. |
+| `canvas.w >= container.w * 0.9` failed at 495 vs 990 | The governor had correctly dropped to its 0.5 floor. The assertion was fighting a working feature. |
+
+The lesson generalises: **when a suite shares one saturable resource, parallelism buys nothing and costs
+correctness.** The canvas assertion was rewritten to check the buffer tracks the container *at whatever ratio
+is currently in force*, and that the ratio is one of the legal steps — which is the real invariant, and now
+holds under load instead of only when the machine is idle.
+
+The third failure in that run *was* a real bug: Escape cleared the viewport selection but not the properties
+panel, because the click handler and the key handler each held their own opinion about what was selected. The
+fix routes both through one `applySelection`, so they cannot disagree. See `apps/demo/src/main.ts`.
+
 Flows:
 
 1. **Local golden path, zero network.** Import a fixture IFC, orbit, select a wall, read its properties,

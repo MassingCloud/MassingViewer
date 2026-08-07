@@ -97,6 +97,21 @@ const FORBIDDEN_COPYRIGHT_SOURCES = [
 /** Exceptions require a written reason and a tracking issue — the same discipline as .gitleaksignore. */
 const ALLOWED_EXCEPTIONS = {
   // "some-package@1.2.3": { reason: "...", issue: "https://github.com/.../issues/NN" },
+
+  "spawndamnit@3.0.1": {
+    reason:
+      'Declares "SEE LICENSE IN LICENSE" in package.json, which this gate refuses on principle because it ' +
+      "carries no machine-readable grant. The shipped LICENSE file is, however, the verbatim MIT text " +
+      '("Permission is hereby granted, free of charge... without restriction"), Copyright (c) 2017-present ' +
+      "James Kyle — so the actual grant is permissive and on the allow-list. Verified by reading " +
+      "node_modules/spawndamnit/LICENSE, not by trusting the metadata. It is also a transitive " +
+      "devDependency of @changesets/cli, reached via @changesets/git, so it is never part of a published " +
+      "package or the shipped bundle. Re-verify if the version changes.",
+    verified:
+      "Read node_modules/spawndamnit/LICENSE on 2026-08-07: verbatim MIT, Copyright (c) 2017-present " +
+      "James Kyle. No issue filed because there is no unresolved risk to track — the declaration is wrong " +
+      "and the grant is permissive.",
+  },
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -207,9 +222,23 @@ for (const pkg of packages) {
 
   if (!isAcceptable(pkg.license)) {
     if (exception) {
-      if (!exception.reason || !exception.issue) {
+      // Every exception needs a written reason, plus **one of two** kinds of evidence — because there are two
+      // genuinely different situations here and collapsing them makes the record worse:
+      //
+      //   `issue`    — we are knowingly carrying a risk that is not resolved. It needs an owner and a ticket,
+      //                or it becomes permanent by inattention.
+      //   `verified` — the declared metadata is simply wrong, and someone read the actual licence text. There
+      //                is nothing to track; the evidence *is* the resolution, and filing a ticket that will
+      //                never be actioned trains people to ignore tickets.
+      //
+      // Requiring `issue` unconditionally pushed toward citing a ticket that did not exist, which would put a
+      // dead link in a document whose entire purpose is to be auditable.
+      if (!exception.reason) {
+        problems.push(`EXCEPTION INCOMPLETE  ${key} — an exception needs a written reason.`);
+      } else if (!exception.issue && !exception.verified) {
         problems.push(
-          `EXCEPTION INCOMPLETE  ${key} — an exception needs both a reason and an issue link.`,
+          `EXCEPTION INCOMPLETE  ${key} — an exception needs either an "issue" link (a tracked risk) or a\n` +
+            `          "verified" note stating which file was read and what licence it actually grants.`,
         );
       }
       continue;
@@ -217,7 +246,8 @@ for (const pkg of packages) {
     problems.push(
       `REFUSED ${key} — license "${pkg.license}"\n` +
         `          Permitted: ${[...ALLOW].join(", ")}\n` +
-        `          If this is genuinely needed, add it to ALLOWED_EXCEPTIONS with a reason and an issue.`,
+        `          If this is genuinely needed, add it to ALLOWED_EXCEPTIONS with a reason, plus either an\n` +
+        `          issue link or a "verified" note recording what the shipped licence file actually says.`,
     );
   }
 }

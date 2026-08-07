@@ -6,28 +6,55 @@ MassingViewer depends on the packages below. This project accepts only permissiv
 posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 
 Generated from `package-lock.json` rather than from an installed `node_modules`, so this list is the
-same on every platform and covers all 60 platform-specific binaries — not only the handful
+same on every platform and covers all 61 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-244 package(s) across 9 license(s).
+344 package(s) across 11 license(s).
 
-## MIT (184)
+## MIT (270)
 
 - `@babel/helper-string-parser` 7.29.7
 - `@babel/helper-validator-identifier` 7.29.7
 - `@babel/parser` 7.29.8
+- `@babel/runtime` 7.29.7
 - `@babel/types` 7.29.8
 - `@bcoe/v8-coverage` 1.0.2
+- `@changesets/apply-release-plan` 7.1.1
+- `@changesets/assemble-release-plan` 6.0.10
+- `@changesets/changelog-git` 0.2.1
+- `@changesets/changelog-github` 0.7.0
+- `@changesets/cli` 2.31.1
+- `@changesets/config` 3.1.4
+- `@changesets/errors` 0.2.0
+- `@changesets/get-dependents-graph` 2.1.4
+- `@changesets/get-github-info` 0.8.0
+- `@changesets/get-release-plan` 4.0.16
+- `@changesets/get-version-range-type` 0.4.0
+- `@changesets/git` 3.0.4
+- `@changesets/logger` 0.1.1
+- `@changesets/parse` 0.4.3
+- `@changesets/pre` 2.0.2
+- `@changesets/read` 0.6.7
+- `@changesets/should-skip-package` 0.1.2
+- `@changesets/types` 6.1.0
+- `@changesets/types` 4.1.0
+- `@changesets/write` 0.4.0
 - `@emnapi/core` 1.11.1
 - `@emnapi/runtime` 1.11.1
 - `@emnapi/wasi-threads` 1.2.2
 - `@eslint-community/eslint-utils` 4.10.1
 - `@eslint-community/regexpp` 4.12.2
 - `@eslint/js` 9.39.5
+- `@inquirer/external-editor` 1.0.3
 - `@jridgewell/resolve-uri` 3.1.2
 - `@jridgewell/sourcemap-codec` 1.5.5
 - `@jridgewell/trace-mapping` 0.3.31
+- `@manypkg/find-root` 1.1.0
+- `@manypkg/get-packages` 1.1.3
 - `@napi-rs/wasm-runtime` 1.2.2
+- `@nodelib/fs.scandir` 2.1.5
+- `@nodelib/fs.stat` 2.0.5
+- `@nodelib/fs.walk` 1.2.8
 - `@oxc-project/types` 0.139.0
 - `@oxc-project/types` 0.143.0
 - `@oxlint/binding-android-arm-eabi` 1.76.0 _(android/arm)_
@@ -87,6 +114,7 @@ installed on whichever host happened to run the generator.
 - `@types/esrecurse` 4.3.1
 - `@types/estree` 1.0.9
 - `@types/json-schema` 7.0.15
+- `@types/node` 12.20.55
 - `@types/node` 24.10.1
 - `@types/stats.js` 0.17.4
 - `@types/three` 0.184.1
@@ -114,91 +142,149 @@ installed on whichever host happened to run the generator.
 - `acorn` 8.18.0
 - `acorn-jsx` 5.3.2
 - `ajv` 6.15.0
+- `ansi-colors` 4.1.3
+- `ansi-regex` 5.0.1
+- `argparse` 1.0.10
+- `array-union` 2.1.0
 - `assertion-error` 2.0.1
 - `ast-v8-to-istanbul` 1.0.5
 - `balanced-match` 4.0.4
+- `better-path-resolve` 1.0.0
 - `brace-expansion` 5.0.9
+- `braces` 3.0.3
 - `chai` 6.2.2
+- `chardet` 2.2.0
 - `convert-source-map` 2.0.0
 - `cross-spawn` 7.0.6
 - `debug` 4.4.3
 - `deep-is` 0.1.4
+- `detect-indent` 6.1.0
+- `dir-glob` 3.0.1
+- `enquirer` 2.4.1
 - `es-module-lexer` 2.3.1
 - `escape-string-regexp` 4.0.0
 - `eslint` 10.8.0
 - `estree-walker` 3.0.3
+- `extendable-error` 0.1.7
 - `fast-check` 4.5.0
 - `fast-deep-equal` 3.1.3
+- `fast-glob` 3.3.3
 - `fast-json-stable-stringify` 2.1.0
 - `fast-levenshtein` 2.0.6
 - `fdir` 6.5.0
 - `fflate` 0.8.3
 - `file-entry-cache` 8.0.0
+- `fill-range` 7.1.1
+- `find-up` 4.1.0
 - `find-up` 5.0.0
 - `flat-cache` 4.0.1
+- `fs-extra` 8.1.0
+- `fs-extra` 7.0.1
 - `fsevents` 2.3.3 _(darwin)_
+- `fsevents` 2.3.2 _(darwin)_
 - `globals` 17.7.0
+- `globby` 11.1.0
 - `happy-dom` 20.8.9
 - `has-flag` 4.0.0
 - `html-escaper` 2.0.2
+- `human-id` 4.2.0
+- `iconv-lite` 0.7.3
 - `ignore` 7.0.6
 - `ignore` 5.3.2
 - `imurmurhash` 0.1.4
 - `is-extglob` 2.1.1
 - `is-glob` 4.0.3
+- `is-number` 7.0.0
+- `is-subdir` 1.2.0
+- `is-windows` 1.0.2
 - `js-tokens` 10.0.0
+- `js-yaml` 4.3.1
+- `js-yaml` 3.15.1
 - `json-buffer` 3.0.1
 - `json-schema-traverse` 0.4.1
 - `json-stable-stringify-without-jsonify` 1.0.1
+- `jsonfile` 4.0.0
 - `keyv` 4.5.4
 - `levn` 0.4.1
+- `locate-path` 5.0.0
 - `locate-path` 6.0.0
+- `lodash.startcase` 4.4.0
 - `magic-string` 0.30.21
 - `magicast` 0.5.4
 - `make-dir` 4.0.0
+- `merge2` 1.4.1
 - `meshoptimizer` 1.1.1
+- `micromatch` 4.0.8
+- `mri` 1.2.0
 - `ms` 2.1.3
 - `nanoid` 3.3.17
 - `natural-compare` 1.4.0
+- `node-fetch` 2.7.0
 - `obug` 2.1.4
 - `optionator` 0.9.4
+- `outdent` 0.5.0
 - `oxlint` 1.76.0
+- `p-filter` 2.1.0
+- `p-limit` 2.3.0
 - `p-limit` 3.1.0
+- `p-locate` 4.1.0
 - `p-locate` 5.0.0
+- `p-map` 2.1.0
+- `p-try` 2.2.0
+- `package-manager-detector` 0.2.11
 - `path-exists` 4.0.0
 - `path-key` 3.1.1
+- `path-type` 4.0.0
 - `pathe` 2.0.3
+- `picomatch` 2.3.2
 - `picomatch` 4.0.5
+- `pify` 4.0.1
 - `postcss` 8.5.26
 - `prelude-ls` 1.2.1
+- `prettier` 2.8.8
 - `punycode` 2.3.1
 - `pure-rand` 7.0.1
+- `quansync` 0.2.11
+- `queue-microtask` 1.2.3
+- `read-yaml-file` 1.1.0
+- `resolve-from` 5.0.0
+- `reusify` 1.1.0
 - `rolldown` 1.1.5
 - `rolldown` 1.2.3
+- `run-parallel` 1.2.0
+- `safer-buffer` 2.1.2
 - `shebang-command` 2.0.0
 - `shebang-regex` 3.0.0
+- `slash` 3.0.0
 - `stackback` 0.0.2
 - `std-env` 4.2.0
+- `strip-ansi` 6.0.1
+- `strip-bom` 3.0.0
 - `supports-color` 7.2.0
+- `term-size` 2.2.1
 - `three` 0.184.0
 - `tinybench` 2.9.0
 - `tinyexec` 1.3.0
 - `tinyglobby` 0.2.17
 - `tinyrainbow` 3.1.1
+- `to-regex-range` 5.0.1
+- `tr46` 0.0.3
 - `ts-api-utils` 2.5.0
 - `type-check` 0.4.0
 - `typescript-eslint` 8.65.0
 - `undici-types` 7.16.0
+- `universalify` 0.1.2
 - `vite` 8.1.5
 - `vite` 8.2.1
 - `vitest` 4.1.10
 - `whatwg-mimetype` 3.0.0
+- `whatwg-url` 5.0.0
 - `why-is-node-running` 2.3.0
 - `word-wrap` 1.2.5
 - `ws` 8.21.2
 - `yocto-queue` 0.1.0
 
-## Apache-2.0 (16)
+## Apache-2.0 (19)
 
 - `@dimforge/rapier3d-compat` 0.12.0
 - `@eslint/config-array` 0.23.5
@@ -211,10 +297,13 @@ installed on whichever host happened to run the generator.
 - `@humanfs/types` 0.15.0
 - `@humanwhocodes/module-importer` 1.0.1
 - `@humanwhocodes/retry` 0.4.3
+- `@playwright/test` 1.57.0
 - `detect-libc` 2.1.2
 - `eslint-visitor-keys` 3.4.3
 - `eslint-visitor-keys` 5.0.1
 - `expect-type` 1.4.0
+- `playwright` 1.57.0
+- `playwright-core` 1.57.0
 - `typescript` 5.9.3
 
 ## MPL-2.0 (16)
@@ -236,25 +325,42 @@ installed on whichever host happened to run the generator.
 - `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
 - `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
 
-## BSD-2-Clause (7)
+## ISC (11)
 
-- `entities` 7.0.1
-- `eslint-scope` 9.1.2
-- `espree` 11.2.0
-- `esrecurse` 4.3.0
-- `estraverse` 5.3.0
-- `esutils` 2.0.3
-- `uri-js` 4.4.1
-
-## ISC (7)
-
+- `fastq` 1.20.1
 - `flatted` 3.4.4
+- `glob-parent` 5.1.2
 - `glob-parent` 6.0.2
+- `graceful-fs` 4.2.11
 - `isexe` 2.0.0
 - `picocolors` 1.1.1
 - `semver` 7.8.5
 - `siginfo` 2.0.0
+- `signal-exit` 4.1.0
 - `which` 2.0.2
+
+## BSD-2-Clause (10)
+
+- `dotenv` 8.6.0
+- `entities` 7.0.1
+- `eslint-scope` 9.1.2
+- `espree` 11.2.0
+- `esprima` 4.0.1
+- `esrecurse` 4.3.0
+- `estraverse` 5.3.0
+- `esutils` 2.0.3
+- `uri-js` 4.4.1
+- `webidl-conversions` 3.0.1
+
+## BSD-3-Clause (7)
+
+- `dataloader` 1.4.0
+- `esquery` 1.7.0
+- `istanbul-lib-coverage` 3.2.2
+- `istanbul-lib-report` 3.0.1
+- `istanbul-reports` 3.2.0
+- `source-map-js` 1.2.1
+- `sprintf-js` 1.0.3
 
 ## BlueOak-1.0.0 (7)
 
@@ -266,17 +372,17 @@ installed on whichever host happened to run the generator.
 - `path-scurry` 2.0.2
 - `rimraf` 6.1.2
 
-## BSD-3-Clause (5)
-
-- `esquery` 1.7.0
-- `istanbul-lib-coverage` 3.2.2
-- `istanbul-lib-report` 3.0.1
-- `istanbul-reports` 3.2.0
-- `source-map-js` 1.2.1
-
 ## Apache-2.0 OR MIT (1)
 
 - `@tauri-apps/api` 2.11.1
+
+## Python-2.0 (1)
+
+- `argparse` 2.0.1
+
+## SEE LICENSE IN LICENSE (1)
+
+- `spawndamnit` 3.0.1
 
 ## 0BSD (1)
 

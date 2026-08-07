@@ -101,8 +101,16 @@ if (skipped.length > 0) {
 
 const byExpressId = new Map(built.elements.map((e) => [e.expressId, e]));
 
-viewport.renderer.domElement.addEventListener("click", (event) => {
-  const hit = viewport.pick(event);
+/**
+ * The ONE way selection changes — the viewport highlight and the panel are written together.
+ *
+ * They were separate: the click handler set both, but the Escape handler called `viewport.select([])` and
+ * nothing else, so the highlight cleared while the panel went on displaying the element that was no longer
+ * selected. An E2E test caught it. The bug is not that a call was forgotten; it is that the shape of the code
+ * allowed two places to hold an opinion about what is selected. Routing both through here means they cannot
+ * disagree, and a future third caller (the palette, a plugin, a plan-pane click) gets it right by default.
+ */
+function applySelection(hit: { expressId: number; guid: string | null } | null): void {
   viewport.select(hit ? [hit.expressId] : []);
 
   const dl = el("#sel");
@@ -117,6 +125,10 @@ viewport.renderer.domElement.addEventListener("click", (event) => {
   // Both ids, deliberately: expressID is what the parse layer and the drawing generator speak, GlobalId is
   // the only one safe to persist. Showing both is how the distinction stays visible.
   row(dl, "GlobalId", hit.guid ?? "— unresolved", hit.guid ? "mono" : "warn");
+}
+
+viewport.renderer.domElement.addEventListener("click", (event) => {
+  applySelection(viewport.pick(event));
 });
 
 // --- controls -------------------------------------------------------------------------------------
@@ -130,7 +142,7 @@ el("#units").addEventListener("click", () => {
 
 window.addEventListener("keydown", (e) => {
   if (e.key === "f" || e.key === "F") viewport.fit();
-  if (e.key === "Escape") viewport.select([]);
+  if (e.key === "Escape") applySelection(null);
 });
 
 // --- status ---------------------------------------------------------------------------------------

@@ -44,4 +44,13 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node } },
     rules: { "no-console": "off", "no-restricted-globals": "off" },
   },
+  {
+    // Playwright specs and the deployed-smoke script are the one place where Node and browser code share a
+    // file: the test body runs in Node, and the callback passed to `page.evaluate` runs in the page. Both sets
+    // of globals are legitimately in scope, and there is no lint configuration that can tell which half of the
+    // file a given line belongs to — so both are allowed here and nowhere else.
+    files: ["e2e/**/*.ts", "scripts/smoke-deployed.mjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { "no-console": "off", "no-restricted-globals": "off" },
+  },
 );

@@ -37,7 +37,7 @@ export default defineConfig({
   resolve: { alias: workspaceAliases() },
   test: {
     include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "fixtures/**/*.test.ts", "scripts/**/*.test.mjs"],
-    exclude: ["**/node_modules/**", "**/dist/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
     environment: "node",
     // Only the packages that touch the DOM opt into happy-dom, via `// @vitest-environment happy-dom`
     // at the top of the file. Defaulting to node keeps the pure-math suite fast, which is what makes

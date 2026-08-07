@@ -1,0 +1,64 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    # A hard ceiling, not an estimate. The suite takes well under a minute; this exists because a hung job is
+    # worse than a failing one — it burns to GitHub's six-hour default and reports nothing at all. That is not
+    # hypothetical: Playwright's own webServer management hung indefinitely on teardown during development,
+    # which is why the lifecycle now lives in scripts/e2e.mjs. Bounding the job means the next surprise of that
+    # shape costs fifteen minutes instead of six hours.
+    timeout-minutes: 15
+    strategy:
+      # Do not cancel the whole matrix when one browser fails. A WebKit-only failure is exactly the finding
+      # worth having, and killing the Chromium leg alongside it destroys the comparison that identifies it.
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, ipad]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Install the browser
+        # Only the one this leg needs. Installing all three per leg triples the download for no benefit.
+        # The `ipad` project runs on WebKit.
+        run: |
+          case "${{ matrix.project }}" in
+            ipad) npx playwright install --with-deps webkit ;;
+            *)    npx playwright install --with-deps "${{ matrix.project }}" ;;
+          esac
+
+      - name: Run E2E
+        # `npm run e2e`, not `npx playwright test`: this config has no webServer block, and the orchestrator
+        # owns building, serving, running and stopping. See scripts/e2e.mjs.
+        run: npm run e2e -- --project=${{ matrix.project }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

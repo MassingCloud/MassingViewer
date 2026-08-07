@@ -296,59 +296,155 @@ interface Orbit {
   dispose(): void;
 }
 
+/** Distance clamp for the camera, shared by wheel and pinch so they cannot disagree about the limits. */
+const MIN_DISTANCE = 0.2;
+const MAX_DISTANCE = 4000;
+
+/**
+ * Orbit, pan and dolly — mouse *and* touch.
+ *
+ * ## Why multi-touch is not a nice-to-have here
+ *
+ * Single-pointer drag arrives as a `pointer` event on a touchscreen too, so orbiting appeared to work on an
+ * iPad and the gap went unnoticed. Zooming did not: there is no wheel on a tablet, so with wheel as the only
+ * dolly input **an iPad user could not zoom at all**. Safari and iPad support is a stated differentiator for
+ * this product — the nearest browser-BIM competitor is Chrome/Edge only and field teams are on iPads — so
+ * "cannot change the zoom level" is not a rough edge, it is the platform being unusable.
+ *
+ * An E2E run on the emulated iPad found it, by failing with "Mouse wheel is not supported in mobile WebKit".
+ * That message is about the test, and the honest reading was about the app.
+ */
 function createOrbit(dom: HTMLElement, camera: THREE.PerspectiveCamera, target: THREE.Vector3): Orbit {
   let dragging: "orbit" | "pan" | null = null;
   let lastX = 0;
   let lastY = 0;
   const t = target.clone();
 
+  /** Every pointer currently down, so a second finger can be recognised as a pinch rather than a jump. */
+  const active = new Map<number, { x: number; y: number }>();
+  /** Finger separation and midpoint at the last pinch sample. */
+  let pinchSpan = 0;
+  let pinchX = 0;
+  let pinchY = 0;
+
+  /** Multiplicative dolly: `factor` < 1 moves closer. */
+  const dolly = (factor: number): void => {
+    const offset = camera.position.clone().sub(t);
+    const len = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, offset.length() * factor));
+    camera.position.copy(t).add(offset.setLength(len));
+  };
+
+  /** Pan in the camera's own plane, scaled by distance so the model tracks the pointer at any zoom. */
+  const pan = (dx: number, dy: number): void => {
+    const scale = camera.position.distanceTo(t) * 0.0015;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    const shift = right.multiplyScalar(-dx * scale).add(up.multiplyScalar(dy * scale));
+    camera.position.add(shift);
+    t.add(shift);
+  };
+
+  const orbit = (dx: number, dy: number): void => {
+    const offset = camera.position.clone().sub(t);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    spherical.theta -= dx * 0.005;
+    // Clamp phi off the poles. At exactly 0 or PI the up-vector degenerates and the camera flips, which
+    // feels like the viewport broke.
+    spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi - dy * 0.005));
+    offset.setFromSpherical(spherical);
+    camera.position.copy(t).add(offset);
+  };
+
+  const beginPinch = (): void => {
+    const [a, b] = [...active.values()];
+    if (!a || !b) return;
+    pinchSpan = Math.hypot(a.x - b.x, a.y - b.y);
+    pinchX = (a.x + b.x) / 2;
+    pinchY = (a.y + b.y) / 2;
+  };
+
   const onDown = (e: PointerEvent) => {
+    active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (active.size >= 2) {
+      // A second finger cancels the drag it interrupted, rather than letting the remaining finger keep
+      // orbiting while the pinch also runs — which reads as the model lurching.
+      dragging = null;
+      beginPinch();
+      return;
+    }
     // Middle button or shift+left pans, matching every CAD tool the user has already learned.
     dragging = e.button === 1 || e.shiftKey ? "pan" : "orbit";
     lastX = e.clientX;
     lastY = e.clientY;
-    dom.setPointerCapture(e.pointerId);
+    // Throws if the pointer is no longer active — which happens when the pointer was released between the
+    // event being queued and this handler running, and for synthesised events. Capture is an optimisation
+    // (it keeps a drag alive outside the canvas), so failing to get it must not break the interaction.
+    try {
+      dom.setPointerCapture(e.pointerId);
+    } catch {
+      /* not capturable; drag still works while the pointer stays over the canvas */
+    }
   };
+
   const onUp = (e: PointerEvent) => {
-    dragging = null;
+    active.delete(e.pointerId);
+    if (active.size < 2) pinchSpan = 0;
+    if (active.size === 0) dragging = null;
+    // A finger lifting from a two-finger gesture leaves one still down. Re-seat the drag origin at its
+    // current position, or the next move is interpreted as a jump of the whole gesture's width.
+    if (active.size === 1) {
+      const [only] = [...active.values()];
+      if (only) {
+        lastX = only.x;
+        lastY = only.y;
+      }
+    }
     if (dom.hasPointerCapture(e.pointerId)) dom.releasePointerCapture(e.pointerId);
   };
+
   const onMove = (e: PointerEvent) => {
+    if (active.has(e.pointerId)) active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (active.size >= 2) {
+      const [a, b] = [...active.values()];
+      if (!a || !b) return;
+      const span = Math.hypot(a.x - b.x, a.y - b.y);
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      if (pinchSpan > 0 && span > 0) {
+        // Fingers apart → span grows → factor < 1 → closer. The same multiplicative rule as the wheel, so a
+        // pinch and a scroll of equivalent size move the camera by the same proportion.
+        dolly(pinchSpan / span);
+        // Two fingers also pan, which is what every map and CAD app on a tablet does.
+        pan(midX - pinchX, midY - pinchY);
+      }
+      pinchSpan = span;
+      pinchX = midX;
+      pinchY = midY;
+      camera.lookAt(t);
+      return;
+    }
+
     if (!dragging) return;
     const dx = e.clientX - lastX;
     const dy = e.clientY - lastY;
     lastX = e.clientX;
     lastY = e.clientY;
-
-    const offset = camera.position.clone().sub(t);
-    if (dragging === "orbit") {
-      const spherical = new THREE.Spherical().setFromVector3(offset);
-      spherical.theta -= dx * 0.005;
-      // Clamp phi off the poles. At exactly 0 or PI the up-vector degenerates and the camera flips, which
-      // feels like the viewport broke.
-      spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi - dy * 0.005));
-      offset.setFromSpherical(spherical);
-      camera.position.copy(t).add(offset);
-    } else {
-      // Pan in the camera's own plane, scaled by distance so the model tracks the cursor at any zoom.
-      const scale = offset.length() * 0.0015;
-      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
-      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
-      const shift = right.multiplyScalar(-dx * scale).add(up.multiplyScalar(dy * scale));
-      camera.position.add(shift);
-      t.add(shift);
-    }
+    if (dragging === "orbit") orbit(dx, dy);
+    else pan(dx, dy);
     camera.lookAt(t);
   };
+
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const offset = camera.position.clone().sub(t);
-    // Multiplicative dolly: each notch is a constant *fraction* of the current distance, so zooming feels
-    // the same whether you are 2 m or 200 m out. Additive zoom either crawls or overshoots.
-    const factor = Math.exp(Math.sign(e.deltaY) * 0.12);
-    const len = Math.max(0.2, Math.min(4000, offset.length() * factor));
-    camera.position.copy(t).add(offset.setLength(len));
+    // Each notch is a constant *fraction* of the current distance, so zooming feels the same whether you are
+    // 2 m or 200 m out. Additive zoom either crawls or overshoots.
+    dolly(Math.exp(Math.sign(e.deltaY) * 0.12));
   };
+
+  // Without this the browser claims the gesture first: a one-finger drag scrolls the page and a pinch zooms
+  // the document, so the canvas sees a `pointercancel` mid-interaction and the model appears to stick.
+  dom.style.touchAction = "none";
 
   dom.addEventListener("pointerdown", onDown);
   dom.addEventListener("pointerup", onUp);

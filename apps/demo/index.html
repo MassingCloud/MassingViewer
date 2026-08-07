@@ -3,6 +3,46 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!--
+      Content Security Policy.
+
+      `wasm-unsafe-eval` is the narrow grant WebAssembly needs. `unsafe-eval` would also permit `eval()` and
+      `new Function()` — a materially larger hole for no benefit, and the mistake almost everyone makes when
+      they first hit a WASM CSP error.
+
+      `connect-src 'self'` is the load-bearing one for this app: the walking skeleton makes ZERO network
+      requests after first paint, and an E2E test asserts that. The CSP makes it structural rather than
+      merely true today — the model cannot be exfiltrated because the page cannot talk to anything.
+
+      `object-src` and `base-uri 'none'` close two redirection holes: plugin embedding and `<base href>`
+      hijacking.
+
+      `frame-ancestors` is deliberately ABSENT here. It is **silently ignored when delivered via a meta tag**,
+      and Chrome logs an error saying so — which means a policy that looks like it prevents clickjacking does
+      not. Found by an E2E test asserting zero console errors, which is the value of that assertion: the
+      directive was doing nothing and the page looked fine. Clickjacking protection must be a real header, and
+      it is in `deploy/security-headers.conf` for a self-hosted deployment. The same applies to `report-uri`
+      and `sandbox` — header-only, so they are not written here as decoration.
+
+      Shipped as a meta tag because the static Pages deploy cannot set headers at all. A self-hosted
+      deployment should send the full policy as a header instead — see docs/deployment.md.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'wasm-unsafe-eval';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self';
+        connect-src 'self';
+        worker-src 'self' blob:;
+        object-src 'none';
+        base-uri 'none';
+        form-action 'none'
+      "
+    />
     <title>MassingViewer — walking skeleton</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
