@@ -55,12 +55,23 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
   entity table, and an entity nobody touched is re-emitted byte-for-byte — so moving one wall cannot delete a
   structural consultant's analytical model. See
   [ADR-0008](docs/adr/0008-local-kernel-geometry-stack.md).
+- **Cuts a plan, and the plan is a live view.** Cut the model at 1.2 m onto A3, click a line in the plan, and
+  that element selects in 3D — because every line carries the GlobalId of the element it came from, not a page
+  coordinate. Select in 3D and *all* of that element's plan linework lights up. Author a wall and the open plan
+  follows the edit.
+- **Switching discipline is a repaint, not a regeneration.** Architectural → fire-safety keeps byte-identical
+  path data and changes only the paint, because a theme is a stylesheet over model-space geometry and paper is a
+  render-time transform. Auto-fit picks the largest scale on the project's own ladder — metric or imperial, never
+  a mix.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**506 unit tests, 15 E2E tests across Chromium/WebKit/iPad, and 9 repo gates** are green. See
-[the roadmap](#roadmap) for what is still scaffolding — the 2D drawing and markup half of the loop is
-designed and not yet built, which is the largest gap.
+**553 unit tests, 18 E2E tests on Chromium, Firefox, WebKit and iPad, and 9 repo gates** are green.
+
+The largest remaining gap is **markup**: the drawing model is built so a markup anchors to a GlobalId, and the
+BCF topics, pins and Tool Sets that sit on top of it are not written yet. DXF and PDF export are likewise
+designed as two more pure functions of `(Drawing, Theme, Paper)` rather than new geometry work. See
+[the roadmap](#roadmap).
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).
