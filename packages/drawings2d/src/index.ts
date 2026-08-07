@@ -33,6 +33,9 @@ export type { Paper, PaperSize, Scale, ScaleLadder, Transform } from "./paper";
 export { toSvg } from "./svg";
 export type { SvgOptions } from "./svg";
 
+export { dxfLimitations, toDxf } from "./dxf";
+export type { DxfOptions } from "./dxf";
+
 export { createPlanProvider, generatePlan } from "./plan";
 export type { DrawingFailure, DrawingInput, DrawingProvider, ElementMesh } from "./provider";
 

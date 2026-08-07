@@ -588,6 +588,40 @@ test("exports BCF 3.0 that a real unzip can read", async ({ page }, testInfo) =>
   expect(markup).toMatch(/<Reference>[0-9A-Za-z_$]{22}<\/Reference>/);
 });
 
+test("exports DXF that measures the same as the SVG the reviewer saw", async ({ page }, testInfo) => {
+  // Two serialisers, one Drawing. The point is not that a DXF appears — it is that what a consultant opens agrees
+  // with what was approved on screen, which is exactly what two parallel generation paths cannot guarantee.
+  await page.getByRole("button", { name: "Plan" }).click();
+  const svgScale = await page.locator("#plan-svg svg").getAttribute("data-scale");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "DXF" }).click();
+  const file = await download;
+  // The filename carries the scale, and it must be the scale the SVG is showing.
+  expect(file.suggestedFilename()).toBe(`plan-1-${svgScale!.replace("1:", "")}.dxf`);
+
+  const saved = testInfo.outputPath("plan.dxf");
+  await file.saveAs(saved);
+  const text = readFileSync(saved, "utf8");
+
+  // R12, terminated, with the layer table the SDM's layers produced.
+  expect(text).toContain("$ACADVER");
+  expect(text).toContain("AC1009");
+  expect(text.trimEnd().endsWith("EOF")).toBe(true);
+  expect(text).toContain("A-WALL");
+  expect(text).toContain("POLYLINE");
+  expect(text).not.toContain("LWPOLYLINE");
+
+  // Group codes and values must pair, so the line count is even. A hand-written emitter that drops one value
+  // produces a file that opens in nothing, and this is the cheapest check that catches it.
+  const lines = text.split("\n").filter((l, i, all) => i < all.length - 1 || l !== "");
+  expect(lines.length % 2).toBe(0);
+
+  // And the stated loss is real: no GlobalId survives into a DXF.
+  const guid = await page.locator("#plan-svg svg [data-guid]").first().getAttribute("data-guid");
+  expect(text).not.toContain(guid!);
+});
+
 test("nothing is silently skipped by the tessellator", async ({ page }) => {
   // The tessellator ignores openings by design (no booleans) and REPORTS what it skipped. For this fixture the
   // openings are voids rather than drawn products, so the list must be empty — and if a future change starts

@@ -9,6 +9,8 @@ import {
   type ElementMesh,
   fitToPaper,
   generatePlan,
+  dxfLimitations,
+  toDxf,
   toSvg,
 } from "@massingviewer/drawings2d";
 import {
@@ -41,6 +43,7 @@ app.innerHTML = `
       <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
       <button id="theme" title="Repaint the plan — no regeneration" disabled>Arch</button>
       <button id="delete" title="Delete the selected element (Del) — watch any markup on it orphan">Delete</button>
+      <button id="dxf" title="Export the plan as DXF R12" disabled>DXF</button>
       <button id="bcf" title="Export every markup as BCF 3.0" disabled>BCF</button>
       <button id="units" title="Toggle metric / imperial">m</button>
       <span class="muted" id="fps"></span>
@@ -394,6 +397,7 @@ function generate(): void {
   drawing = generatePlan(planInput(), { kind: "plan", cutHeight: 1.2 });
   el("#plan-pane").hidden = false;
   el<HTMLButtonElement>("#theme").disabled = false;
+  el<HTMLButtonElement>("#dxf").disabled = false;
   paintPlan();
 
   const dl = el("#plan-info");
@@ -537,6 +541,32 @@ el("#tools").addEventListener("click", (event) => {
   if (id === null || id === undefined) return;
   armedTool = id;
   renderTools();
+});
+
+/**
+ * Download the current plan as DXF, at the same scale and with the same theme the SVG shows.
+ *
+ * The claim this makes checkable: SVG and DXF are two serialisers of one `Drawing`, so what a consultant opens
+ * measures the same as what the reviewer approved. massing has `plan_svg` and `plan_dxf` as separate generation
+ * paths, which is why they disagree.
+ */
+el("#dxf").addEventListener("click", () => {
+  if (drawing === null) return;
+  const paper = fitToPaper(drawing, PAPER_SIZES.find((p) => p.name === "A3")!, 10);
+  if (paper === null) {
+    renderKernelPanel("this plan does not fit on A3 at any standard scale", "warn");
+    return;
+  }
+  const text = toDxf(drawing, planTheme, paper);
+  const url = URL.createObjectURL(new Blob([text], { type: "application/dxf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `plan-1-${paper.scale}.dxf`;
+  a.click();
+  URL.revokeObjectURL(url);
+  // The losses are surfaced at the moment of export, not left for whoever opens the file to notice. GlobalIds in
+  // particular do not survive a DXF, so a markup placed on one cannot come back.
+  renderKernelPanel(`DXF at 1:${paper.scale} — ${dxfLimitations().length} stated limitations`, "ok");
 });
 
 el("#bcf").addEventListener("click", () => {
