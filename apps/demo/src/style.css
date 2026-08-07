@@ -136,3 +136,30 @@ button.tool.armed { border-color: var(--accent); background: #2b3a4d; }
    at a glance — an issue log that quietly looks resolved is the failure this model exists to prevent. */
 #topics li[data-live="false"] { text-decoration: line-through; color: var(--muted); }
 #topics code { color: var(--accent); }
+
+/* --- the drop hint -------------------------------------------------------------------------------
+ *
+ * `pointer-events: none` is load-bearing, not decoration. An overlay that accepts pointer events becomes the
+ * drop event's target, and since it is not the element the listener is on, the drop lands on something that
+ * ignores it — so showing the hint would be what breaks the drop it is advertising.
+ */
+#drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: #4ea1ff1f;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+}
+
+#drop-hint span {
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+}

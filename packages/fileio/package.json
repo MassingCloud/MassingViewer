@@ -1,0 +1,19 @@
+{
+  "name": "@massingviewer/fileio",
+  "version": "0.0.0",
+  "description": "Open files by reading them, not by trusting their names — byte sniffing, a drag-and-drop target that cannot navigate your session away, and a picker that works outside Chromium.",
+  "license": "MIT",
+  "keywords": ["ifc", "file", "drag-and-drop", "sniff", "aec"],
+  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/fileio" },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./sniff": { "types": "./dist/sniff.d.ts", "default": "./dist/sniff.js" }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": { "build": "tsc --build" }
+}

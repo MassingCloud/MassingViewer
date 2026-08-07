@@ -681,6 +681,98 @@ test("exports a PDF whose GlobalIds survive, unlike the DXF's", async ({ page },
   expect(text).toContain("/OCProperties");
 });
 
+/**
+ * Drag-and-drop, in a real browser with a real `DataTransfer`.
+ *
+ * The unit tests build their own DragEvent because happy-dom has no `DataTransfer` at all. That is enough to
+ * assert the handler logic and not enough to assert the *behaviour*, because the thing most likely to be wrong
+ * is what the browser does when we get `preventDefault` wrong — and only a browser does that.
+ */
+async function dropFiles(
+  page: Page,
+  files: readonly { name: string; body: string }[],
+): Promise<void> {
+  const handle = await page.evaluateHandle((list) => {
+    const dt = new DataTransfer();
+    for (const f of list) dt.items.add(new File([f.body], f.name));
+    return dt;
+  }, files as { name: string; body: string }[]);
+  await page.dispatchEvent("#viewport", "drop", { dataTransfer: handle });
+}
+
+test("opens a dropped IFC, and does not navigate the session away", async ({ page }) => {
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  const url = page.url();
+  const before = await page.evaluate(() => window.__massingviewer.elements.length);
+  expect(before).toBeGreaterThan(0);
+
+  // The same fixture the app starts with, arriving the way a user's file arrives. Using the same bytes is
+  // deliberate: it isolates the *opening* path, so a difference in element count can only be the loader.
+  const ifc = readFileSync(join(import.meta.dirname, "..", "fixtures", "sample.ifc"), "utf8");
+  await dropFiles(page, [{ name: "Tower-A-dropped.ifc", body: ifc }]);
+
+  await expect(page.locator("#file")).toHaveText("Tower-A-dropped.ifc", { timeout: 15_000 });
+  await expect(page.locator("#kernel")).toContainText("no network");
+
+  // The assertion that matters most, and the one a unit test cannot make: the page is still the page. Without
+  // `preventDefault` on `dragover` the browser navigates to the dropped file and the session is gone.
+  expect(page.url()).toBe(url);
+  expect(await page.evaluate(() => window.__massingviewer.elements.length)).toBe(before);
+
+  // And the model is live: the kernel was reopened on the new bytes, so authoring still works. Leaving the
+  // kernel on the previous model would give a correct-looking viewport whose first edit writes the wrong file.
+  // `#author`, not a role+name locator. There is no button called "Add wall" — it reads "+ Wall" — and with the
+  // ribbon on the page a loose name match is ambiguous anyway. Same lesson as the `name: "m"` locator that broke
+  // the moment the ribbon existed: an id is the only locator that cannot drift with a label.
+  await page.locator("#author").click();
+  await expect(page.locator("#kernel")).toContainText("authored", { timeout: 20_000 });
+});
+
+test("refuses an unsupported drop with that format's own reason", async ({ page }) => {
+  // Dim-not-hide, applied to file formats. "point clouds are M10" is actionable; "unsupported file type" is the
+  // dead end this replaces, because it does not say whether to wait, convert, or file a bug.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await dropFiles(page, [{ name: "scan.las", body: "LASF" + "\0".repeat(300) }]);
+  await expect(page.locator("#kernel")).toContainText("point clouds are M10");
+
+  // A format we will never support names the reason we will not, which is the only useful thing to say about it.
+  await dropFiles(page, [{ name: "plan.dwg", body: "AC1032" + "\0".repeat(300) }]);
+  await expect(page.locator("#kernel")).toContainText("GPL-3.0");
+  await expect(page.locator("#kernel")).toContainText("DXF");
+
+  // The model is untouched by a refused drop.
+  await expect(page.locator("#file")).toHaveText("sample.ifc");
+});
+
+test("reports a file whose name and bytes disagree, rather than guessing", async ({ page }) => {
+  // The acceptance failure massing's extension gate has: `model.ifc` that is really a ZIP goes to the IFC parser
+  // and comes back with "unexpected token PK". Revit and Archicad both export ifcZIP, so this is routine.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await dropFiles(page, [{ name: "model.ifc", body: "PK" + String.fromCharCode(3, 4) + "junk" }]);
+  await expect(page.locator("#kernel")).toContainText("but the bytes say zip");
+  await expect(page.locator("#file")).toHaveText("sample.ifc");
+});
+
+test("shows the drop hint without letting it swallow the drop", async ({ page }) => {
+  // `pointer-events: none` on the overlay is load-bearing. An overlay that accepts pointer events becomes the
+  // drop event's target, so the drop lands on an element with no listener — showing the hint would break the
+  // very interaction it advertises.
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  const hint = page.locator("#drop-hint");
+  await expect(hint).toBeHidden();
+
+  await page.dispatchEvent("#viewport", "dragenter", {
+    dataTransfer: await page.evaluateHandle(() => new DataTransfer()),
+  });
+  await expect(hint).toBeVisible();
+  expect(await hint.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe("none");
+
+  await page.dispatchEvent("#viewport", "dragleave", {
+    dataTransfer: await page.evaluateHandle(() => new DataTransfer()),
+  });
+  await expect(hint).toBeHidden();
+});
+
 test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
   // A **measured** assertion, and it exists because the unit tests could not catch this. The CSS set
   // `.mv-ribbon-panel { display: flex }`, which beats the `hidden` attribute's UA `display: none`, so every tab's

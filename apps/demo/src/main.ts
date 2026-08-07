@@ -24,6 +24,13 @@ import {
   resolveAnchor,
   toBcfZip,
 } from "@massingviewer/markup";
+import {
+  canPickHandles,
+  createDropTarget,
+  describe as describeFile,
+  pickFiles,
+  type OpenedFile,
+} from "@massingviewer/fileio";
 import { createRibbon } from "@massingviewer/ribbon";
 import "@massingviewer/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
@@ -41,6 +48,7 @@ app.innerHTML = `
     <header>
       <strong>MassingViewer</strong>
       <span class="muted" id="file">sample.ifc</span>
+      <button id="open" title="Open an IFC — or just drop one on the model">Open…</button>
       <span class="spacer"></span>
       <button id="fit" title="Frame the model (F)">Fit</button>
       <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
@@ -106,6 +114,11 @@ const parseMs = performance.now() - t0;
 // of the model — regenerating it after an edit must not require re-reading the file.
 let sourceMeshes = meshes;
 let sourceGuids = guids;
+
+el("#viewport").insertAdjacentHTML(
+  "beforeend",
+  '<div id="drop-hint" hidden><span>Drop an IFC to open it</span></div>',
+);
 
 const viewport = createViewport({ container: el("#viewport") });
 
@@ -207,6 +220,116 @@ el("#units").addEventListener("click", () => {
   units = units === METRIC ? IMPERIAL : METRIC;
   el("#units").textContent = units === METRIC ? "m" : "ft";
   renderModelPanel();
+});
+
+// --- opening a file -------------------------------------------------------------------------------
+
+/**
+ * Load an IFC that arrived from the user, replacing the model.
+ *
+ * The whole path the fixture takes at startup, reachable at runtime: tessellate, show, reopen the kernel, and
+ * re-render every panel. Factored out rather than duplicated, because a second "load a model" code path is how
+ * the dropped-file case ends up subtly different from the startup case — working geometry with a kernel still
+ * holding the old model, say, so the first edit writes into the wrong file.
+ */
+async function loadIfc(text: string, name: string): Promise<void> {
+  const next = tessellate(text);
+  if (next.meshes.length === 0) {
+    renderKernelPanel(`${name}: parsed, but no geometry — nothing here this can tessellate`, "warn");
+    return;
+  }
+
+  built = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
+  sourceMeshes = next.meshes;
+  sourceGuids = next.guids;
+  viewport.fit();
+
+  // The kernel must be reopened on the new bytes *before* anything can be authored against them. Leaving it on
+  // the old model is the failure this function exists to prevent: the 3D view would be right and the first edit
+  // would apply to a file the user is no longer looking at.
+  const opened = await openable.open(MODEL, text);
+  kernelReady = opened.ok;
+
+  // A plan cut from the old model is not a view of this one.
+  drawing = null;
+  el("#plan-pane").hidden = true;
+  el<HTMLButtonElement>("#dxf").disabled = true;
+  el<HTMLButtonElement>("#pdf").disabled = true;
+  el<HTMLButtonElement>("#bcf").disabled = topics.length === 0;
+  selectedGuid = null;
+
+  el("#file").textContent = name;
+  renderModelPanel();
+  renderSkipped(next.skipped);
+  // Topics are deliberately kept, not cleared. Anchors resolve against GlobalIds, so a topic from the previous
+  // model orphans and *says* it orphaned — which is more useful than silently discarding a reviewer's work, and
+  // it is exactly the mechanism the delete-an-element case already exercises.
+  renderTopics();
+  renderKernelPanel(
+    kernelReady ? `${name}: ${next.meshes.length} element(s) — no network` : "worker did not accept the model",
+    kernelReady ? "ok" : "warn",
+  );
+}
+
+/**
+ * Take whatever was dropped or picked.
+ *
+ * Refuses with the *format's own reason* rather than a generic message. That is the whole point of
+ * `supportFor`: "point clouds are M10" and "the only good browser DWG reader is GPL-3.0, export a DXF" are
+ * sentences a user can act on, and "unsupported file type" is not.
+ */
+async function accept(files: readonly OpenedFile[]): Promise<void> {
+  if (files.length === 0) return;
+
+  const openable_ = files.filter((f) => f.support.state === "supported");
+  if (openable_.length === 0) {
+    // One line per file, so a mixed drop explains every rejection instead of reporting the first.
+    renderKernelPanel(files.map((f) => describeFile(f, f.sniffed)).join(" · "), "warn");
+    return;
+  }
+
+  const first = openable_[0]!;
+  if (!first.sniffed.agrees) {
+    // Surfaced, not silently resolved — the bytes are almost certainly right, but only the user knows whether a
+    // `.ifc` that is really a ZIP was a mislabel or an ifcZIP they meant to send.
+    renderKernelPanel(describeFile(first, first.sniffed), "warn");
+  }
+  await loadIfc(await first.text(), first.name);
+
+  if (openable_.length > 1) {
+    // Never silently ignore the rest. A drop of four models that loaded one and said nothing reads as a bug.
+    renderKernelPanel(
+      `opened ${first.name}; ${openable_.length - 1} more file(s) ignored — one model at a time, for now`,
+      "warn",
+    );
+  }
+}
+
+const dropHint = el("#drop-hint");
+createDropTarget(el("#viewport"), {
+  onFiles: (files) => void accept(files),
+  onHover: (hovering) => {
+    dropHint.hidden = !hovering;
+  },
+  onError: (message) => renderKernelPanel(message, "warn"),
+});
+
+// Say which picker this browser has, in the one place a user would look. `showOpenFilePicker` returns handles
+// that can be persisted, so a recent-files list genuinely reopens; an `<input>` cannot, and no amount of UI
+// wishing makes it. Stating the difference beats offering "Recent files" that silently does not work — which is
+// what happens when a feature is built against the capability one browser has.
+el("#open").title = canPickHandles()
+  ? "Open an IFC — or just drop one on the model. This browser can remember the file for reopening."
+  : "Open an IFC — or just drop one on the model. This browser cannot remember the file, so reopening means picking it again.";
+
+el("#open").addEventListener("click", () => {
+  void (async () => {
+    const result = await pickFiles({ accept: [".ifc", ".ifcxml", ".ifczip"], description: "IFC models" });
+    // `via` is reported because the two mechanisms are not equivalent: handles can be persisted so a recent-files
+    // list genuinely reopens, an <input> cannot. Today that is Chromium versus Safari and Firefox.
+    if (result.files.length === 0 && result.via === "input") return;
+    await accept(result.files);
+  })();
 });
 
 window.addEventListener("keydown", (e) => {

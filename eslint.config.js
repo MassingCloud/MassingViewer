@@ -39,6 +39,9 @@ export default tseslint.config(
       // see docs/adr/0009-ribbon-renders-in-vanilla-dom.md. It is a presentation package like the
       // others here, not a core one.
       "packages/ribbon/**/*.ts",
+      // fileio owns a drop target and a file picker, which are DOM by definition. Same argument as the ribbon:
+      // a vanilla one works in massing's shell and in a React host; a React one works in one of them.
+      "packages/fileio/**/*.ts",
       "packages/ui-react/**/*.{ts,tsx}",
       "apps/**/*.{ts,tsx}",
     ],
