@@ -85,7 +85,7 @@ attacker who can poison the cache could influence tarballs going out under this 
 attestation, which turns the attestation from a guarantee into a misleading one.
 
 `zizmor` raised this as high severity the moment the workflow became a publishing one, and it was right in a way
-worth recording: **dropping `cache: npm` was not sufficient.** `setup-node`'s own `action.yml` says caching is
+worth recording: **dropping `cache: npm` was not sufficient.** setup-node's own action metadata says caching is
 enabled by default whenever `package.json` has a `packageManager` field, and this repo declares
 `packageManager: npm@11.16.0`. The cache was still being restored after the apparent fix, and the linter that
 looked like it was being pedantic about something already handled was reporting a real finding.
