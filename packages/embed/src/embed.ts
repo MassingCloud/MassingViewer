@@ -27,7 +27,7 @@ import {
 import { createDropTarget, sniff, supportFor, type DropTarget, type OpenedFile } from "@massing/fileio";
 import { NOOP_CRASH_SINK, createCrashHandler, type CrashSink } from "@massing/observability";
 import { createSession, type AuthoringSession } from "@massing/authoring";
-import { createRegistry, type CommandContext } from "@massing/commands";
+import { createRegistry, type CommandContext, type Registry } from "@massing/commands";
 import { createTopic, isLive, resolveAnchor, toBcfZip, type Topic } from "@massing/markup";
 
 /**
@@ -107,6 +107,14 @@ export interface MassingViewer {
    * connected them. See `packages/authoring/src/session.ts`.
    */
   readonly session: AuthoringSession;
+  /**
+   * The command registry.
+   *
+   * Exposed because a host has to register its own verbs — massing has ninety-odd — and because the facade owning
+   * the registry is what keeps every dispatch on one audited, undoable path. A host that supplied its own could
+   * bypass both.
+   */
+  readonly commands: Registry;
   readonly kernel: KernelProvider;
   readonly host: PluginHost;
   /** `null` when no `ribbonContainer` was given. */
@@ -185,6 +193,41 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
   const topics: Topic[] = [];
 
   /**
+   * Snap candidates, bucketed on a coarse grid and rebuilt once per model load.
+   *
+   * `session.hover()` is documented as safe to call per animation frame, and it asks for candidates every time. A
+   * previous version scanned every vertex of every mesh on each call — 200k iterations per frame on a real model,
+   * about 12 million a second, on the main thread beside rendering. Its comment claimed the work was "pre-filtered
+   * so a 200k-vertex model does not hand `resolveSnap` every vertex", which was true of what got passed onward and
+   * false about the cost of getting there: the O(n) scan happened regardless.
+   *
+   * A hash grid makes the query O(candidates nearby) instead. `CELL` is comfortably larger than any sane snap
+   * tolerance, so a query needs only the nine cells around the cursor.
+   */
+  const CELL = 1;
+  let snapGrid = new Map<string, { x: number; z: number; kind: "endpoint" }[]>();
+
+  const cellKey = (x: number, z: number): string => `${Math.floor(x / CELL)}:${Math.floor(z / CELL)}`;
+
+  function buildSnapGrid(source: readonly SourceMesh[]): void {
+    const grid = new Map<string, { x: number; z: number; kind: "endpoint" }[]>();
+    for (const mesh of source) {
+      const positions = mesh.positions;
+      for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i]!;
+        const z = positions[i + 2]!;
+        const key = cellKey(x, z);
+        const bucket = grid.get(key);
+        // Deduplicated per cell: a box mesh repeats each corner across several triangles, so without this a
+        // single vertex enters the grid a dozen times and `resolveSnap` compares it a dozen times.
+        if (bucket === undefined) grid.set(key, [{ x, z, kind: "endpoint" }]);
+        else if (!bucket.some((c) => c.x === x && c.z === z)) bucket.push({ x, z, kind: "endpoint" });
+      }
+    }
+    snapGrid = grid;
+  }
+
+  /**
    * The command registry and the session.
    *
    * The registry is created here rather than taken as an option because the facade owns the dispatch path — a host
@@ -192,6 +235,18 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
    * the command bus exists to guarantee.
    */
   const registry = createRegistry();
+
+  /**
+   * The last pointer position over the container, in client coordinates.
+   *
+   * Needed by `elementAt`: `viewport.pick` raycasts from screen space, and the session speaks model space. The
+   * facade owns this listener, so it is the only place that has both.
+   */
+  let lastPointer: { clientX: number; clientY: number } | null = null;
+  const onPointerMove = (event: PointerEvent): void => {
+    lastPointer = { clientX: event.clientX, clientY: event.clientY };
+  };
+  options.container.addEventListener("pointermove", onPointerMove);
 
   const commandContext = (): CommandContext => ({
     // `edit` unconditionally: the local kernel has no notion of a role, and inventing a restriction the kernel
@@ -202,29 +257,52 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
     supportsOp: () => true,
     opHint: (op) => `"${op}" is not available with this kernel`,
     online: true,
-    dispatch: async () => ({ ok: true, value: null }),
+    /**
+     * A real dispatch, so a composite command works.
+     *
+     * `CommandContext.dispatch` is documented as "how a composite command is built". A previous version stubbed it
+     * to `{ ok: true, value: null }`, so a command that dispatched a sub-command got success back and nothing
+     * happened: no kernel call, no undo entry, an incomplete audit log, and no way to notice.
+     *
+     * `commandContext()` is called fresh here rather than closed over, so a sub-command sees the selection as it is
+     * *now* — a composite that selects something and then acts on it depends on that.
+     */
+    dispatch: async (invocation) => await registry.dispatch(invocation, commandContext()),
   });
 
   const session = createSession({
     registry,
     context: commandContext,
     // Snap candidates from the model the viewport is actually showing. A callback, so the session never needs to
-    // know what a mesh is.
+    // know what a mesh is — and a grid lookup, so it stays cheap enough to call per frame.
     candidates: (cursor) => {
       const out: { x: number; z: number; kind: "endpoint" }[] = [];
-      for (const mesh of meshes) {
-        const positions = mesh.positions;
-        for (let i = 0; i < positions.length; i += 3) {
-          const x = positions[i]!;
-          const z = positions[i + 2]!;
-          // Pre-filtered to a generous radius so a 200k-vertex model does not hand `resolveSnap` every vertex on
-          // every mouse move. The tolerance check inside it is exact; this is only about how much it has to look at.
-          if (Math.abs(x - cursor.x) < 2 && Math.abs(z - cursor.z) < 2) out.push({ x, z, kind: "endpoint" });
+      const cx = Math.floor(cursor.x / CELL);
+      const cz = Math.floor(cursor.z / CELL);
+      // The nine cells around the cursor. `resolveSnap` still applies the exact tolerance; this only bounds how
+      // much it has to look at.
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const bucket = snapGrid.get(`${cx + dx}:${cz + dz}`);
+          if (bucket !== undefined) out.push(...bucket);
         }
       }
       return out;
     },
-    elementAt: () => selection,
+    /**
+     * The element under the cursor, resolved by raycast.
+     *
+     * A previous version returned `selection`, which is a different thing entirely: an element-argument command
+     * would commit whatever happened to be selected regardless of where the user clicked, and with nothing
+     * selected, clicking the very wall the prompt was asking for never advanced it.
+     *
+     * `viewport.pick` needs screen coordinates, so the facade records the last pointer position over its own
+     * container — it owns that listener, and the session deals only in model space.
+     */
+    elementAt: () => {
+      if (lastPointer === null) return null;
+      return viewport.pick(lastPointer)?.guid ?? null;
+    },
   });
 
   const host = createPluginHost({
@@ -314,6 +392,9 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
 
       meshes = parsed.meshes;
       guids = parsed.guids;
+      // Rebuilt here, once, rather than derived per hover. A stale grid would offer snaps to geometry that is no
+      // longer in the model, which is worse than offering none.
+      buildSnapGrid(meshes);
       const built = viewport.showModel(meshes, guidOf, modelId);
       viewport.fit();
 
@@ -334,6 +415,7 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
     },
 
       session,
+    commands: registry,
 
     raise(options = {}) {
       if (selection === null) return null;
@@ -404,6 +486,7 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
       if (disposed) return;
       disposed = true;
       offSelect();
+      options.container.removeEventListener("pointermove", onPointerMove);
       dropTarget?.dispose();
       ribbon?.dispose();
       void host.dispose();

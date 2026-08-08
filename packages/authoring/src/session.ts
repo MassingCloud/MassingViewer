@@ -180,11 +180,41 @@ function lastPoint(points: readonly Vec2[]): Vec2 | null {
   return points.length === 0 ? null : points[points.length - 1]!;
 }
 
+/**
+ * The points the reducer has actually collected.
+ *
+ * **Derived, never mirrored**, and that is the fix for the worst bug in this file rather than a stylistic choice.
+ *
+ * A previous version kept a `points` array beside the reducer and pushed to it on every pick. The two drifted the
+ * moment they could: after a refusal the reducer sits at `ready`, where `step()` deliberately ignores
+ * `pick-point` — so a second click did not reach the reducer but *did* grow the local array. `validate()` then saw
+ * three points instead of two, switched from kind "run" to kind "poly", the polygon passed, and `toInvocation`
+ * committed the reducer's original args: the 1 mm wall the validator had just refused. Clicking once more bypassed
+ * the validator entirely.
+ *
+ * Deriving makes that unrepresentable. There is one source of truth for what will be committed, and the thing the
+ * validator inspects is the thing the invocation will carry.
+ */
+function collectedPoints(d: AnyCommandDescriptor, s: PromptState<object>): Vec2[] {
+  const out: Vec2[] = [];
+  const bag = s.collected as Record<string, unknown>;
+  for (const spec of d.args) {
+    if (spec.kind === "point") {
+      const value = bag[spec.name];
+      // A collected point arrives as `[x, z]`. Anything else means the arg has not been filled yet.
+      if (Array.isArray(value) && value.length >= 2) out.push({ x: Number(value[0]), z: Number(value[1]) });
+    } else if (spec.kind === "point-list") {
+      // The reducer accumulates a variadic argument in its own `points` field.
+      for (const point of s.points) out.push({ x: point[0], z: point[1] });
+    }
+  }
+  return out;
+}
+
 export function createSession(deps: SessionDeps): AuthoringSession {
   let snap: SnapSettings = deps.snap ?? DEFAULT_SNAP;
   let descriptor: AnyCommandDescriptor | null = null;
   let prompt: PromptState<object> | null = null;
-  let points: Vec2[] = [];
   /**
    * One-shot snap override.
    *
@@ -195,6 +225,15 @@ export function createSession(deps: SessionDeps): AuthoringSession {
   /** Typed dynamic-input constraint, pending until the next pick or Enter. */
   let dyn: DynConstraint | null = null;
   /**
+   * The last cursor position seen, in model space.
+   *
+   * Needed because a distance-only constraint keeps the *cursor's bearing* — `applyDynamicInput` says so — and
+   * committing one on Enter therefore needs a cursor. A previous version passed the previous point as both origin
+   * and cursor, which makes the bearing degenerate (`curR` is 0, so `curA` is 0) and sent every bare `5 <Enter>`
+   * due +X regardless of where the user was aiming.
+   */
+  let lastCursor: Vec2 | null = null;
+  /**
    * How the armed tool was armed.
    *
    * Carried so the invocation records where it came from, which is what makes the audit log worth having.
@@ -204,12 +243,17 @@ export function createSession(deps: SessionDeps): AuthoringSession {
    */
   let origin: CommandOrigin = { via: "ui", surface: "ribbon" };
 
+  /** The collected points, from the reducer. Empty when nothing is armed. */
+  function points(): Vec2[] {
+    return descriptor === null || prompt === null ? [] : collectedPoints(descriptor, prompt);
+  }
+
   function stateNow(): SessionState {
     return {
       armed: descriptor?.id ?? null,
       prompt: prompt?.prompt ?? "",
       keywords: prompt?.keywords ?? [],
-      points: [...points],
+      points: points(),
       status: prompt === null ? "idle" : prompt.status === "cancelled" ? "idle" : prompt.status,
       override: override.peek(),
       snap,
@@ -235,7 +279,10 @@ export function createSession(deps: SessionDeps): AuthoringSession {
    *      than fighting it.
    */
   function resolve(cursor: Vec2, modifiers: Modifiers = {}): HoverFeedback {
-    const from = lastPoint(points);
+    // Recorded here rather than in `hover`, so `pick` and `hover` both keep it fresh — and `resolve` stays pure
+    // with respect to everything a caller can observe, which is what lets a host call it per frame.
+    lastCursor = cursor;
+    const from = lastPoint(points());
     const armedOverride = override.peek();
 
     // 1. A typed constraint is an instruction, not a hint.
@@ -337,12 +384,13 @@ export function createSession(deps: SessionDeps): AuthoringSession {
   }
 
   function validate(): string | null {
-    if (points.length === 0) return null;
+    const collected = points();
+    if (collected.length === 0) return null;
     const bounds = deps.bounds?.() ?? null;
-    const kind = points.length === 1 ? "point" : points.length === 2 ? "run" : "poly";
+    const kind = collected.length === 1 ? "point" : collected.length === 2 ? "run" : "poly";
     const verdict = validatePlacement(
       kind,
-      points.map((p) => [p.x, p.z] as [number, number]),
+      collected.map((p) => [p.x, p.z] as [number, number]),
       bounds,
     );
     return verdict.ok ? null : verdict.reason;
@@ -350,11 +398,11 @@ export function createSession(deps: SessionDeps): AuthoringSession {
 
   function reset(): void {
     descriptor = null;
+    lastCursor = null;
     // Restored, not left as-is: a tool armed from the ribbon after one armed from the command line would
     // otherwise be recorded as having come from the command line, and a wrong audit entry is worse than none.
     origin = { via: "ui", surface: "ribbon" };
     prompt = null;
-    points = [];
     dyn = null;
     override.clear();
   }
@@ -406,7 +454,6 @@ export function createSession(deps: SessionDeps): AuthoringSession {
       }
 
       const resolved = resolve(cursor, modifiers);
-      points.push(resolved.at);
       // `consume()`, not `clear()`. The handle's own contract says why: a one-shot is spent by the pick that
       // reads it *whether or not that pick found anything of the kind*, because otherwise a failed override
       // silently applies to the next click too. `clear()` happens to do the same thing here, but `consume()` is
@@ -432,10 +479,14 @@ export function createSession(deps: SessionDeps): AuthoringSession {
         // A pending typed constraint commits as a point rather than as an accept — otherwise typing `5 <Enter>`
         // at a "specify next point" prompt would end the command instead of placing the point it describes.
         if (dyn !== null) {
-          const from = lastPoint(points);
+          const from = lastPoint(points());
           if (from !== null) {
-            const at = applyDynamicInput(from, from, dyn);
-            points.push(at);
+            if (lastCursor === null) {
+              // Refused rather than guessed. A distance with no bearing has no answer, and inventing one sends
+              // the point somewhere the user did not ask for — silently, which is worse than a refusal.
+              return { kind: "refused", reason: "move the cursor first, so the distance has a direction to follow" };
+            }
+            const at = applyDynamicInput(from, lastCursor, dyn);
             dyn = null;
             return await advance({ t: "pick-point", at: [at.x, at.z] });
           }
@@ -447,7 +498,8 @@ export function createSession(deps: SessionDeps): AuthoringSession {
         // Per-stroke undo, distinct from document undo. Backspace revises the point being collected; Ctrl+Z
         // undoes a committed command. Conflating them means Backspace during a draw would undo the *previous
         // wall*, which is a data-loss bug disguised as a keystroke.
-        points.pop();
+        //
+        // No local bookkeeping: the reducer's `back` removes the argument and `points()` re-derives from it.
         return await advance({ t: "back" });
       }
 
@@ -480,16 +532,25 @@ export function createSession(deps: SessionDeps): AuthoringSession {
   async function routeTyped(text: string, _modifiers: Modifiers = {}): Promise<StepOutcome> {
     const upper = text.toUpperCase();
 
-    // A snap override, e.g. `PER` for perpendicular. One shot, consumed by the next pick.
-    // `arm` takes the two-letter CODE, not the kind — and passing the kind fails *silently*, because `arm`
-    // looks the string up in `OVERRIDE_CODES` and returns null for a miss. Three tests caught it; nothing at
-    // the type level could, since both are strings.
-    const armedKind = override.arm(upper);
-    if (armedKind !== null) {
-      const kind = armedKind;
-      return descriptor === null
-        ? { kind: "idle" }
-        : { kind: "collecting", prompt: `${OVERRIDE_LABEL[kind]} — pick a point`, keywords: prompt?.keywords ?? [] };
+    // A snap override, e.g. `MI` for midpoint. One shot, consumed by the next pick.
+    //
+    // `arm` takes the two-letter CODE, not the kind — and passing the kind fails *silently*, because `arm` looks
+    // the string up in `OVERRIDE_CODES` and returns null for a miss. Three tests caught that; nothing at the type
+    // level could, since both are strings.
+    //
+    // The `descriptor === null` check comes FIRST because `arm` mutates. Calling it before knowing a tool is armed
+    // left `state.override` advertising "next pick: midpoint" with nothing armed — a claim about a pick that
+    // cannot happen, and precisely what the handle's own `subscribe` comment warns is a lie about the next click.
+    if (upper in OVERRIDE_CODES) {
+      if (descriptor === null) return { kind: "idle" };
+      const armedKind = override.arm(upper);
+      if (armedKind !== null) {
+        return {
+          kind: "collecting",
+          prompt: `${OVERRIDE_LABEL[armedKind]} — pick a point`,
+          keywords: prompt?.keywords ?? [],
+        };
+      }
     }
 
     // A dynamic-input constraint: `5`, `5<90`, `12'6`.

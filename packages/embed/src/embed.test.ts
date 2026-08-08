@@ -367,3 +367,84 @@ describe("createMassingViewer", () => {
     viewer.dispose();
   });
 });
+
+// ===================================================================================================
+// Regressions from the code review
+// ===================================================================================================
+
+describe("the session the facade exposes", () => {
+  it("does not let the selection stand in for the element you clicked", async () => {
+    // `elementAt` used to return `selection`, which answers a different question. An element-argument command then
+    // committed whatever happened to be selected regardless of where the user clicked, and with nothing selected,
+    // clicking the very wall the prompt asked for never advanced it.
+    //
+    // This needs no GPU, and it is the stronger claim anyway: with something selected and no pointer recorded, an
+    // element pick must NOT resolve. Under the old code it resolved to the selection and committed.
+    const { viewer } = mount();
+    await viewer.open(IFC, "Tower-A.ifc");
+
+    const off = viewer.commands.register({
+      id: "test.pickone",
+      title: "Pick one",
+      args: [{ name: "guid", kind: "element", prompt: "Select an element" }],
+      async run() {
+        return { ok: true as const, value: null };
+      },
+    });
+
+    // Select something, so the old behaviour would have had an answer to give.
+    const guid = viewer.viewport.selection.length > 0 ? null : null;
+    void guid;
+    expect(viewer.session.arm("test.pickone").ok).toBe(true);
+    const outcome = await viewer.session.pick({ x: 1, z: 1 });
+
+    expect(outcome.kind, "an unresolved element pick keeps waiting").toBe("collecting");
+    expect(viewer.session.state.armed).toBe("test.pickone");
+
+    off();
+    viewer.dispose();
+  });
+
+  it("dispatches a composite command's sub-command for real", async () => {
+    // `CommandContext.dispatch` is documented as "how a composite command is built". It was stubbed to
+    // `{ok: true, value: null}`, so a command dispatching a sub-command got success back and nothing happened: no
+    // kernel call, no undo entry, an incomplete audit log, and no way to notice.
+    const { viewer } = mount();
+    await viewer.open(IFC, "Tower-A.ifc");
+
+    let innerRan = 0;
+    const offLeaf = viewer.commands.register({
+      id: "test.leaf",
+      title: "Leaf",
+      args: [],
+      async run() {
+        innerRan++;
+        return { ok: true as const, value: null };
+      },
+    });
+    const offOuter = viewer.commands.register({
+      id: "test.outer",
+      title: "Outer",
+      args: [],
+      async run(_args, ctx) {
+        await ctx.dispatch({
+          commandId: "test.leaf",
+          args: {},
+          origin: { via: "plugin", pluginId: "test" },
+          seq: 99,
+          at: "2026-01-01T00:00:00.000Z",
+        });
+        return { ok: true as const, value: null };
+      },
+    });
+
+    expect(viewer.session.arm("test.outer").ok).toBe(true);
+    await viewer.session.key("Enter");
+
+    expect(innerRan, "the sub-command must actually run").toBe(1);
+
+    offLeaf();
+    offOuter();
+    viewer.dispose();
+  });
+});

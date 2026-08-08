@@ -61,7 +61,28 @@ function materialsIn(root: THREE.Object3D): THREE.Material[] {
   return [...seen];
 }
 
+/**
+ * How many live controllers each renderer has, and what its flag was before the first of them.
+ *
+ * `localClippingEnabled` belongs to the *renderer*, not to any one controller, so disposal cannot simply decide
+ * what it should be. Two weaker designs both fail:
+ *
+ * - **Force it `false` on dispose.** Disposing one controller then breaks every other one sharing the renderer,
+ *   and the symptom is a section that silently stops clipping with no error.
+ * - **Capture the value at construction and restore it.** Looks careful and is still wrong with two controllers:
+ *   the second captures `true` (set by the first), the first restores `false`, and the survivor is broken. That
+ *   was the first fix I wrote here, and a two-controller test is what showed it up.
+ *
+ * So it is reference counted, and the flag returns to its original value only when the last controller goes. A
+ * `WeakMap` so a discarded renderer is not held alive by this bookkeeping.
+ */
+const clippingUsers = new WeakMap<THREE.WebGLRenderer, { count: number; wasEnabled: boolean }>();
+
 export function createSection(renderer: THREE.WebGLRenderer, modelRoot: THREE.Object3D): SectionController {
+  const users = clippingUsers.get(renderer) ?? { count: 0, wasEnabled: renderer.localClippingEnabled };
+  users.count++;
+  clippingUsers.set(renderer, users);
+
   // The line without which none of this does anything. See the note above.
   renderer.localClippingEnabled = true;
 
@@ -165,7 +186,15 @@ export function createSection(renderer: THREE.WebGLRenderer, modelRoot: THREE.Ob
     dispose() {
       planes = [];
       apply();
-      renderer.localClippingEnabled = false;
+      // Only the last controller out restores the flag; anyone still using it keeps it.
+      const remaining = clippingUsers.get(renderer);
+      if (remaining !== undefined) {
+        remaining.count--;
+        if (remaining.count <= 0) {
+          renderer.localClippingEnabled = remaining.wasEnabled;
+          clippingUsers.delete(renderer);
+        }
+      }
       void planeNormal;
     },
   };

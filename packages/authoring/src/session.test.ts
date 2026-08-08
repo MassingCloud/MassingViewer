@@ -489,3 +489,96 @@ describe("candidate sourcing", () => {
     expect(context_.mock.calls.length).toBeGreaterThan(first);
   });
 });
+
+// ===================================================================================================
+// Regressions from the code review
+// ===================================================================================================
+
+describe("a refusal cannot be clicked past", () => {
+  it("does not commit the invalid geometry when the user clicks again", async () => {
+    // The worst bug in this file, found in review. After a refusal the tool stays armed — deliberately — but the
+    // reducer is already `ready`, and `step()` ignores `pick-point` on a ready state. A version of this file kept
+    // `points` as a list parallel to the reducer's own args and pushed to it unconditionally, so a second click
+    // grew `points` to three, `validate()` switched from kind "run" to kind "poly", the polygon passed, and
+    // `toInvocation` committed the reducer's ORIGINAL args — the 1 mm wall. The validator was bypassed by the
+    // single most natural response to being told "too short".
+    const { session } = harness();
+    session.setSnap({ enabled: false, polar: false });
+    session.arm("mv.wall.add");
+    await session.pick({ x: 0, z: 0 });
+
+    expect((await session.pick({ x: 0.001, z: 0 })).kind).toBe("refused");
+    expect(dispatched).toHaveLength(0);
+
+    const again = await session.pick({ x: 6, z: 0 });
+    expect(again.kind, "a second click must not sneak the refused wall through").toBe("refused");
+    expect(dispatched, "the 1 mm wall must never reach the kernel").toHaveLength(0);
+  });
+
+  it("keeps the point count honest however many times you click", async () => {
+    // The invariant that makes the above impossible rather than merely fixed: `points` is DERIVED from the
+    // reducer, so it cannot drift from the args that will actually be committed.
+    const { session } = harness();
+    session.setSnap({ enabled: false, polar: false });
+    session.arm("mv.wall.add");
+    await session.pick({ x: 0, z: 0 });
+    await session.pick({ x: 0.001, z: 0 });
+    for (let i = 0; i < 5; i++) await session.pick({ x: 9, z: 9 });
+    expect(session.state.points).toHaveLength(2);
+  });
+});
+
+describe("a typed distance follows the cursor's bearing", () => {
+  it("places the point where you are pointing, not due east", async () => {
+    // `applyDynamicInput`'s contract is "distance-only keeps the cursor's bearing". A version of this file passed
+    // the previous point as BOTH origin and cursor, which makes the bearing degenerate: curR = 0, so curA = 0,
+    // so every distance-only entry went due +X regardless of where the user was aiming. The existing
+    // `5<0` test passed for the wrong reason, its explicit 0° matching the bug's output.
+    const { session } = harness();
+    session.setSnap({ enabled: false, polar: false, ortho: false });
+    session.arm("mv.wall.add");
+    await session.pick({ x: 0, z: 0 });
+
+    // Aim due north, then type a bare distance.
+    session.hover({ x: 0, z: 10 });
+    await session.type("5");
+    const outcome = await session.key("Enter");
+
+    expect(outcome.kind).toBe("committed");
+    if (outcome.kind !== "committed") return;
+    const end = (outcome.invocation.args as unknown as WallArgs).end;
+    expect(end[0]).toBeCloseTo(0, 5);
+    expect(end[1]).toBeCloseTo(5, 5);
+  });
+
+  it("refuses rather than guessing when no cursor position is known", async () => {
+    // Reachable through the command line, which is the case worth covering: a coordinate TYPED as `0,0` reaches
+    // the reducer without ever going through `hover` or `pick`, so a point exists and no cursor does. Typing a
+    // bare distance next has no bearing to follow.
+    //
+    // A first version of this test used `pick` for the first point, which records the cursor — so the branch was
+    // unreachable and the test was asserting against a state that cannot occur.
+    const { session } = harness();
+    session.setSnap({ enabled: false, polar: false });
+    session.arm("mv.wall.add");
+    await session.type("0,0");
+    expect(session.state.points).toHaveLength(1);
+
+    await session.type("5");
+    const outcome = await session.key("Enter");
+    expect(outcome.kind).toBe("refused");
+    if (outcome.kind !== "refused") return;
+    expect(outcome.reason).toMatch(/direction|bearing|move/i);
+  });
+});
+
+describe("an override does not arm while idle", () => {
+  it("ignores an override code when no tool is armed", async () => {
+    // `override.arm()` mutates the handle, so calling it before checking `descriptor` left `state.override`
+    // advertising "next pick: midpoint" with nothing armed — a claim about behaviour that cannot happen. The
+    // handle's own `subscribe` comment warns about exactly this: a stale HUD is a lie about the next click.
+    const { session } = harness();
+    expect((await session.type("MI")).kind).toBe("idle");
+    expect(session.state.override).toBeNull();
+  });
+});

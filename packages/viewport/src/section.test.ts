@@ -217,3 +217,32 @@ describe("shared materials", () => {
     expect(shared.clippingPlanes).toHaveLength(1);
   });
 });
+
+describe("disposing does not disable clipping for anyone else", () => {
+  it("restores the flag it found, rather than forcing it false", () => {
+    // A host that had already enabled local clipping for an overlay of its own keeps it after we are done.
+    renderer.localClippingEnabled = true;
+    const section = createSection(renderer, root);
+    section.dispose();
+    expect(renderer.localClippingEnabled).toBe(true);
+  });
+
+  it("still leaves it off when it found it off", () => {
+    expect(renderer.localClippingEnabled).toBe(false);
+    const section = createSection(renderer, root);
+    section.dispose();
+    expect(renderer.localClippingEnabled).toBe(false);
+  });
+
+  it("keeps clipping alive for a second controller when the first is disposed", () => {
+    // The case that defeated capture-and-restore: the second controller captures `true`, so restoring its captured
+    // value would switch the flag off underneath the survivor. Reference counting is what makes this hold.
+    const other = meshed();
+    const first = createSection(renderer, root);
+    const second = createSection(renderer, other);
+    second.setPlane([0, -1, 0], [0, 3, 0]);
+    first.dispose();
+    expect(renderer.localClippingEnabled, "the surviving section still needs the flag").toBe(true);
+    expect(materialOf(other).clippingPlanes).toHaveLength(1);
+  });
+});
