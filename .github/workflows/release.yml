@@ -67,8 +67,24 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
-          cache: npm
           registry-url: https://registry.npmjs.org
+          # **Caching off, explicitly.** A security fix rather than an oversight, and `zizmor` raised it as
+          # high-severity cache-poisoning the moment this workflow became a publishing one.
+          #
+          # The Actions cache is readable across workflows and writable by ones running on *less* trusted
+          # triggers. A job that publishes to npm must not restore a shared, externally-writable cache: an
+          # attacker who can poison it can influence the tarballs that go out under this repository's provenance
+          # attestation — which turns the attestation from a guarantee into a misleading one.
+          #
+          # Dropping `cache: npm` was **not sufficient**, and I had assumed it was. `setup-node`'s own
+          # `action.yml` says it: *"Set to false to disable automatic caching based on the package manager field
+          # in package.json. By default, caching is enabled if the packageManager field is present."* This repo
+          # declares `packageManager: npm@11.16.0`, so the cache was still being restored. zizmor was reporting a
+          # real finding, not flagging the action heuristically — worth remembering the next time a linter looks
+          # like it is being pedantic about something already fixed.
+          #
+          # A release runs a handful of times a year. Ninety seconds of `npm ci` is not worth any of that.
+          package-manager-cache: false
 
       - run: npm ci
 

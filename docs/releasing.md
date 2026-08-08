@@ -77,6 +77,21 @@ So `scripts/check-release-ready.mjs` runs before the publish, locally and in CI:
 
 Run `npm run gate:release` before tagging. Locally is where it is useful; in CI it is binding.
 
+## The release job restores no cache
+
+`actions/setup-node` runs with `package-manager-cache: false`. The Actions cache is readable across workflows and
+writable by ones running on less trusted triggers, so a job that publishes to npm must not restore it — an
+attacker who can poison the cache could influence tarballs going out under this repository's provenance
+attestation, which turns the attestation from a guarantee into a misleading one.
+
+`zizmor` raised this as high severity the moment the workflow became a publishing one, and it was right in a way
+worth recording: **dropping `cache: npm` was not sufficient.** `setup-node`'s own `action.yml` says caching is
+enabled by default whenever `package.json` has a `packageManager` field, and this repo declares
+`packageManager: npm@11.16.0`. The cache was still being restored after the apparent fix, and the linter that
+looked like it was being pedantic about something already handled was reporting a real finding.
+
+A release runs a handful of times a year, so `npm ci` from scratch costs nothing that matters.
+
 ## Nothing publishes without a token
 
 `NPM_TOKEN` absent is a **notice, not a failure**. Publishing to a shared npm scope is irreversible — a version
