@@ -1,5 +1,21 @@
 # @massing/authoring
 
+## 0.1.1
+
+### Patch Changes
+
+- [`1bcb053`](https://github.com/MassingCloud/MassingViewer/commit/1bcb05348f27a6a25ddb78b6259f1958c7c9d692) Thanks [@ibuilder](https://github.com/ibuilder)! - Seven fixes from a code review of the authoring session, two of which let invalid geometry reach the kernel.
+
+  The worst: after a placement refusal, clicking again bypassed validation entirely and committed the geometry that
+  had just been refused. `points` is now derived from the prompt reducer rather than mirrored beside it, which makes
+  the drift that caused it unrepresentable.
+
+  Also: a typed distance now follows the cursor's bearing instead of always going due east; the facade resolves a
+  clicked element by raycast rather than reading the selection; `CommandContext.dispatch` really dispatches instead
+  of returning a fake success; snap candidates come from a grid built per model load rather than a full vertex scan
+  per frame; `section.dispose()` reference-counts the renderer's clipping flag; and a snap override no longer arms
+  while nothing is armed. `embed` now exposes `commands`, since a host has to register its own verbs.
+
 ## 0.1.0
 
 ### Minor Changes

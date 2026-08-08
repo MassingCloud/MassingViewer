@@ -25,8 +25,12 @@ git add -A && git commit -m "release: version packages"
 ```
 
 ```bash
-git tag release-$(date +%Y-%m-%d) && git push origin main --follow-tags
+git tag release-$(date +%Y-%m-%d-%H%M) && git push origin main --follow-tags
 ```
+
+The time is in the tag because a date alone collides on the second release of a day — which happened on the very
+first day, when 0.1.1 shipped a few hours after 0.1.0. `git tag` refuses a duplicate, so the collision is loud
+rather than dangerous, but there is no reason to walk into it.
 
 The tag is what publishes. Everything before it is reviewable and reversible.
 

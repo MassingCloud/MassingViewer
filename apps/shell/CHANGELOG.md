@@ -1,5 +1,12 @@
 # @massing/shell
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [[`1bcb053`](https://github.com/MassingCloud/MassingViewer/commit/1bcb05348f27a6a25ddb78b6259f1958c7c9d692)]:
+  - @massing/viewport@0.1.1
+
 ## 0.0.1
 
 ### Patch Changes

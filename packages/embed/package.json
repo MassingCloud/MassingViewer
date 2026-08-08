@@ -1,6 +1,6 @@
 {
   "name": "@massing/embed",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "createMassingViewer() — the one function a host imports, and the M9 seam ledger that says whether massing can delete its own viewer yet.",
   "license": "MIT",
   "keywords": [
@@ -36,16 +36,16 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massing/authoring": "0.1.0",
+    "@massing/authoring": "0.1.1",
     "@massing/commands": "0.1.0",
     "@massing/core": "0.1.0",
-    "@massing/drawings2d": "0.1.0",
+    "@massing/drawings2d": "0.1.1",
     "@massing/fileio": "0.1.0",
     "@massing/kernel-api": "0.1.0",
     "@massing/markup": "0.1.0",
     "@massing/observability": "0.1.0",
     "@massing/plugin-host": "0.1.0",
     "@massing/ribbon": "0.1.0",
-    "@massing/viewport": "0.1.0"
+    "@massing/viewport": "0.1.1"
   }
 }

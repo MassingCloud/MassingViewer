@@ -1,5 +1,18 @@
 # @massing/drawings2d
 
+## 0.1.1
+
+### Patch Changes
+
+- [`a558526`](https://github.com/MassingCloud/MassingViewer/commit/a558526fe009127d1ac9f962dd14758b7fc36f82) Thanks [@ibuilder](https://github.com/ibuilder)! - Fix an attribute-name injection in SVG output, and pin the escaping with a security test.
+
+  `dataAttrs` escaped attribute _values_ but not attribute _names_, so an `attrs` key carrying a quote broke out and
+  injected an event handler: `{ 'x" onload="alert(1)': '1' }` rendered as `data-x onload="alert(1)="1"`. Escaping
+  cannot fix that — there is no escape syntax inside an attribute name — so the character set is restricted instead.
+
+  `attrs` is author-supplied by a `DrawingProvider`, which is this package's advertised extension point, and the
+  output is assigned to `innerHTML` by every host that shows a plan.
+
 ## 0.1.0
 
 ### Minor Changes
