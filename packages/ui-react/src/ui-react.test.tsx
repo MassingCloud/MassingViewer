@@ -31,8 +31,8 @@ import { Dock, loadLayout, saveLayout, type DockPanel } from "./Dock.js";
 let disposals = 0;
 const disposeCalls = (): number => disposals;
 
-vi.mock("@massingviewer/ribbon", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@massingviewer/ribbon")>();
+vi.mock("@massing/ribbon", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@massing/ribbon")>();
   return {
     ...actual,
     createRibbon: (container: HTMLElement, options: Parameters<typeof actual.createRibbon>[1]) => {

@@ -1,4 +1,4 @@
-// @massingviewer/commands — one abstraction, seven features.
+// @massing/commands — one abstraction, seven features.
 //
 // Every user action becomes exactly one serializable `CommandInvocation`, including the interactive
 // AutoCAD-style prompt loops, which are a PURE REDUCER that accumulates arguments and emits one invocation on

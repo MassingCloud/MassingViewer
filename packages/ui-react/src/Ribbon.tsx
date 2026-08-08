@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createRibbon, type Ribbon as RibbonHandle, type RibbonOptions } from "@massingviewer/ribbon";
-import type { RibbonGroup, RibbonItem, ToolContext } from "@massingviewer/ui-model";
+import { createRibbon, type Ribbon as RibbonHandle, type RibbonOptions } from "@massing/ribbon";
+import type { RibbonGroup, RibbonItem, ToolContext } from "@massing/ui-model";
 
 /**
  * React hosting the vanilla ribbon.

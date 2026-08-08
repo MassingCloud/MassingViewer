@@ -6,9 +6,9 @@ import { defineConfig } from "vite";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /**
- * Resolve `@massingviewer/*` to package SOURCE, not built `dist/`.
+ * Resolve `@massing/*` to package SOURCE, not built `dist/`.
  *
- * Without this, `npm run dev` on a fresh clone fails with `Failed to resolve import "@massingviewer/core"`,
+ * Without this, `npm run dev` on a fresh clone fails with `Failed to resolve import "@massing/core"`,
  * because each package's `exports` points at `./dist/index.js` and nothing has been built yet. The README's
  * `npm install && npm run dev` quick-start was therefore false on a clean checkout — and the error names the
  * import rather than the missing build, so the fix is not obvious from the message.
@@ -28,17 +28,17 @@ function workspaceAliases(): { find: RegExp; replacement: string }[] {
     if (!existsSync(join(src, "index.ts"))) continue;
     // A **subpath** alias, and it must come first because Vite matches in order.
     //
-    // The plain-string form of `alias` does prefix matching, so a single `@massingviewer/ribbon` entry rewrote
-    // `@massingviewer/ribbon/ribbon.css` to `.../src/index.ts/ribbon.css` and the build failed with
+    // The plain-string form of `alias` does prefix matching, so a single `@massing/ribbon` entry rewrote
+    // `@massing/ribbon/ribbon.css` to `.../src/index.ts/ribbon.css` and the build failed with
     // "Could not load". Subpath exports are real — a stylesheet today, a worker entry tomorrow — so the mapping
     // has to handle them rather than assume every specifier is bare.
     aliases.push({
-      find: new RegExp(`^@massingviewer/${name}/(.*)$`),
+      find: new RegExp(`^@massing/${name}/(.*)$`),
       replacement: `${src}/$1`,
     });
     // Anchored, so it matches the bare specifier exactly and cannot swallow a subpath.
     aliases.push({
-      find: new RegExp(`^@massingviewer/${name}$`),
+      find: new RegExp(`^@massing/${name}$`),
       replacement: join(src, "index.ts"),
     });
   }

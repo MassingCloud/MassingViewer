@@ -11,7 +11,7 @@ need every edit to go through your own CRDT.
 ## The shape of it
 
 ```ts
-import type { KernelProvider } from "@massingviewer/kernel-api";
+import type { KernelProvider } from "@massing/kernel-api";
 ```
 
 One interface. Read it before anything else — `packages/kernel-api/src/provider.ts` is the specification, and
@@ -35,13 +35,13 @@ Retrofitting it later is a rewrite — this is the single most expensive thing t
 ## Start from the suite, not from the interface
 
 ```bash
-npm i -D @massingviewer/kernel-conformance
+npm i -D @massing/kernel-conformance
 ```
 
 ```ts
-import { asModelId } from "@massingviewer/core";
-import { describeKernel } from "@massingviewer/kernel-conformance";
-import { createMemoryKernel } from "@massingviewer/kernel-memory";
+import { asModelId } from "@massing/core";
+import { describeKernel } from "@massing/kernel-conformance";
+import { createMemoryKernel } from "@massing/kernel-memory";
 
 // Your factory. `createMemoryKernel` stands in here so this block compiles as written — the reference
 // implementation in `packages/kernel-memory` is also the shortest complete example of the interface.
@@ -153,7 +153,7 @@ Only `internal` and `transport` are incidents. Everything else is a normal outco
 An `expressID` is a **file offset artefact**. It changes when a file is rewritten, and a fresh parse hands out
 different ones. A `GlobalId` is the only identifier safe to persist.
 
-`@massingviewer/core` makes them different branded types so you cannot mix them by accident, and the rule for
+`@massing/core` makes them different branded types so you cannot mix them by accident, and the rule for
 your kernel is short: **never derive a GlobalId from an expressID.** Mint it once at creation, store it, and
 return it forever. An imported element keeps whatever its file gave it, verbatim.
 
@@ -167,7 +167,7 @@ has the implementation if you need it.
 
 ```ts
 import { readFileSync } from "node:fs";
-import { describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
+import { describeRecipeParity, parseRecipeLedger } from "@massing/kernel-conformance";
 
 const ledger = parseRecipeLedger(readFileSync("fixtures/recipes.tsv", "utf8"));
 describeRecipeParity("MyKernel", { create: async () => createMyKernel() }, ledger, "mine");

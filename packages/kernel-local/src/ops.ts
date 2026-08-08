@@ -1,6 +1,6 @@
-import { type Result, type Guid, err, ok } from "@massingviewer/core";
-import { type KernelFailure, type OpDescriptor, type OpParams, kernelFailure } from "@massingviewer/kernel-api";
-import { FALSE, type StepValue, TRUE, integer, list, real, ref, str } from "@massingviewer/ifc";
+import { type Result, type Guid, err, ok } from "@massing/core";
+import { type KernelFailure, type OpDescriptor, type OpParams, kernelFailure } from "@massing/kernel-api";
+import { FALSE, type StepValue, TRUE, integer, list, real, ref, str } from "@massing/ifc";
 import type { LocalModel } from "./model.js";
 
 /**

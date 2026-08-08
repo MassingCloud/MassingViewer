@@ -90,7 +90,7 @@ extraction session, massing advanced **15 commits in about 90 minutes**. None to
 — verified, not assumed — but the rate is the point.
 
 So: until MassingViewer `0.1.0`, extraction is a **read** of massing and massing keeps shipping normally.
-After `0.1.0`, massing's `apps/web/src/viewer` is deleted and replaced with `@massingviewer/*`
+After `0.1.0`, massing's `apps/web/src/viewer` is deleted and replaced with `@massing/*`
 dependencies. That is milestone M9 in the roadmap, and it is **not optional and must not slip** — every
 week both repos hold a copy is divergence debt at compound interest.
 

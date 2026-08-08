@@ -35,7 +35,7 @@ import {
   type Guid,
   type ModelId,
   type Result,
-} from "@massingviewer/core";
+} from "@massing/core";
 import {
   kernelFailure,
   unsupported,
@@ -54,7 +54,7 @@ import {
   type SnapCandidatePoint,
   type SpatialNode,
   type Transaction,
-} from "@massingviewer/kernel-api";
+} from "@massing/kernel-api";
 
 // ---------------------------------------------------------------------------------------------------
 // GlobalId generation
@@ -241,7 +241,7 @@ function length(params: OpParams, key: string, min = 0): number | Fail {
 const isFail = (v: unknown): v is Fail =>
   typeof v === "object" && v !== null && "ok" in v && (v as { ok: unknown }).ok === false;
 
-/** Minimum run length, matching `MIN_RUN_M` in @massingviewer/geometry-math. */
+/** Minimum run length, matching `MIN_RUN_M` in @massing/geometry-math. */
 const MIN_RUN_M = 0.05;
 /** Plausible model bounds, mirroring the placement checks. */
 const MAX_COORD_M = 100_000;
@@ -568,7 +568,7 @@ export function createMemoryKernel(options: MemoryKernelOptions = {}): KernelPro
 
     const header =
       `ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [CoordinationView]'),'2;1');\n` +
-      `FILE_NAME('memory.ifc','',('MassingViewer'),('MassingCloud'),'@massingviewer/kernel-memory','',' ');\n` +
+      `FILE_NAME('memory.ifc','',('MassingViewer'),('MassingCloud'),'@massing/kernel-memory','',' ');\n` +
       `FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;`;
     return new TextEncoder().encode(`${header}\n${lines.join("\n")}\nENDSEC;\nEND-ISO-10303-21;\n`);
   }

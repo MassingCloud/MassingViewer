@@ -1,4 +1,4 @@
-// @massingviewer/fileio — the first ten minutes.
+// @massing/fileio — the first ten minutes.
 //
 // The Design Room's own roadmap says it: "the room is not behind on features — it is behind on the first ten
 // minutes." This package is that sentence, addressed. Two decisions carry it:

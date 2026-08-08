@@ -1,5 +1,5 @@
-import type { Result } from "@massingviewer/core";
-import type { OpId } from "@massingviewer/kernel-api";
+import type { Result } from "@massing/core";
+import type { OpId } from "@massing/kernel-api";
 
 /**
  * The command bus's vocabulary.

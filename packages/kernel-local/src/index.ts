@@ -1,4 +1,4 @@
-// @massingviewer/kernel-local — authoring IFC with no server, no account and no upload.
+// @massing/kernel-local — authoring IFC with no server, no account and no upload.
 //
 // The claim this package exists to make good on: the model never leaves the browser. See
 // docs/adr/0001-two-kernels.md for why there are two kernels, and

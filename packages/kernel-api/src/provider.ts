@@ -1,4 +1,4 @@
-import type { ElementRef, Guid, ModelId, Result } from "@massingviewer/core";
+import type { ElementRef, Guid, ModelId, Result } from "@massing/core";
 import type { KernelFailure } from "./failure.js";
 
 /**
@@ -30,7 +30,7 @@ import type { KernelFailure } from "./failure.js";
  * be eroded one convenient call at a time. Retrofitting it later is a rewrite.
  *
  * **2. Capability claims are testable and tested.** {@link KernelProvider.ops} is not documentation.
- * `@massingviewer/kernel-conformance` asserts that every op a kernel claims actually works, and that
+ * `@massing/kernel-conformance` asserts that every op a kernel claims actually works, and that
  * every op it does *not* claim returns `unsupported` — rather than throwing, hanging, or silently doing
  * nothing. A kernel that lies about its capabilities fails CI.
  */
@@ -96,7 +96,7 @@ export interface KernelProvider {
    * Lives on the kernel rather than the viewport because the *authoritative* geometry does. The
    * viewport can offer snaps against tessellated meshes it happens to have loaded; the kernel can offer
    * them against the real element. Callers feed the result to `resolveSnap` in
-   * `@massingviewer/geometry-math`, which is where the priority rules live.
+   * `@massing/geometry-math`, which is where the priority rules live.
    */
   snapCandidates(
     modelId: ModelId,
@@ -152,7 +152,7 @@ export interface ParamDescriptor {
     | "guid-list"
     | "object";
   readonly required: boolean;
-  /** Lengths are always metres at this boundary — see `@massingviewer/core`'s units note. */
+  /** Lengths are always metres at this boundary — see `@massing/core`'s units note. */
   readonly unit?: "m" | "deg";
   readonly options?: readonly string[];
   readonly min?: number;
@@ -347,7 +347,7 @@ export interface DrawingIncludes {
  * silently missing a wall **renders perfectly** — there is no visual cue, and the person who finds out
  * is on site. So a kernel must report which elements failed to section and what fraction of the output
  * carries a GlobalId, and the UI is expected to surface both. The full model is defined in
- * `@massingviewer/drawings2d`; this is the transport shape.
+ * `@massing/drawings2d`; this is the transport shape.
  */
 export interface DrawingPayload {
   /** Semantic Drawing Model, JSON-serialisable. Model-space metres — paper is a render-time transform. */

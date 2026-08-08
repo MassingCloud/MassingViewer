@@ -1,4 +1,4 @@
-// @massingviewer/plugin-host — declarative contributions, lazy activation, and a host no plugin can break.
+// @massing/plugin-host — declarative contributions, lazy activation, and a host no plugin can break.
 //
 // The manifest is DATA, so the host builds its entire UI — ribbon, palette, keybindings — without running a line
 // of plugin code. That is what makes lazy activation possible, and lazy activation is what keeps a hundred

@@ -1,4 +1,4 @@
-import type { PlanBounds, SnapCandidate, SnapKind, SnapResult, Vec2 } from "@massingviewer/geometry-math";
+import type { PlanBounds, SnapCandidate, SnapKind, SnapResult, Vec2 } from "@massing/geometry-math";
 import {
   ALL_OVERRIDE_KINDS,
   KEY_SHORTCUT_MAP,
@@ -16,7 +16,7 @@ import {
   type Inference,
   type OverrideKind,
   type SnapOverrideHandle,
-} from "@massingviewer/geometry-math";
+} from "@massing/geometry-math";
 import {
   begin,
   step,
@@ -28,8 +28,8 @@ import {
   type PromptEvent,
   type PromptState,
   type Registry,
-} from "@massingviewer/commands";
-import type { Result } from "@massingviewer/core";
+} from "@massing/commands";
+import type { Result } from "@massing/core";
 
 /**
  * The authoring session — the object four of the five M9 seam gaps were waiting on.

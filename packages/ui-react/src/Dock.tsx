@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { envelope, migrate, type MigrationStep } from "@massingviewer/observability";
+import { envelope, migrate, type MigrationStep } from "@massing/observability";
 
 /**
  * The dockable panel layout.
@@ -267,7 +267,7 @@ const LAYOUT_MIGRATIONS: readonly MigrationStep[] = [];
 /**
  * Persist and restore a layout.
  *
- * Versioned through `@massingviewer/observability`'s `migrate` rather than by a hand-rolled check here. The policy
+ * Versioned through `@massing/observability`'s `migrate` rather than by a hand-rolled check here. The policy
  * a hand-rolled check gets right — refuse a future version — is the easy half; the half every copy gets differently
  * is what happens on a *partial* match, and the wrong answer there writes back a half-read object and destroys the
  * user's settings the moment they open an older tab.

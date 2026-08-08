@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { asModelId } from "@massingviewer/core";
-import type { KernelProvider } from "@massingviewer/kernel-api";
+import { asModelId } from "@massing/core";
+import type { KernelProvider } from "@massing/kernel-api";
 import { createMassingViewer, type MassingViewer } from "./embed.js";
 import { SEAM, seamCoverage, seamSummary } from "./seam.js";
 
@@ -131,7 +131,7 @@ describe("the M9 seam ledger", () => {
  * The fake records what it was asked to do, which is how "reopens the kernel on the new bytes" and "renders a
  * ribbon only when given somewhere to put it" can be asserted without a renderer.
  */
-vi.mock("@massingviewer/viewport", () => ({
+vi.mock("@massing/viewport", () => ({
   createViewport: () => {
     const listeners: ((ids: readonly number[]) => void)[] = [];
     let disposed = 0;

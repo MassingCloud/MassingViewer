@@ -1,4 +1,4 @@
-import { err, ok, type Result } from "@massingviewer/core";
+import { err, ok, type Result } from "@massing/core";
 import {
   assertSerializable,
   type ArgSpec,

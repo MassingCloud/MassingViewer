@@ -1,5 +1,5 @@
-import { err, ok } from "@massingviewer/core";
-import { kernelFailure } from "@massingviewer/kernel-api";
+import { err, ok } from "@massing/core";
+import { kernelFailure } from "@massing/kernel-api";
 import { LocalKernelCore } from "./core.js";
 import type { GuidMinter } from "./guid.js";
 import type { KernelRequest, KernelResponse } from "./protocol.js";

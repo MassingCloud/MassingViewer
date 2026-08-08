@@ -9,8 +9,8 @@ import {
   contextualTabsFor,
   layoutTab,
   tabsWithContent,
-} from "@massingviewer/ui-model";
-import { TOOLS, type ToolContext, type ToolSpec } from "@massingviewer/ui-model";
+} from "@massing/ui-model";
+import { TOOLS, type ToolContext, type ToolSpec } from "@massing/ui-model";
 
 /**
  * The ribbon, rendered in vanilla DOM.

@@ -1,4 +1,4 @@
-import type { Guid } from "@massingviewer/core";
+import type { Guid } from "@massing/core";
 
 /**
  * The Semantic Drawing Model.

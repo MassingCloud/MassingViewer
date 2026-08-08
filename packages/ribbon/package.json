@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/ribbon",
+  "name": "@massing/ribbon",
   "version": "0.1.0",
   "description": "An Office-style ribbon in vanilla DOM — responsive group collapse, roving-tabindex keyboard navigation, and dimmed-with-a-reason controls. No framework, so massing and a React shell can both render it.",
   "license": "MIT",
@@ -39,6 +39,6 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/ui-model": "0.1.0"
+    "@massing/ui-model": "0.1.0"
   }
 }

@@ -1,4 +1,4 @@
-# @massingviewer/ui-react
+# @massing/ui-react
 
 ## 0.1.0
 
@@ -17,7 +17,7 @@
 - [`3edb9dd`](https://github.com/MassingCloud/MassingViewer/commit/3edb9dda85b8d9b24e9636cdd9a23ffdd42876ee) Thanks [@ibuilder](https://github.com/ibuilder)! - Fix: the published ESM now resolves in Node.
 
   Every package emitted extensionless relative imports, which a bundler tolerates and Node does not — so
-  `import("@massingviewer/core")` failed with ERR_MODULE_NOT_FOUND in every package. Invisible to the test suite,
+  `import("@massing/core")` failed with ERR_MODULE_NOT_FOUND in every package. Invisible to the test suite,
   because it resolves workspace packages to source by design. The packaging gate now loads each built entry.
 
 - [`0378309`](https://github.com/MassingCloud/MassingViewer/commit/037830952e5a68a164a4b670f7ec26cfbda3144f) Thanks [@ibuilder](https://github.com/ibuilder)! - New package: crash reporting, telemetry, audit and feature flags with the sinks inverted.
@@ -29,6 +29,6 @@
   layout now goes through it.
 
 - Updated dependencies [[`bc5d8d4`](https://github.com/MassingCloud/MassingViewer/commit/bc5d8d4d83ba7ac13109f8e83fb6a3c8243d8cda), [`3edb9dd`](https://github.com/MassingCloud/MassingViewer/commit/3edb9dda85b8d9b24e9636cdd9a23ffdd42876ee), [`0378309`](https://github.com/MassingCloud/MassingViewer/commit/037830952e5a68a164a4b670f7ec26cfbda3144f), [`8f3434d`](https://github.com/MassingCloud/MassingViewer/commit/8f3434dd1528dc2fa80470d3a819c4dd66929ec0)]:
-  - @massingviewer/ui-model@0.1.0
-  - @massingviewer/ribbon@0.1.0
-  - @massingviewer/observability@0.1.0
+  - @massing/ui-model@0.1.0
+  - @massing/ribbon@0.1.0
+  - @massing/observability@0.1.0

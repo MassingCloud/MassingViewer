@@ -116,13 +116,13 @@ try {
   }
 
   // Module resolution has to reach the real workspace packages, or every import fails and the gate reports
-  // nonsense. `baseUrl`/`paths` point at each package's source: examples import from `@massingviewer/*`, which
+  // nonsense. `baseUrl`/`paths` point at each package's source: examples import from `@massing/*`, which
   // is what a reader writes, and the published `dist` may not be built.
   const paths = {};
   for (const pkg of globSync("packages/*/src/index.ts", { cwd: ROOT }).map(slashes).sort()) {
     const name = pkg.split("/")[1];
-    paths[`@massingviewer/${name}`] = [join(ROOT, "packages", name, "src", "index.ts")];
-    paths[`@massingviewer/${name}/*`] = [join(ROOT, "packages", name, "src", "*")];
+    paths[`@massing/${name}`] = [join(ROOT, "packages", name, "src", "index.ts")];
+    paths[`@massing/${name}/*`] = [join(ROOT, "packages", name, "src", "*")];
   }
 
   writeFileSync(

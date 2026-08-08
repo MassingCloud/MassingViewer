@@ -3,9 +3,9 @@
  *
  * ## Why this exists, specifically
  *
- * The test run resolves `@massingviewer/*` to package **source** via a Vitest alias (see `vitest.config.ts`).
+ * The test run resolves `@massing/*` to package **source** via a Vitest alias (see `vitest.config.ts`).
  * That fixed a real CI failure and stopped tests passing against stale `dist/`, but it opened a gap: nothing
- * exercises the `exports` field any more. A consumer running `npm i @massingviewer/core` resolves through
+ * exercises the `exports` field any more. A consumer running `npm i @massing/core` resolves through
  * `exports`, and if that points somewhere the build never writes, the package is broken for everyone *except*
  * this repo — where the alias hides it.
  *
@@ -130,7 +130,7 @@ for (const name of readdirSync(packagesDir)) {
      * those is that the file exists and that `files` actually ships it; requiring them under `outDir` would push
      * a package into inventing a copy step for a file that was never generated.
      *
-     * `@massingviewer/ribbon` is the case that found this: it exports `./ribbon.css` from `src`, which is correct
+     * `@massing/ribbon` is the case that found this: it exports `./ribbon.css` from `src`, which is correct
      * and which the original rule rejected. The rule was about JS entry points going missing; it was stated as a
      * rule about paths.
      */
@@ -188,8 +188,8 @@ for (const name of readdirSync(packagesDir)) {
 
   // Workspace dependencies must be declared, or `npm i` on the published package resolves nothing.
   for (const [dep, range] of Object.entries(manifest.dependencies ?? {})) {
-    if (!dep.startsWith("@massingviewer/")) continue;
-    const target = dep.slice("@massingviewer/".length);
+    if (!dep.startsWith("@massing/")) continue;
+    const target = dep.slice("@massing/".length);
     if (!existsSync(join(packagesDir, target, "package.json"))) {
       problems.push(`${where}: depends on ${dep}, which is not a package in this repo`);
     }
@@ -207,7 +207,7 @@ for (const name of readdirSync(packagesDir)) {
  * emits specifiers verbatim and the sources used extensionless relative imports (`from "./model"`). That output is
  * resolvable by a bundler and by nothing else.
  *
- * So `npm install @massingviewer/core` followed by `node --input-type=module -e "import('@massingviewer/core')"`
+ * So `npm install @massing/core` followed by `node --input-type=module -e "import('@massing/core')"`
  * was broken from the first release, and nothing here could see it: the test run resolves workspace packages to
  * *source* via a Vitest alias, deliberately, and that alias is exactly what hides this class of defect.
  *

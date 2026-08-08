@@ -69,18 +69,18 @@ L0  core · kernel-api · kernel-conformance                    vocabulary and c
 
 | Package | Owns |
 |---|---|
-| `@massingviewer/core` | Element identity, units, `Result`. Three concerns, each one a place where silent disagreement between subsystems is expensive |
-| `@massingviewer/kernel-api` | The `KernelProvider` contract and error taxonomy. **Types only** — a helper that touched `fetch` or `web-ifc` would make it un-implementable from the other side of that choice |
-| `@massingviewer/kernel-conformance` | The suite every kernel must pass. Published, so writing a kernel is `npm i -D` and fix the reds |
+| `@massing/core` | Element identity, units, `Result`. Three concerns, each one a place where silent disagreement between subsystems is expensive |
+| `@massing/kernel-api` | The `KernelProvider` contract and error taxonomy. **Types only** — a helper that touched `fetch` or `web-ifc` would make it un-implementable from the other side of that choice |
+| `@massing/kernel-conformance` | The suite every kernel must pass. Published, so writing a kernel is `npm i -D` and fix the reds |
 
 ### L1 — pure algorithms
 
 | Package | Owns |
 |---|---|
-| `@massingviewer/geometry-math` | Object snapping with priority ties, polar tracking, dynamic input, drawing inference, placement validation, the CAD command grammar |
-| `@massingviewer/ui-model` | Ribbon and palette layout as data. Exists so massing's vanilla DOM and the React shell read **one** table — see `docs/adr/0006-react-shell-vanilla-core.md` |
-| `@massingviewer/catalog` | The parametric element palette: what can be drawn, which IFC class it becomes, which operation authors it |
-| `@massingviewer/jobs` | The cancellable job queue |
+| `@massing/geometry-math` | Object snapping with priority ties, polar tracking, dynamic input, drawing inference, placement validation, the CAD command grammar |
+| `@massing/ui-model` | Ribbon and palette layout as data. Exists so massing's vanilla DOM and the React shell read **one** table — see `docs/adr/0006-react-shell-vanilla-core.md` |
+| `@massing/catalog` | The parametric element palette: what can be drawn, which IFC class it becomes, which operation authors it |
+| `@massing/jobs` | The cancellable job queue |
 
 These omit the `DOM` lib from `tsconfig.json` entirely, so a stray `document` is a type error here rather
 than a runtime failure in someone else's environment.

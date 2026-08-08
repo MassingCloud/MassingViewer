@@ -168,7 +168,7 @@ function collectPackages() {
 
     // Derive the package name from the lockfile path, since entries do not always carry `name`.
     const name = entry.name ?? path.replace(/^(?:.*\/)?node_modules\//, "");
-    if (!name || name.startsWith("@massingviewer/")) continue;
+    if (!name || name.startsWith("@massing/")) continue;
 
     const key = `${name}@${entry.version ?? "?"}`;
     if (found.has(key)) continue;

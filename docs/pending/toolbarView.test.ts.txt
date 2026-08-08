@@ -1,7 +1,7 @@
 // Extracted from ibuilder/massing @ de980159585163d11ca88151fbf8e9013c3ba7b2 (apps/web/src/viewer/toolbarLayout.test.ts), MIT.
 // See NOTICE and docs/PROVENANCE.tsv. Upstream changes to that path are reported weekly.
 //
-PRESERVED VERBATIM — do not edit. Re-lands in @massingviewer/ui-react at M7.
+PRESERVED VERBATIM — do not edit. Re-lands in @massing/ui-react at M7.
 Source: ibuilder/massing @ 456fa6c06c0a577eb80ba778aac3c4ca7ad111ad, apps/web/src/viewer/toolbarLayout.test.ts (the two DOM describe blocks).
 Re-express these against the React ribbon rather than porting installToolbarView. What they protect:
   - no tool is lost by the layout pass (a dropped tool is invisible; a user finds it, not a test)

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TOOLS, buildRibbon, type ToolContext } from "@massingviewer/ui-model";
+import { TOOLS, buildRibbon, type ToolContext } from "@massing/ui-model";
 import { createRibbon, type Ribbon } from "./ribbon.js";
 
 /**

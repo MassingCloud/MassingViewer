@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { asGuid, type Guid } from "@massingviewer/core";
+import { asGuid, type Guid } from "@massing/core";
 import {
   addComment,
   addViewpoint,

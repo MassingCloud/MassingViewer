@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/catalog",
+  "name": "@massing/catalog",
   "version": "0.1.0",
   "description": "The parametric element palette: what a user can draw, which IFC class it becomes, how many points it takes, and which parameters it exposes.",
   "license": "MIT",

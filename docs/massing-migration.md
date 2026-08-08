@@ -21,7 +21,7 @@ answer to be yes.
 Run it rather than trusting this paragraph:
 
 ```bash
-node -e "import('@massingviewer/embed').then(m => console.log(m.seamSummary()))"
+node -e "import('@massing/embed').then(m => console.log(m.seamSummary()))"
 ```
 
 `seamCoverage()` counts only the **movable** surface. `ApiClient` staying in massing is the design, not a
@@ -63,7 +63,7 @@ plan: of 171 `api.` references, lines 0–1999 hold 36 and lines 2000–5064 hol
 API-free already, which is why this extraction is feasible at all.
 
 **4. Then, and only then, swap the engine.** `apps/web/src/viewer/` is deleted and replaced by
-`@massingviewer/embed`. One `createMassingViewer` call, and `ViewerCtx.kernel` where `ViewerCtx.api` used to be.
+`@massing/embed`. One `createMassingViewer` call, and `ViewerCtx.kernel` where `ViewerCtx.api` used to be.
 
 ## The Worker is constructed in massing, not here
 

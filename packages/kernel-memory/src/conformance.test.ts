@@ -2,7 +2,7 @@
  * `MemoryKernel` against the conformance suite.
  *
  * This file is the template a third-party kernel copies. It is deliberately almost all *fixture* and almost
- * no test code: everything that is actually asserted lives in `@massingviewer/kernel-conformance`, so a new
+ * no test code: everything that is actually asserted lives in `@massing/kernel-conformance`, so a new
  * kernel inherits the whole contract by supplying sample parameters.
  *
  * It is also the thing that keeps the suite honest. A contract nothing passes is a wish list — when
@@ -14,8 +14,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { asModelId } from "@massingviewer/core";
-import { describeKernel, describeRecipeParity, parseRecipeLedger } from "@massingviewer/kernel-conformance";
+import { asModelId } from "@massing/core";
+import { describeKernel, describeRecipeParity, parseRecipeLedger } from "@massing/kernel-conformance";
 import { createMemoryKernel } from "./index.js";
 
 const WALL = { start: [0, 0], end: [5, 0], height: 3, thickness: 0.2, name: "Wall-Test" };

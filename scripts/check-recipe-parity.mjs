@@ -9,7 +9,7 @@
  *   3. `yes` counts never drop below the committed floor below.
  *
  * What this gate deliberately does **not** check is whether a `yes` is true — a script reading a TSV cannot
- * know that. That check lives where the kernel does: `@massingviewer/kernel-conformance` reads this same file
+ * know that. That check lives where the kernel does: `@massing/kernel-conformance` reads this same file
  * and asserts, against a live kernel, that every `yes` op actually works and every non-`yes` op returns
  * `unsupported`. So the TSV cannot lie in either direction, and the two halves of the check are in the two
  * places that can each see half the truth.

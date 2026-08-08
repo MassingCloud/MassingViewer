@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Guid, LocalId, ModelId } from "@massingviewer/core";
+import type { Guid, LocalId, ModelId } from "@massing/core";
 
 /**
  * Turning tessellated element geometry into a three.js scene, without losing element identity.

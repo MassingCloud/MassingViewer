@@ -1,4 +1,4 @@
-import type { Guid, Result } from "@massingviewer/core";
+import type { Guid, Result } from "@massing/core";
 import type { Drawing, DrawingKind, ViewDefinition } from "./model.js";
 
 /**

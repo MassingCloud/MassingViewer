@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/commands",
+  "name": "@massing/commands",
   "version": "0.1.0",
   "description": "The command bus: every action is one serializable invocation, and interactive prompt loops are a pure reducer. Yields undo, a palette, an AutoCAD command line, keybindings, macros, the plugin API and an audit log from one mechanism.",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0",
-    "@massingviewer/kernel-api": "0.1.0"
+    "@massing/core": "0.1.0",
+    "@massing/kernel-api": "0.1.0"
   }
 }

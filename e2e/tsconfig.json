@@ -13,10 +13,10 @@
       "node"
     ],
     "paths": {
-      "@massingviewer/viewport": [
+      "@massing/viewport": [
         "../packages/viewport/src/index.ts"
       ],
-      "@massingviewer/core": [
+      "@massing/core": [
         "../packages/core/src/index.ts"
       ]
     },

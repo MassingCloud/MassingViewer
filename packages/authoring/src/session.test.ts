@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import fc from "fast-check";
-import { ok, type Result } from "@massingviewer/core";
-import type { SnapCandidate, Vec2 } from "@massingviewer/geometry-math";
+import { ok, type Result } from "@massing/core";
+import type { SnapCandidate, Vec2 } from "@massing/geometry-math";
 import {
   createRegistry,
   type CommandContext,
   type CommandDescriptor,
   type CommandInvocation,
   type Registry,
-} from "@massingviewer/commands";
+} from "@massing/commands";
 import { DEFAULT_SNAP, createSession, type AuthoringSession, type SessionDeps } from "./session";
 
 /**

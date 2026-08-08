@@ -20,7 +20,7 @@ The example in `apps/demo/src/main.ts` is small enough to read and real enough t
 through the same `load` callback a third-party plugin would be.
 
 ```ts
-import type { PluginManifest } from "@massingviewer/plugin-host";
+import type { PluginManifest } from "@massing/plugin-host";
 
 export const manifest: PluginManifest = {
   id: "example.metrics",
@@ -46,7 +46,7 @@ export const manifest: PluginManifest = {
 ```
 
 ```ts
-import type { PluginContext, PluginRuntime } from "@massingviewer/plugin-host";
+import type { PluginContext, PluginRuntime } from "@massing/plugin-host";
 
 export const runtime: PluginRuntime = {
   activate(context: PluginContext) {

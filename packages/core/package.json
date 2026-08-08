@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/core",
+  "name": "@massing/core",
   "version": "0.1.0",
   "description": "Document model foundations: GUID-based element identity, unit systems with imperial formatting, and the shared result/event types every other package speaks.",
   "license": "MIT",

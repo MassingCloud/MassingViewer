@@ -1,4 +1,4 @@
-// @massingviewer/catalog — the parametric element palette.
+// @massing/catalog — the parametric element palette.
 //
 // Each entry says what a user can draw, which IFC class it becomes, which kernel operation authors it,
 // how many points it takes, and which parameters it exposes. That one table drives three surfaces: the

@@ -1,4 +1,4 @@
-# @massingviewer/ribbon
+# @massing/ribbon
 
 ## 0.1.0
 
@@ -56,8 +56,8 @@
 - [`3edb9dd`](https://github.com/MassingCloud/MassingViewer/commit/3edb9dda85b8d9b24e9636cdd9a23ffdd42876ee) Thanks [@ibuilder](https://github.com/ibuilder)! - Fix: the published ESM now resolves in Node.
 
   Every package emitted extensionless relative imports, which a bundler tolerates and Node does not — so
-  `import("@massingviewer/core")` failed with ERR_MODULE_NOT_FOUND in every package. Invisible to the test suite,
+  `import("@massing/core")` failed with ERR_MODULE_NOT_FOUND in every package. Invisible to the test suite,
   because it resolves workspace packages to source by design. The packaging gate now loads each built entry.
 
 - Updated dependencies [[`bc5d8d4`](https://github.com/MassingCloud/MassingViewer/commit/bc5d8d4d83ba7ac13109f8e83fb6a3c8243d8cda), [`3edb9dd`](https://github.com/MassingCloud/MassingViewer/commit/3edb9dda85b8d9b24e9636cdd9a23ffdd42876ee)]:
-  - @massingviewer/ui-model@0.1.0
+  - @massing/ui-model@0.1.0

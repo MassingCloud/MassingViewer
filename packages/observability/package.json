@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/observability",
+  "name": "@massing/observability",
   "version": "0.1.0",
   "description": "Crash reporting, telemetry, audit and feature flags with the sinks inverted — the default sends nothing, and the telemetry emitter cannot transmit a field it does not declare.",
   "license": "MIT",

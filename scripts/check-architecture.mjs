@@ -237,12 +237,12 @@ for (const pkg of packages) {
       if (spec.startsWith(".")) continue; // relative — within the package
 
       // --- workspace imports: layering + declared-dependency ---
-      const ws = /^@massingviewer\/([^/]+)/.exec(spec);
+      const ws = /^@massing\/([^/]+)/.exec(spec);
       if (ws) {
         const target = ws[1];
         const theirLayer = layerOf(target);
         if (theirLayer === -1) {
-          problems.push(`${rel}: imports @massingviewer/${target}, which has no layer assigned`);
+          problems.push(`${rel}: imports @massing/${target}, which has no layer assigned`);
           continue;
         }
         if (!edges.has(pkg)) edges.set(pkg, new Set());

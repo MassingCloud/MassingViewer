@@ -1,4 +1,4 @@
-import type { ItemSize, TabId } from "@massingviewer/ui-model";
+import type { ItemSize, TabId } from "@massing/ui-model";
 
 /**
  * The declarative contribution manifest — what a plugin *says* it adds, before any of its code runs.
@@ -70,7 +70,7 @@ export interface KeybindingContribution {
 
 export interface IoContribution {
   readonly id: string;
-  /** File kinds this handles, matching `@massingviewer/fileio`'s `FileKind` values. */
+  /** File kinds this handles, matching `@massing/fileio`'s `FileKind` values. */
   readonly kinds: readonly string[];
   readonly label: string;
 }

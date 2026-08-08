@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/fileio",
+  "name": "@massing/fileio",
   "version": "0.1.0",
   "description": "Open files by reading them, not by trusting their names — byte sniffing, a drag-and-drop target that cannot navigate your session away, and a picker that works outside Chromium.",
   "license": "MIT",

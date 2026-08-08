@@ -1,4 +1,4 @@
-import { type RibbonGroup, type TabId, toolId } from "@massingviewer/ui-model";
+import { type RibbonGroup, type TabId, toolId } from "@massing/ui-model";
 import type { CommandContribution, Contributions, RibbonGroupContribution } from "./manifest.js";
 
 /**

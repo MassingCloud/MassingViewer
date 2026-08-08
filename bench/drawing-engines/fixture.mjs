@@ -111,7 +111,7 @@ function mesh(expressId, ifcType, parts, color = GREY) {
  * A single-storey building, 8 m x 6 m, walls 200 mm, 3 m high.
  *
  * Y is up (which is what drawing-2d's 'y' axis section expects); X/Z is the plan plane, matching the
- * convention in @massingviewer/geometry-math.
+ * convention in @massing/geometry-math.
  *
  * Expected at a 1.2 m plan cut:
  *   - 4 walls cut → 4 closed loops, but the south wall is split by a door opening whose head is at

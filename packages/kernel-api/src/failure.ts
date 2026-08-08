@@ -1,4 +1,4 @@
-import type { Failure } from "@massingviewer/core";
+import type { Failure } from "@massing/core";
 
 /**
  * The closed set of reasons a kernel can decline an operation.

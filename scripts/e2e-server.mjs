@@ -4,7 +4,7 @@
  * ## Why this file exists rather than an npm script
  *
  * The obvious `webServer.command` is
- * `npm run build --workspace @massingviewer/demo && npm run preview --workspace @massingviewer/demo`. It works,
+ * `npm run build --workspace @massing/demo && npm run preview --workspace @massing/demo`. It works,
  * the tests pass — and then Playwright **never exits**. Measured on Windows: the twelve tests finished in ten
  * seconds and the run sat for twenty-seven minutes before being killed manually.
  *

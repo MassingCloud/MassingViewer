@@ -9,8 +9,8 @@
  * `MessageChannel`. One implementation, two transports: a bug fixed in one cannot miss the other.
  */
 
-import { hostLocalKernel } from "@massingviewer/kernel-local";
-import type { KernelRequest } from "@massingviewer/kernel-local";
+import { hostLocalKernel } from "@massing/kernel-local";
+import type { KernelRequest } from "@massing/kernel-local";
 
 const handle = hostLocalKernel((response) => self.postMessage(response));
 

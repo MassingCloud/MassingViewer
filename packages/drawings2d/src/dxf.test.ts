@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asGuid, type Guid } from "@massingviewer/core";
+import { asGuid, type Guid } from "@massing/core";
 import { ARCHITECTURAL, FIRE_SAFETY } from "./theme.js";
 import { PAPER_SIZES, fitToPaper } from "./paper.js";
 import { generatePlan } from "./plan.js";

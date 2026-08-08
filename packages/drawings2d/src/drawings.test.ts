@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asGuid, type Guid } from "@massingviewer/core";
+import { asGuid, type Guid } from "@massing/core";
 import { boundsOf, entitiesFor, guidsIn, layersIn, makeDrawing, type DrawingEntity } from "./model.js";
 import { ARCHITECTURAL, FIRE_SAFETY, matches, paintFor } from "./theme.js";
 import { PAPER_SIZES, fitToPaper, toPaper, transformFor } from "./paper.js";

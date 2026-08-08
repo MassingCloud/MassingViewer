@@ -7,7 +7,7 @@ import { defineConfig } from "vitest/config";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Resolve `@massingviewer/*` to package **source**, not built `dist/`.
+ * Resolve `@massing/*` to package **source**, not built `dist/`.
  *
  * This is not a convenience. Without it the test run resolves through each package's `exports` field, which
  * points at `./dist/index.js` — so:
@@ -29,17 +29,17 @@ function workspaceAliases(): { find: RegExp; replacement: string }[] {
     if (!existsSync(join(src, "index.ts"))) continue;
     // A **subpath** alias, and it must come first because Vite matches in order.
     //
-    // The plain-string form of `alias` does prefix matching, so a single `@massingviewer/ribbon` entry rewrote
-    // `@massingviewer/ribbon/ribbon.css` to `.../src/index.ts/ribbon.css` and the build failed with
+    // The plain-string form of `alias` does prefix matching, so a single `@massing/ribbon` entry rewrote
+    // `@massing/ribbon/ribbon.css` to `.../src/index.ts/ribbon.css` and the build failed with
     // "Could not load". Subpath exports are real — a stylesheet today, a worker entry tomorrow — so the mapping
     // has to handle them rather than assume every specifier is bare.
     aliases.push({
-      find: new RegExp(`^@massingviewer/${name}/(.*)$`),
+      find: new RegExp(`^@massing/${name}/(.*)$`),
       replacement: `${src}/$1`,
     });
     // Anchored, so it matches the bare specifier exactly and cannot swallow a subpath.
     aliases.push({
-      find: new RegExp(`^@massingviewer/${name}$`),
+      find: new RegExp(`^@massing/${name}$`),
       replacement: join(src, "index.ts"),
     });
   }

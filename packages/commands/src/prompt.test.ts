@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ok } from "@massingviewer/core";
+import { ok } from "@massing/core";
 import type { CommandContext, CommandDescriptor } from "./descriptor.js";
 import { begin, step, toInvocation, type PromptEvent, type PromptState } from "./prompt.js";
 

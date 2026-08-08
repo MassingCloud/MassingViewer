@@ -1,4 +1,4 @@
-import { type Guid, type ModelId, type Result, asGuid, err, ok } from "@massingviewer/core";
+import { type Guid, type ModelId, type Result, asGuid, err, ok } from "@massing/core";
 import type {
   ElementProperties,
   KernelFailure,
@@ -7,9 +7,9 @@ import type {
   OpResult,
   SnapCandidatePoint,
   SpatialNode,
-} from "@massingviewer/kernel-api";
-import { kernelFailure, unsupported } from "@massingviewer/kernel-api";
-import { EntityTable, type StepValue } from "@massingviewer/ifc";
+} from "@massing/kernel-api";
+import { kernelFailure, unsupported } from "@massing/kernel-api";
+import { EntityTable, type StepValue } from "@massing/ifc";
 import { BLANK_IFC4 } from "./blank.js";
 import { type GuidMinter, randomGuidMinter } from "./guid.js";
 import { LOCAL_OPS, UNSUPPORTED_HINT } from "./ops.js";
@@ -25,7 +25,7 @@ import { LocalModel } from "./model.js";
  *
  * Tested directly all the same. That is not a contradiction — this is an internal class, and testing it here
  * gives failures that point at the operation rather than at a message round-trip. The *contract* is tested
- * through the real Worker by `@massingviewer/kernel-conformance`.
+ * through the real Worker by `@massing/kernel-conformance`.
  */
 export class LocalKernelCore {
   private readonly models = new Map<string, ModelState>();
@@ -373,7 +373,7 @@ export class LocalKernelCore {
    * Snap points near a cursor, from the authoritative geometry rather than from tessellated meshes.
    *
    * Walls contribute both endpoints and the midpoint of their centre-line; anything else contributes its
-   * placement origin. The caller feeds these to `resolveSnap` in `@massingviewer/geometry-math`, which owns the
+   * placement origin. The caller feeds these to `resolveSnap` in `@massing/geometry-math`, which owns the
    * priority rules — this only reports what exists, and deliberately does not rank.
    */
   snapCandidates(

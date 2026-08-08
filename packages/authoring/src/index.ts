@@ -1,4 +1,4 @@
-// @massingviewer/authoring — the missing middle.
+// @massing/authoring — the missing middle.
 //
 // `seamCoverage()` listed snapping, the prompt loop, the section box and markup pins as four separate M9 gaps.
 // Reading their reasons, they shared one cause: every library underneath already existed and was tested, and

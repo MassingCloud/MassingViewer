@@ -10,7 +10,7 @@
 # scripts/check-recipe-parity.mjs enforces that against the committed floor.
 #
 # Status vocabulary — and the distinction between the first two is the whole point:
-#   yes      implemented AND verified live by @massingviewer/kernel-conformance. Not a claim; a passing test.
+#   yes      implemented AND verified live by @massing/kernel-conformance. Not a claim; a passing test.
 #   planned  intended for this kernel, not yet implemented. Returns `unsupported` today, honestly.
 #   no       deliberately out of scope for this kernel. Not a TODO.
 #

@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/kernel-conformance",
+  "name": "@massing/kernel-conformance",
   "version": "0.1.0",
   "description": "The conformance suite every MassingViewer kernel must pass. A published test library, so writing a kernel is `npm i -D` and fix the reds rather than a reverse-engineering exercise.",
   "license": "MIT",
@@ -38,8 +38,8 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0",
-    "@massingviewer/kernel-api": "0.1.0"
+    "@massing/core": "0.1.0",
+    "@massing/kernel-api": "0.1.0"
   },
   "peerDependencies": {
     "vitest": ">=4"

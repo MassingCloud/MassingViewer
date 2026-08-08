@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/kernel-api",
+  "name": "@massing/kernel-api",
   "version": "0.1.0",
   "description": "The KernelProvider contract: one interface for authoring IFC, satisfied by an in-browser offline kernel and by a remote authoring service. Types and error taxonomy only, no implementation.",
   "license": "MIT",
@@ -38,6 +38,6 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0"
+    "@massing/core": "0.1.0"
   }
 }

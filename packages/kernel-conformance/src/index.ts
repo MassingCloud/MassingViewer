@@ -3,7 +3,7 @@
  *
  * A **published test library**, not a test directory. Both first-party kernels call it, and so does anyone
  * writing a third — which is what turns "write a MassingViewer kernel" from a reverse-engineering exercise
- * into `npm i -D @massingviewer/kernel-conformance` and fix the reds.
+ * into `npm i -D @massing/kernel-conformance` and fix the reds.
  *
  * ## Why this is the highest-value thing in the repo
  *
@@ -25,14 +25,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { asModelId, isGuid, type Guid, type ModelId } from "@massingviewer/core";
+import { asModelId, isGuid, type Guid, type ModelId } from "@massing/core";
 import type {
   KernelCapabilities,
   KernelFailure,
   KernelProvider,
   OpDescriptor,
   OpId,
-} from "@massingviewer/kernel-api";
+} from "@massing/kernel-api";
 
 /**
  * What the kernel under test needs to supply beyond the provider itself.

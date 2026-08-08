@@ -50,7 +50,7 @@ somewhere, and each fails the build rather than filing a warning nobody reads.
 ### Reference elements by GlobalId, never by viewer ID
 
 Viewer IDs are assigned at load and change between loads. A pin, markup, selection set or drawing
-entity anchored to one will silently detach. `@massingviewer/core`'s `elementRef` is the identity
+entity anchored to one will silently detach. `@massing/core`'s `elementRef` is the identity
 boundary; use it.
 
 ### Dim controls with a reason — never hide them
@@ -90,7 +90,7 @@ Layers, roughly in order of how often they run:
    Add **property-based** tests (`fast-check`) for invariants, not just examples: `resolveSnap`
    returns the nearest candidate within tolerance *or null*, `parse(format(x)) === x` across metric
    and imperial, `polarConstrain` output is always a multiple of the increment.
-2. **Kernel conformance** — `@massingviewer/kernel-conformance`. Both kernels run it. If you add an
+2. **Kernel conformance** — `@massing/kernel-conformance`. Both kernels run it. If you add an
    operation, add its conformance assertions in the same PR, including its refusal case.
 3. **Golden drawings** — semantic digests, never raw SVG snapshots. See [docs/testing.md](docs/testing.md)
    for how to update one safely.
@@ -114,7 +114,7 @@ Layers, roughly in order of how often they run:
 All packages are `0.x` until the studio reaches `1.0.0`. **In `0.x`, minor bumps may break** — this is
 stated here because SemVer technically permits it and people reasonably expect otherwise.
 
-After `1.0.0`, `@massingviewer/kernel-api` and `@massingviewer/plugin-host` follow the deprecation
+After `1.0.0`, `@massing/kernel-api` and `@massing/plugin-host` follow the deprecation
 policy in "docs/plugin-deprecation-policy.md" (M8): deprecations are marked, warned once per session, and
 supported for at least two minors and six months before removal in a major.
 

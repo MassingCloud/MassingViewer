@@ -28,7 +28,7 @@ import type { KernelRequest, KernelResponse, KernelTransport } from "./protocol.
  *
  * ```ts
  * // app/src/kernel.worker.ts
- * import { hostLocalKernel } from "@massingviewer/kernel-local";
+ * import { hostLocalKernel } from "@massing/kernel-local";
  * const handle = hostLocalKernel((response) => self.postMessage(response));
  * self.addEventListener("message", (event) => handle(event.data));
  * ```

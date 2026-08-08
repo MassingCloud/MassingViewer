@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/kernel-local",
+  "name": "@massing/kernel-local",
   "version": "0.1.0",
   "description": "LocalKernel — offline IFC authoring in the browser. Fifteen operations, honest about the other eighty-one, with GUID stability by construction.",
   "license": "MIT",
@@ -38,11 +38,11 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0",
-    "@massingviewer/ifc": "0.1.0",
-    "@massingviewer/kernel-api": "0.1.0"
+    "@massing/core": "0.1.0",
+    "@massing/ifc": "0.1.0",
+    "@massing/kernel-api": "0.1.0"
   },
   "devDependencies": {
-    "@massingviewer/kernel-conformance": "0.1.0"
+    "@massing/kernel-conformance": "0.1.0"
   }
 }

@@ -32,7 +32,7 @@ What it already contains matters:
 Every package in it is `"private": true`, which is the sole reason massing vendors three of them into
 `apps/web/src/vendor/massingifc/` rather than depending on them.
 
-Two problems follow. First, the planned `@massingviewer/*` package set collides by name: both would own a
+Two problems follow. First, the planned `@massing/*` package set collides by name: both would own a
 `markup`, and both would appear to own a kernel and a plugin host. Two competing kernels in one GitHub
 organisation is precisely the drift that massing's own `apps/web/vendorAlias.ts` doc comment complains
 about ("three copies of one fact is the drift shape this codebase keeps paying for"). Second, rebuilding a
@@ -47,7 +47,7 @@ does not fork it, and does not re-derive its contracts.
 Concretely:
 
 1. **Reuse the plugin host.** `@massingifc/core-kernel`'s `PluginHost` and `CommandBus` are adopted as-is.
-   `@massingviewer/plugin-host` is an *adapter* over them (declarative contribution manifests, lazy
+   `@massing/plugin-host` is an *adapter* over them (declarative contribution manifests, lazy
    activation events, a worker transport, asset-pack loading) — not a second host.
 
 2. **`KernelProvider` is a new contract, and the reason is specific.** massingifc's `GeometryBackend` is
@@ -63,7 +63,7 @@ Concretely:
 
    **Amended 2026-08-07, when the package was actually built.** This originally said the package is
    `markup-ui`, "making it unambiguous that the *contract* is upstream and the *UI* is here". That framing
-   turned out to be wrong about what got built: `@massingviewer/markup` is the BCF 3.0 domain model, the
+   turned out to be wrong about what got built: `@massing/markup` is the BCF 3.0 domain model, the
    anchoring logic and the `.bcfzip` writer — no DOM, no renderer, and in the same *kind* of layer as the
    upstream contract package rather than above it.
 
@@ -71,9 +71,9 @@ Concretely:
    spend the one accurate name on the wrong package — the React pin palette and PDF surface still need to be
    called something, and `markup-ui` is what they are.
 
-   So: **`@massingviewer/markup`** is the model, and `markup-ui` is reserved for the presentation layer that
+   So: **`@massing/markup`** is the model, and `markup-ui` is reserved for the presentation layer that
    consumes it. The collision this point worried about is a *human* one rather than a technical one — npm scopes
-   already make `@massingviewer/markup` and `@massingifc/markup` different packages — and the honest way to
+   already make `@massing/markup` and `@massingifc/markup` different packages — and the honest way to
    address confusion is that the two do different things and say so, not that one carries a misleading suffix.
 
 4. **Depend, do not re-vendor.** Copying 18,192 lines of another repo's source into a package meant to be
@@ -107,6 +107,6 @@ bridge with a CI-enforced expiry date recorded here**, not as a plan.
   disambiguates it explicitly, because the next person to search the organisation will otherwise assume a
   relationship.
 - If extending `@massingifc/core-kernel`'s kernel contract proves impossible in practice rather than in
-  theory, the fallback is to rename `@massingviewer/kernel-api` to `provider-api` and supersede this ADR
+  theory, the fallback is to rename `@massing/kernel-api` to `provider-api` and supersede this ADR
   stating that the two are deliberately separate. That is a worse outcome and should be argued for, not
   drifted into.

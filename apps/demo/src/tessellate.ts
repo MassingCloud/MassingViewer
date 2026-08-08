@@ -1,4 +1,4 @@
-import type { SourceMesh } from "@massingviewer/viewport";
+import type { SourceMesh } from "@massing/viewport";
 
 /**
  * A minimal IFC tessellator: `IfcExtrudedAreaSolid` over `IfcArbitraryClosedProfileDef` only.
@@ -138,7 +138,7 @@ function prism(
 
   // IFC extrudes along local +Z; the viewport is Y-up. Map profile (x,y) -> world (x, z_profile, y_profile)
   // so the extrusion direction becomes world +Y. Doing this here rather than rotating the scene keeps the
-  // geometry in the same coordinate convention as @massingviewer/geometry-math (plan = world X/Z).
+  // geometry in the same coordinate convention as @massing/geometry-math (plan = world X/Z).
   const at = (i: number, h: number): [number, number, number] => [
     profile[i]![0] + ox,
     h + oy,

@@ -22,7 +22,7 @@ development-only by default; production requires a paid key, the hobby tier keep
 watermark, and the startup license is roughly $6,000. Adopting it as a foundational canvas dependency and
 discovering the terms later would be a strategic problem, not a licensing detail.
 
-MassingViewer publishes `@massingviewer/*` packages to npm. That makes the exposure worse than for an
+MassingViewer publishes `@massing/*` packages to npm. That makes the exposure worse than for an
 application: a copyleft dependency does not merely constrain us, it constrains everyone who installs us.
 
 There is also an **in-organisation** hazard, which is the one that actually happens. Two sibling repos in

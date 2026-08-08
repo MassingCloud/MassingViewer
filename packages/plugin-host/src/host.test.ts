@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { TABS, buildRibbon, layoutTab } from "@massingviewer/ui-model";
+import { TABS, buildRibbon, layoutTab } from "@massing/ui-model";
 import { isLoadable, normaliseChord, validateManifest, type PluginManifest } from "./manifest.js";
 import { createPluginHost, topologicalOrder, type PluginRuntime } from "./host.js";
 import { commandsNotOnRibbon, ribbonFrom, unknownTabs } from "./ribbon.js";

@@ -1,4 +1,4 @@
-// @massingviewer/ui-model — what the ribbon contains and how it collapses, as data.
+// @massing/ui-model — what the ribbon contains and how it collapses, as data.
 //
 // Deliberately separate from `ui-react`. Two hosts need to render the same tool surface: MassingViewer's
 // React shell, and massing's vanilla-DOM app. If the layout table lived inside the React package, the

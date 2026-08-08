@@ -1,4 +1,4 @@
-// @massingviewer/core — the vocabulary every other package speaks.
+// @massing/core — the vocabulary every other package speaks.
 //
 // Three concerns, chosen because each one is a place where disagreement between subsystems is silent
 // and expensive: what identifies an element, what a length means, and how a refusal travels.

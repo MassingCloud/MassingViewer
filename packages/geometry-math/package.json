@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/geometry-math",
+  "name": "@massing/geometry-math",
   "version": "0.1.0",
   "description": "Pure CAD geometry for the browser: object snapping, polar tracking, dynamic input, drawing inference, placement validation, and an AutoCAD-style command grammar. No DOM, no three.js, no network.",
   "license": "MIT",

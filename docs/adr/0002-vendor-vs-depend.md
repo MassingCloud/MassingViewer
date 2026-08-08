@@ -25,7 +25,7 @@ Four reasons:
    aliases do not survive publication at all.
 2. **The alias trick only works inside one repo.** massing's `apps/web/vendorAlias.ts` works because Vite,
    Vitest *and* `tsconfig` paths are all under one roof, held in agreement by a dedicated test. A consumer
-   of `@massingviewer/core` inherits none of that.
+   of `@massing/core` inherits none of that.
 3. **The vendored copies are already a known liability.** `apps/web/vendorAlias.ts` says so in its own doc
    comment: three copies of one fact is the drift shape that codebase keeps paying for. Adding a fourth
    copy in a new repo repeats a mistake whose cost is already documented.

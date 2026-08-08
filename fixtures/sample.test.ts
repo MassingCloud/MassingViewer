@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isGuid } from "@massingviewer/core";
+import { isGuid } from "@massing/core";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ifc = readFileSync(join(HERE, "sample.ifc"), "utf8");

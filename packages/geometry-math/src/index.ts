@@ -1,4 +1,4 @@
-// @massingviewer/geometry-math — the precision kit.
+// @massing/geometry-math — the precision kit.
 //
 // Everything here is pure: same input, same output, no DOM, no renderer, no network, no clock. That is
 // what makes it exhaustively testable, and it is why this layer carries the highest coverage floor in

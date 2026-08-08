@@ -8,7 +8,7 @@
 // a vanilla-DOM renderer being replaced by the React ribbon, so it does not come to this package.
 //
 // The 137 lines of DOM assertions are preserved verbatim at `docs/pending/toolbarView.test.ts.txt` and
-// re-land in @massingviewer/ui-react at M7, re-expressed against the ribbon. They are NOT discarded,
+// re-land in @massing/ui-react at M7, re-expressed against the ribbon. They are NOT discarded,
 // because of what they protect: that pair exists precisely because `TOOL_ICON` once shipped complete
 // and fully tested while `toolbarView` never called `iconFor` — so "all 27 verbs are mapped" was true
 // and nothing on screen had changed. Asserting a table is not asserting a render. The ribbon needs its

@@ -1,4 +1,4 @@
-# @massingviewer/authoring
+# @massing/authoring
 
 ## 0.1.0
 
@@ -9,7 +9,7 @@
   `seamCoverage()` now reports **20/20 movable capabilities (100%), 4 staying in massing**, so
   `apps/web/src/viewer` can be deleted.
 
-  New `@massingviewer/authoring`: the object four of those gaps were waiting on. Snapping runs before the prompt
+  New `@massing/authoring`: the object four of those gaps were waiting on. Snapping runs before the prompt
   reducer, so it stays frame-immediate and the reducer stays deterministic; `hover` and `pick` resolve through one
   function, so the crosshair cannot show one point and the click commit another.
 
@@ -19,6 +19,6 @@
 ### Patch Changes
 
 - Updated dependencies [[`bc5d8d4`](https://github.com/MassingCloud/MassingViewer/commit/bc5d8d4d83ba7ac13109f8e83fb6a3c8243d8cda), [`3edb9dd`](https://github.com/MassingCloud/MassingViewer/commit/3edb9dda85b8d9b24e9636cdd9a23ffdd42876ee)]:
-  - @massingviewer/core@0.1.0
-  - @massingviewer/geometry-math@0.1.0
-  - @massingviewer/commands@0.1.0
+  - @massing/core@0.1.0
+  - @massing/geometry-math@0.1.0
+  - @massing/commands@0.1.0

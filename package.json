@@ -23,7 +23,7 @@
   "packageManager": "npm@11.16.0",
   "scripts": {
     "preinstall": "node scripts/check-node.mjs",
-    "dev": "npm run dev --workspace @massingviewer/demo",
+    "dev": "npm run dev --workspace @massing/demo",
     "build": "tsc --build",
     "clean": "tsc --build --clean && rimraf packages/*/dist apps/*/dist",
     "lint": "eslint . && oxlint",

@@ -1,4 +1,4 @@
-// @massingviewer/observability — knowing what happened, without shipping what happened.
+// @massing/observability — knowing what happened, without shipping what happened.
 //
 // Four concerns that are usually one package and must not be, because they have opposite requirements:
 //

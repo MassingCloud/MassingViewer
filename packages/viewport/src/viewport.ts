@@ -5,7 +5,7 @@ import { frameLoop } from "./raf.js";
 import { attachPixelGovernor, initialState } from "./pixelGovernor.js";
 import { decideResize, observeSize, type Size } from "./resize.js";
 import { buildScene, disposeScene, elementIndex, type BuildResult, type GuidResolver, type SourceMesh } from "./meshes.js";
-import type { ModelId } from "@massingviewer/core";
+import type { ModelId } from "@massing/core";
 
 /**
  * The 3D viewport.

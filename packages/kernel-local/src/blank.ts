@@ -21,7 +21,7 @@
 export const BLANK_IFC4 = `ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('ViewDefinition [DesignTransferView]'),'2;1');
-FILE_NAME('untitled.ifc','1970-01-01T00:00:00',(''),(''),'MassingViewer','@massingviewer/kernel-local','');
+FILE_NAME('untitled.ifc','1970-01-01T00:00:00',(''),(''),'MassingViewer','@massing/kernel-local','');
 FILE_SCHEMA(('IFC4'));
 ENDSEC;
 DATA;

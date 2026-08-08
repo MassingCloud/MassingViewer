@@ -73,7 +73,7 @@ try {
  * A backticked token that looks like a path we should be able to resolve.
  *
  * Deliberately narrow. Backticks are also used for identifiers (`resolveSnap`), npm packages
- * (`@massingviewer/core`), types, CLI flags and shell fragments — none of which are paths. Treating
+ * (`@massing/core`), types, CLI flags and shell fragments — none of which are paths. Treating
  * every backticked token as a path would produce so much noise that the gate would be switched off,
  * which is the actual risk with a check like this.
  */

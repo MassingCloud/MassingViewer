@@ -1,5 +1,5 @@
-import type { Guid, ModelId, Result } from "@massingviewer/core";
-import type { KernelFailure, OpParams } from "@massingviewer/kernel-api";
+import type { Guid, ModelId, Result } from "@massing/core";
+import type { KernelFailure, OpParams } from "@massing/kernel-api";
 
 /**
  * The Worker protocol.

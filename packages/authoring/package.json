@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/authoring",
+  "name": "@massing/authoring",
   "version": "0.1.0",
   "description": "The authoring session — armed tool, half-collected arguments, and cursor-to-point resolution. Snapping happens before the reducer, and hover and pick resolve through one function so the crosshair cannot lie.",
   "license": "MIT",
@@ -37,8 +37,8 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/commands": "0.1.0",
-    "@massingviewer/core": "0.1.0",
-    "@massingviewer/geometry-math": "0.1.0"
+    "@massing/commands": "0.1.0",
+    "@massing/core": "0.1.0",
+    "@massing/geometry-math": "0.1.0"
   }
 }

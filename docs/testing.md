@@ -44,7 +44,7 @@ that opens an issue with the reproducing seed rather than blocking a PR that did
 
 ## 2. Kernel conformance — the executable specification
 
-`@massingviewer/kernel-conformance` is a **published test library**, not a test directory:
+`@massing/kernel-conformance` is a **published test library**, not a test directory:
 
 ```ts
 describeKernel("LocalKernel", () => createLocalKernel(), declaredCapabilities);

@@ -1,4 +1,4 @@
-// @massingviewer/markup — a markup that knows which wall it is about.
+// @massing/markup — a markup that knows which wall it is about.
 //
 // Every PDF-based review tool stores a shape on a flattened raster that has forgotten what it refers to. A markup
 // here anchors to an IFC GlobalId, so it follows the model, can be filtered by element, and can be answered by

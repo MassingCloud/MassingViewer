@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/plugin-host",
+  "name": "@massing/plugin-host",
   "version": "0.1.0",
   "description": "Declarative contribution manifests with lazy activation — and a host no plugin can break: quarantine, all-or-nothing activation, and dependency cycles reported as the actual cycle.",
   "license": "MIT",
@@ -37,6 +37,6 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/ui-model": "0.1.0"
+    "@massing/ui-model": "0.1.0"
   }
 }

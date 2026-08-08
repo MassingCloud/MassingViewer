@@ -1,4 +1,4 @@
-import { type ElementRef, type Guid, type ModelId, type Result, err, ok } from "@massingviewer/core";
+import { type ElementRef, type Guid, type ModelId, type Result, err, ok } from "@massing/core";
 import type {
   ApplyOptions,
   DrawingPayload,
@@ -15,8 +15,8 @@ import type {
   SnapCandidatePoint,
   SpatialNode,
   Transaction,
-} from "@massingviewer/kernel-api";
-import { kernelFailure, unsupported } from "@massingviewer/kernel-api";
+} from "@massing/kernel-api";
+import { kernelFailure, unsupported } from "@massing/kernel-api";
 import type { KernelRequest, KernelRequestBody, KernelResponse, KernelTransport } from "./protocol.js";
 import { UNSUPPORTED_HINT } from "./ops.js";
 
@@ -57,7 +57,7 @@ const CAPABILITIES: KernelCapabilities = {
   // undoable despite declaring `invertible: false`. RemoteKernel cannot say this, and the contract lets each
   // kernel state which it is rather than having callers assume.
   transactions: "snapshot",
-  // Empty, and that is the truth today: 2D generation lives in `@massingviewer/drawings2d`, which does not
+  // Empty, and that is the truth today: 2D generation lives in `@massing/drawings2d`, which does not
   // exist yet. Declaring "plan" here and failing at call time is how a kernel lies about its capabilities, and
   // the conformance suite fails a kernel that does it.
   drawings: [],

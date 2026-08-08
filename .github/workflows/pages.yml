@@ -36,7 +36,7 @@ jobs:
       - name: Build the demo
         # `base: "./"` in the demo's vite config means the build works from a subpath with no rebuild, so there
         # is no BASE_URL to get wrong here.
-        run: npm run build --workspace @massingviewer/demo
+        run: npm run build --workspace @massing/demo
 
       - name: Bundle budget
         # Checked here as well as in CI, because this is the artifact users actually download.

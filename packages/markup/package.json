@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/markup",
+  "name": "@massing/markup",
   "version": "0.1.0",
   "description": "BCF 3.0-native markup: topics anchored to IFC GlobalIds rather than to page coordinates, with Bluebeam-style Tool Sets and a dependency-free .bcfzip writer.",
   "license": "MIT",
@@ -38,6 +38,6 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0"
+    "@massing/core": "0.1.0"
   }
 }

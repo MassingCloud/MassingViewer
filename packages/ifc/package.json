@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/ifc",
+  "name": "@massing/ifc",
   "version": "0.1.0",
   "description": "IFC/STEP entity table with byte-preserving emit. Reads a file, lets you edit entities, and writes back the bytes it did not touch — so editing a wall cannot delete a consultant's analytical model.",
   "license": "MIT",
@@ -38,6 +38,6 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0"
+    "@massing/core": "0.1.0"
   }
 }

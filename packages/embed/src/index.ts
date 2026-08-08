@@ -1,4 +1,4 @@
-// @massingviewer/embed — the one function massing imports, and the ledger that says when it can.
+// @massing/embed — the one function massing imports, and the ledger that says when it can.
 //
 // M9 is the plan's number-one risk: "Divergence from massing — the only risk that can end the project." Two live
 // copies of an 11,570-line engine is a fork, not a plan. So this facade is deliberately small enough to adopt in

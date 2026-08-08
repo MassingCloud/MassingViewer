@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/kernel-memory",
+  "name": "@massing/kernel-memory",
   "version": "0.1.0",
   "description": "A reference KernelProvider that passes the conformance suite. Proves the contract is satisfiable, serves as the template for a third-party kernel, and makes the rest of the stack testable without WASM, a worker or a server.",
   "license": "MIT",
@@ -37,10 +37,10 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0",
-    "@massingviewer/kernel-api": "0.1.0"
+    "@massing/core": "0.1.0",
+    "@massing/kernel-api": "0.1.0"
   },
   "devDependencies": {
-    "@massingviewer/kernel-conformance": "0.1.0"
+    "@massing/kernel-conformance": "0.1.0"
   }
 }

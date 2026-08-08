@@ -1,4 +1,4 @@
-import { type Guid, isGuid } from "@massingviewer/core";
+import { type Guid, isGuid } from "@massing/core";
 import { type RawEntity, StepSyntaxError, parseParams, scanEntities } from "./parse.js";
 import { type StepValue, formatParams } from "./value.js";
 
@@ -23,7 +23,7 @@ import { type StepValue, formatParams } from "./value.js";
  *
  * `expressID` is a file artefact: it changes when a file is rewritten. `GlobalId` is the only identifier safe
  * to persist, and this class never derives one from the other. An imported element keeps the GlobalId its file
- * gave it, verbatim; a created element is given one by the caller. See `@massingviewer/core`'s identity module
+ * gave it, verbatim; a created element is given one by the caller. See `@massing/core`'s identity module
  * for why the two are separate types.
  */
 export class EntityTable {
@@ -142,7 +142,7 @@ export class EntityTable {
    * Every `IfcRoot` subtype carries GlobalId as its first attribute, which is why this can be schema-free.
    * The length-and-alphabet check is the load-bearing part: a file that puts something else in attribute 0
    * must yield null rather than a 34-character "GlobalId" that then fails to match anything, forever, with no
-   * error. See the identity notes in `@massingviewer/core`.
+   * error. See the identity notes in `@massing/core`.
    */
   guidOf(id: number): Guid | null {
     let first: StepValue | undefined;

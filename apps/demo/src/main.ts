@@ -1,6 +1,6 @@
-import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type UnitSystem } from "@massingviewer/core";
-import { createViewport } from "@massingviewer/viewport";
-import { browserWorkerTransport, createLocalKernel } from "@massingviewer/kernel-local";
+import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type UnitSystem } from "@massing/core";
+import { createViewport } from "@massing/viewport";
+import { browserWorkerTransport, createLocalKernel } from "@massing/kernel-local";
 import {
   ARCHITECTURAL,
   FIRE_SAFETY,
@@ -14,7 +14,7 @@ import {
   toDxf,
   toPdf,
   toSvg,
-} from "@massingviewer/drawings2d";
+} from "@massing/drawings2d";
 import {
   DEFAULT_TOOLSET,
   type Topic,
@@ -23,14 +23,14 @@ import {
   isLive,
   resolveAnchor,
   toBcfZip,
-} from "@massingviewer/markup";
+} from "@massing/markup";
 import {
   canPickHandles,
   createDropTarget,
   describe as describeFile,
   pickFiles,
   type OpenedFile,
-} from "@massingviewer/fileio";
+} from "@massing/fileio";
 import {
   BUILTIN_ID,
   builtinManifests,
@@ -38,10 +38,10 @@ import {
   createPluginHost,
   ribbonFrom,
   type PluginManifest,
-} from "@massingviewer/plugin-host";
-import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massingviewer/observability";
-import { createRibbon } from "@massingviewer/ribbon";
-import "@massingviewer/ribbon/ribbon.css";
+} from "@massing/plugin-host";
+import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/observability";
+import { createRibbon } from "@massing/ribbon";
+import "@massing/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
@@ -784,7 +784,7 @@ renderTopics();
 
 // --- the ribbon ------------------------------------------------------------------------------------
 //
-// Mounted from `@massingviewer/ribbon`, which is vanilla DOM precisely so that massing can mount the same code.
+// Mounted from `@massing/ribbon`, which is vanilla DOM precisely so that massing can mount the same code.
 // See docs/adr/0009-ribbon-renders-in-vanilla-dom.md — a vanilla renderer works in both hosts, a React one works
 // in one, and the layout decisions live in `ui-model` so the two hosts cannot disagree about where a tool is.
 //

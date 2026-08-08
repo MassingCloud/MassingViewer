@@ -1,5 +1,5 @@
-import { err, ok } from "@massingviewer/core";
-import type { Guid } from "@massingviewer/core";
+import { err, ok } from "@massing/core";
+import type { Guid } from "@massing/core";
 import {
   type Drawing,
   type DrawingEntity,

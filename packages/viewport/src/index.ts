@@ -1,4 +1,4 @@
-// @massingviewer/viewport — the only package permitted to import `three`.
+// @massing/viewport — the only package permitted to import `three`.
 //
 // That confinement is enforced by scripts/check-architecture.mjs, and it is not a style rule: massing's
 // vite config documents `resolve.dedupe: ["three"]` because "Multiple instances of Three.js" was a measured

@@ -1,13 +1,13 @@
-# @massingviewer/kernel-conformance
+# @massing/kernel-conformance
 
 The contract every MassingViewer kernel must satisfy, as a runnable suite.
 
 ```bash
-npm i -D @massingviewer/kernel-conformance
+npm i -D @massing/kernel-conformance
 ```
 
 ```ts
-import { describeKernel } from "@massingviewer/kernel-conformance";
+import { describeKernel } from "@massing/kernel-conformance";
 import { createMyKernel } from "./index";
 
 describeKernel("MyKernel", {
@@ -66,5 +66,5 @@ kernel. Four mutations, four precise failures, no false positives:
 
 ## Writing a kernel
 
-Read `@massingviewer/kernel-memory` — a reference implementation that passes this suite in ~600 lines. It
+Read `@massing/kernel-memory` — a reference implementation that passes this suite in ~600 lines. It
 exists partly so that when your kernel fails an assertion, you know the assertion is achievable.

@@ -8,7 +8,7 @@
         "run",
         "dev",
         "--workspace",
-        "@massingviewer/demo"
+        "@massing/demo"
       ],
       "port": 5173
     },
@@ -19,7 +19,7 @@
         "run",
         "dev",
         "--workspace",
-        "@massingviewer/shell"
+        "@massing/shell"
       ],
       "port": 5174
     }

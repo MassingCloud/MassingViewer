@@ -1,5 +1,5 @@
-import { type EntityTable, type StepValue, integer, list, real, ref, str } from "@massingviewer/ifc";
-import type { Guid } from "@massingviewer/core";
+import { type EntityTable, type StepValue, integer, list, real, ref, str } from "@massing/ifc";
+import type { Guid } from "@massing/core";
 import type { GuidMinter } from "./guid.js";
 
 /**
@@ -367,7 +367,7 @@ const SI_PREFIX: Record<string, number> = {
  *
  * Getting this wrong is the single most common way an IFC integration produces nonsense: a millimetre file read
  * as metres gives a building 1000× too large, and the symptom — an empty viewport because the camera fit to
- * something the size of a city — looks nothing like a units bug. `@massingviewer/core` is metres-only
+ * something the size of a city — looks nothing like a units bug. `@massing/core` is metres-only
  * internally precisely so that this conversion happens once, here, at the file boundary.
  *
  * Defaults to metres when the file does not say, which is what IFC's own default is.

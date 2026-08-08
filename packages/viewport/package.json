@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/viewport",
+  "name": "@massing/viewport",
   "version": "0.1.0",
   "description": "The 3D viewport: imperative three.js rendering of tessellated IFC element geometry, with per-element identity, picking, selection and adaptive pixel ratio.",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/core": "0.1.0",
+    "@massing/core": "0.1.0",
     "three": "0.184.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 {
-  "name": "@massingviewer/ui-model",
+  "name": "@massing/ui-model",
   "version": "0.1.0",
   "description": "Ribbon, palette and toolbar layout as pure data and pure layout math. No DOM, no framework — so a React shell and a vanilla-DOM host can render one identical table.",
   "license": "MIT",

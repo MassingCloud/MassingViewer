@@ -1,4 +1,4 @@
-// @massingviewer/ui-react — React for the parts React is good at.
+// @massing/ui-react — React for the parts React is good at.
 //
 // ADR-0009 sent the ribbon to vanilla DOM: it is long-lived, imperative, and needed by two hosts, and a vanilla
 // renderer works in both while a React one works in one. This package is what remained after that decision, and

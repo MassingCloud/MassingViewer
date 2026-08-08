@@ -3,7 +3,7 @@
 //
 // PORT NOTE: only the pure half moved. Upstream also exports `makeIcon()`, which builds an
 // SVGElement and therefore needs the DOM; it belongs in the rendering layer and lands in
-// @massingviewer/ui-react at M7. `ICONS` and `hasIcon` are pure data and a pure lookup, so they
+// @massing/ui-react at M7. `ICONS` and `hasIcon` are pure data and a pure lookup, so they
 // live here beside `TOOL_ICON` — which is what lets the gate test assert "every icon this toolbar
 // names is one we actually vendored" inside a single package.
 

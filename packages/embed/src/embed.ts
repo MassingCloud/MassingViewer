@@ -1,7 +1,7 @@
-import { asModelId, type Guid, type ModelId } from "@massingviewer/core";
-import type { KernelProvider } from "@massingviewer/kernel-api";
-import { createViewport, type SourceMesh, type Viewport } from "@massingviewer/viewport";
-import { createRibbon, type Ribbon } from "@massingviewer/ribbon";
+import { asModelId, type Guid, type ModelId } from "@massing/core";
+import type { KernelProvider } from "@massing/kernel-api";
+import { createViewport, type SourceMesh, type Viewport } from "@massing/viewport";
+import { createRibbon, type Ribbon } from "@massing/ribbon";
 import {
   builtinManifests,
   createPluginHost,
@@ -9,7 +9,7 @@ import {
   type PluginHost,
   type PluginLoader,
   type PluginManifest,
-} from "@massingviewer/plugin-host";
+} from "@massing/plugin-host";
 import {
   ARCHITECTURAL,
   fitToPaper,
@@ -23,12 +23,12 @@ import {
   type Paper,
   type Theme,
   type ViewDefinition,
-} from "@massingviewer/drawings2d";
-import { createDropTarget, sniff, supportFor, type DropTarget, type OpenedFile } from "@massingviewer/fileio";
-import { NOOP_CRASH_SINK, createCrashHandler, type CrashSink } from "@massingviewer/observability";
-import { createSession, type AuthoringSession } from "@massingviewer/authoring";
-import { createRegistry, type CommandContext } from "@massingviewer/commands";
-import { createTopic, isLive, resolveAnchor, toBcfZip, type Topic } from "@massingviewer/markup";
+} from "@massing/drawings2d";
+import { createDropTarget, sniff, supportFor, type DropTarget, type OpenedFile } from "@massing/fileio";
+import { NOOP_CRASH_SINK, createCrashHandler, type CrashSink } from "@massing/observability";
+import { createSession, type AuthoringSession } from "@massing/authoring";
+import { createRegistry, type CommandContext } from "@massing/commands";
+import { createTopic, isLive, resolveAnchor, toBcfZip, type Topic } from "@massing/markup";
 
 /**
  * `createMassingViewer` — the one function massing imports.

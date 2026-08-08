@@ -122,7 +122,7 @@ features.
 
 Operations the active kernel can't perform are **dimmed with the reason**, never hidden. You see the
 whole tool surface and learn what connecting a server would unlock. Both kernels are held to the same
-published conformance suite (`@massingviewer/kernel-conformance`), so a third-party kernel is a
+published conformance suite (`@massing/kernel-conformance`), so a third-party kernel is a
 supported thing to write rather than a reverse-engineering exercise.
 
 Read [docs/architecture.md](docs/architecture.md) for the package graph and the layering rules CI
@@ -135,26 +135,26 @@ from any host, including massing's own vanilla-DOM app. React appears only in th
 
 | Package | What it is |
 |---|---|
-| `@massingviewer/core` | Document model, GUID identity, units |
-| `@massingviewer/kernel-api` | The `KernelProvider` contract |
-| `@massingviewer/kernel-conformance` | The contract suite every kernel must pass |
-| `@massingviewer/kernel-memory` | A reference kernel that passes it — the template for writing your own |
-| `@massingviewer/geometry-math` | Object snapping, polar tracking, dynamic input, CAD command grammar |
-| `@massingviewer/ui-model` | Ribbon and palette layout model — pure data, no DOM |
-| `@massingviewer/catalog` | The parametric element palette |
-| `@massingviewer/viewport` | three.js + `@thatopen` rendering (the only package that imports three) |
-| `@massingviewer/drawings2d` | Plan/section generation, SVG + DXF + PDF output |
-| `@massingviewer/markup-ui` | BCF-native issues, pins, and Tool Sets |
-| `@massingviewer/ui-react` | Ribbon, command palette, command line, docking |
+| `@massing/core` | Document model, GUID identity, units |
+| `@massing/kernel-api` | The `KernelProvider` contract |
+| `@massing/kernel-conformance` | The contract suite every kernel must pass |
+| `@massing/kernel-memory` | A reference kernel that passes it — the template for writing your own |
+| `@massing/geometry-math` | Object snapping, polar tracking, dynamic input, CAD command grammar |
+| `@massing/ui-model` | Ribbon and palette layout model — pure data, no DOM |
+| `@massing/catalog` | The parametric element palette |
+| `@massing/viewport` | three.js + `@thatopen` rendering (the only package that imports three) |
+| `@massing/drawings2d` | Plan/section generation, SVG + DXF + PDF output |
+| `@massing/markup-ui` | BCF-native issues, pins, and Tool Sets |
+| `@massing/ui-react` | Ribbon, command palette, command line, docking |
 
-`@massingviewer/geometry-math` is deliberately useful on its own:
+`@massing/geometry-math` is deliberately useful on its own:
 
 ```bash
-npm i @massingviewer/geometry-math
+npm i @massing/geometry-math
 ```
 
 ```ts
-import { resolveSnap, polarConstrain, segmentSnaps } from "@massingviewer/geometry-math";
+import { resolveSnap, polarConstrain, segmentSnaps } from "@massing/geometry-math";
 
 const candidates = segmentSnaps([{ x: 0, z: 0 }, { x: 5, z: 0 }], /* closed */ false);
 resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);

@@ -128,7 +128,7 @@ import {
   httpSink,
   APP_SCHEMA,
   NOOP_CRASH_SINK,
-} from "@massingviewer/observability";
+} from "@massing/observability";
 
 // Crash reports to your own endpoint. Redacted on the way out.
 createCrashHandler({ sink: httpSink("https://crash.internal.example/report") }).install(window);

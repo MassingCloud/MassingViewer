@@ -1,4 +1,4 @@
-import { type Guid, asGuid } from "@massingviewer/core";
+import { type Guid, asGuid } from "@massing/core";
 
 /**
  * IFC GlobalId minting.
