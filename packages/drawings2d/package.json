@@ -1,19 +1,44 @@
 {
   "name": "@massingviewer/drawings2d",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The Semantic Drawing Model: 2D drawings as model-space geometry plus a stylesheet, where paper is a render-time transform and every line remembers which element it came from.",
   "license": "MIT",
-  "keywords": ["ifc", "bim", "drawings", "svg", "plan", "section", "aec"],
-  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/drawings2d" },
+  "keywords": [
+    "ifc",
+    "bim",
+    "drawings",
+    "svg",
+    "plan",
+    "section",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/drawings2d"
+  },
   "type": "module",
   "sideEffects": false,
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public", "provenance": true },
-  "scripts": { "build": "tsc --build" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
   "dependencies": {
-    "@massingviewer/core": "0.0.0"
+    "@massingviewer/core": "0.1.0"
   }
 }

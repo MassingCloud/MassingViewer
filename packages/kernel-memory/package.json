@@ -1,23 +1,46 @@
 {
   "name": "@massingviewer/kernel-memory",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A reference KernelProvider that passes the conformance suite. Proves the contract is satisfiable, serves as the template for a third-party kernel, and makes the rest of the stack testable without WASM, a worker or a server.",
   "license": "MIT",
-  "keywords": ["ifc", "bim", "kernel", "reference-implementation", "aec"],
-  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/kernel-memory" },
+  "keywords": [
+    "ifc",
+    "bim",
+    "kernel",
+    "reference-implementation",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/kernel-memory"
+  },
   "type": "module",
   "sideEffects": false,
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public", "provenance": true },
-  "scripts": { "build": "tsc --build" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
   "dependencies": {
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/kernel-api": "0.0.0"
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/kernel-api": "0.1.0"
   },
   "devDependencies": {
-    "@massingviewer/kernel-conformance": "0.0.0"
+    "@massingviewer/kernel-conformance": "0.1.0"
   }
 }

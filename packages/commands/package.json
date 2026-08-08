@@ -1,20 +1,44 @@
 {
   "name": "@massingviewer/commands",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The command bus: every action is one serializable invocation, and interactive prompt loops are a pure reducer. Yields undo, a palette, an AutoCAD command line, keybindings, macros, the plugin API and an audit log from one mechanism.",
   "license": "MIT",
-  "keywords": ["command-bus", "undo", "cad", "command-palette", "macro", "aec"],
-  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/commands" },
+  "keywords": [
+    "command-bus",
+    "undo",
+    "cad",
+    "command-palette",
+    "macro",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/commands"
+  },
   "type": "module",
   "sideEffects": false,
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public", "provenance": true },
-  "scripts": { "build": "tsc --build" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
   "dependencies": {
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/kernel-api": "0.0.0"
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/kernel-api": "0.1.0"
   }
 }

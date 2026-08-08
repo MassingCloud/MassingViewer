@@ -1,21 +1,47 @@
 {
   "name": "@massingviewer/kernel-conformance",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The conformance suite every MassingViewer kernel must pass. A published test library, so writing a kernel is `npm i -D` and fix the reds rather than a reverse-engineering exercise.",
   "license": "MIT",
-  "keywords": ["ifc", "bim", "kernel", "conformance", "contract-testing", "aec"],
-  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/kernel-conformance" },
+  "keywords": [
+    "ifc",
+    "bim",
+    "kernel",
+    "conformance",
+    "contract-testing",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/kernel-conformance"
+  },
   "type": "module",
   "sideEffects": false,
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public", "provenance": true },
-  "scripts": { "build": "tsc --build" },
-  "dependencies": {
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/kernel-api": "0.0.0"
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
-  "peerDependencies": { "vitest": ">=4" }
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/kernel-api": "0.1.0"
+  },
+  "peerDependencies": {
+    "vitest": ">=4"
+  }
 }

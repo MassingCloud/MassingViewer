@@ -1,21 +1,44 @@
 {
   "name": "@massingviewer/authoring",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The authoring session — armed tool, half-collected arguments, and cursor-to-point resolution. Snapping happens before the reducer, and hover and pick resolve through one function so the crosshair cannot lie.",
   "license": "MIT",
-  "keywords": ["cad", "snapping", "authoring", "command-loop", "aec"],
-  "repository": { "type": "git", "url": "git+https://github.com/MassingCloud/MassingViewer.git", "directory": "packages/authoring" },
+  "keywords": [
+    "cad",
+    "snapping",
+    "authoring",
+    "command-loop",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/authoring"
+  },
   "type": "module",
   "sideEffects": false,
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public", "provenance": true },
-  "scripts": { "build": "tsc --build" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
   "dependencies": {
-    "@massingviewer/commands": "0.0.0",
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/geometry-math": "0.0.0"
+    "@massingviewer/commands": "0.1.0",
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/geometry-math": "0.1.0"
   }
 }

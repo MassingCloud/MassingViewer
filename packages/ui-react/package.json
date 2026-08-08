@@ -1,7 +1,7 @@
 {
   "name": "@massingviewer/ui-react",
-  "version": "0.0.0",
-  "description": "React for the parts React is good at \u2014 panels, a docking layout, a property grid that shows declared against measured, and a Ctrl+K palette. The ribbon it wraps stays vanilla, so massing can mount the same code.",
+  "version": "0.1.0",
+  "description": "React for the parts React is good at — panels, a docking layout, a property grid that shows declared against measured, and a Ctrl+K palette. The ribbon it wraps stays vanilla, so massing can mount the same code.",
   "license": "MIT",
   "keywords": [
     "react",
@@ -39,9 +39,9 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/observability": "0.0.0",
-    "@massingviewer/ribbon": "0.0.0",
-    "@massingviewer/ui-model": "0.0.0"
+    "@massingviewer/observability": "0.1.0",
+    "@massingviewer/ribbon": "0.1.0",
+    "@massingviewer/ui-model": "0.1.0"
   },
   "peerDependencies": {
     "react": ">=18",

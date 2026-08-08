@@ -1,8 +1,8 @@
 {
   "name": "@massingviewer/shell",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
-  "description": "The React shell \u2014 the second host for the same vanilla ribbon, which is what ADR-0009 claims and this proves.",
+  "description": "The React shell — the second host for the same vanilla ribbon, which is what ADR-0009 claims and this proves.",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
@@ -10,15 +10,15 @@
     "preview": "vite preview --port 4174"
   },
   "dependencies": {
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/fileio": "0.0.0",
-    "@massingviewer/kernel-local": "0.0.0",
-    "@massingviewer/observability": "0.0.0",
-    "@massingviewer/plugin-host": "0.0.0",
-    "@massingviewer/ribbon": "0.0.0",
-    "@massingviewer/ui-model": "0.0.0",
-    "@massingviewer/ui-react": "0.0.0",
-    "@massingviewer/viewport": "0.0.0",
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/fileio": "0.1.0",
+    "@massingviewer/kernel-local": "0.1.0",
+    "@massingviewer/observability": "0.1.0",
+    "@massingviewer/plugin-host": "0.1.0",
+    "@massingviewer/ribbon": "0.1.0",
+    "@massingviewer/ui-model": "0.1.0",
+    "@massingviewer/ui-react": "0.1.0",
+    "@massingviewer/viewport": "0.1.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

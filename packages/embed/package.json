@@ -1,7 +1,7 @@
 {
   "name": "@massingviewer/embed",
-  "version": "0.0.0",
-  "description": "createMassingViewer() \u2014 the one function a host imports, and the M9 seam ledger that says whether massing can delete its own viewer yet.",
+  "version": "0.1.0",
+  "description": "createMassingViewer() — the one function a host imports, and the M9 seam ledger that says whether massing can delete its own viewer yet.",
   "license": "MIT",
   "keywords": [
     "ifc",
@@ -36,16 +36,16 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@massingviewer/authoring": "0.0.0",
-    "@massingviewer/commands": "0.0.0",
-    "@massingviewer/core": "0.0.0",
-    "@massingviewer/drawings2d": "0.0.0",
-    "@massingviewer/fileio": "0.0.0",
-    "@massingviewer/kernel-api": "0.0.0",
-    "@massingviewer/markup": "0.0.0",
-    "@massingviewer/observability": "0.0.0",
-    "@massingviewer/plugin-host": "0.0.0",
-    "@massingviewer/ribbon": "0.0.0",
-    "@massingviewer/viewport": "0.0.0"
+    "@massingviewer/authoring": "0.1.0",
+    "@massingviewer/commands": "0.1.0",
+    "@massingviewer/core": "0.1.0",
+    "@massingviewer/drawings2d": "0.1.0",
+    "@massingviewer/fileio": "0.1.0",
+    "@massingviewer/kernel-api": "0.1.0",
+    "@massingviewer/markup": "0.1.0",
+    "@massingviewer/observability": "0.1.0",
+    "@massingviewer/plugin-host": "0.1.0",
+    "@massingviewer/ribbon": "0.1.0",
+    "@massingviewer/viewport": "0.1.0"
   }
 }

@@ -89,11 +89,21 @@ function toPublish() {
   for (const entry of manifests) {
     let published = [];
     try {
-      const raw = execFileSync("npm", ["view", entry.json.name, "versions", "--json"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: process.platform === "win32",
-      });
+      // Through `npm_execpath` and this Node, with no shell. Node 24's DEP0190 fires for args passed alongside
+      // `shell: true`, and the fix is to not need a shell rather than to silence the warning — the same change
+      // `scripts/changeset-version.mjs` already carries. `npm` is the tool running this, not a dependency of it,
+      // so it cannot be resolved from `node_modules`.
+      const npmCli = process.env.npm_execpath;
+      const raw = execFileSync(
+        npmCli === undefined ? "npm" : process.execPath,
+        [...(npmCli === undefined ? [] : [npmCli]), "view", entry.json.name, "versions", "--json"],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+          // Only when falling back to the bare `npm` shim, which is a `.cmd` on Windows.
+          shell: npmCli === undefined && process.platform === "win32",
+        },
+      );
       const parsed = JSON.parse(raw);
       published = Array.isArray(parsed) ? parsed : [parsed];
     } catch {
