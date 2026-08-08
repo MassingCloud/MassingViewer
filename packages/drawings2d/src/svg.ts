@@ -13,6 +13,27 @@ import { type Paint, type Theme, paintFor } from "./theme.js";
  * **Every element-derived element carries `data-guid`.** That is what makes a markup anchor to a wall rather
  * than to a page coordinate, and it is the difference between this and every PDF-based review tool.
  *
+ ## The security posture, stated rather than assumed
+
+ * This output is assigned to `innerHTML` by every host that shows a plan, and it is generated from IFC that
+ * arrives from consultants and subs. With a local kernel producing drawings in the browser there is **no server
+ * escaping in front of it**, so the escaping here is the control, not a second line of defence.
+ *
+ * Which control does which job is worth naming, because they are not interchangeable:
+ *
+ * - **Values** are escaped by `xml()` at every interpolation site.
+ * - **Attribute names** are *sanitised*, not escaped — there is no escape syntax inside an attribute name, so the
+ *   character set is restricted instead. This was a real hole: an `attrs` key carrying a quote broke out and
+ *   injected an event handler. `packages/drawings2d/src/svg.security.test.ts` is what found it.
+ * - **GlobalIds** are protected by `asGuid` refusing anything that is not 22 GlobalId characters — validation at
+ *   the type boundary, not escaping at the render site.
+ * - **Themes** are code, not data, so their colours are interpolated unescaped. If themes ever become
+ *   user-supplied that stops being true.
+ *
+ * What is deliberately **not** here is a DOMPurify-style sanitiser. That parses a document someone else produced,
+ * which is the right tool for *imported* SVG — and this codebase does not import SVG yet (`fileio` lists it as
+ * `planned`). **When it does, a sanitiser becomes mandatory**, and the tests here will not cover it.
+ *
  * **Clickable linework gets an invisible fat twin.** A 0.5 mm line is roughly one pixel on screen, and hit-testing
  * one pixel with a mouse is not something anyone can do. Each selectable path is emitted twice: the visible
  * stroke, and a transparent copy at `stroke-width: 8` carrying the same `data-guid`. This is a trick massing's
@@ -119,7 +140,21 @@ function dataAttrs(entity: DrawingEntity): string {
   parts.push(` data-role="${entity.role}"`);
   for (const [key, value] of Object.entries(entity.attrs ?? {})) {
     // `data-` names must be lowercase and hyphenated; a camelCase key silently becomes a different attribute.
-    const name = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+    const hyphenated = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+    /**
+     * The attribute NAME is sanitised, not escaped — and this was a real injection hole.
+     *
+     * A previous version escaped only the value. An `attrs` key carrying a quote breaks out of the attribute and
+     * injects a new one: `{ 'x" onload="alert(1)': '1' }` renders as
+     * `data-x onload="alert(1)="1"`, which executes. Escaping cannot fix it, because there is no escape syntax
+     * inside an attribute *name* — the only safe move is to restrict the character set.
+     *
+     * `attrs` is author-supplied by a `DrawingProvider`, and a custom provider is this package's advertised
+     * extension point, so the data is not automatically trustworthy. A key that sanitises to nothing is dropped
+     * rather than emitted as a bare `data-`.
+     */
+    const name = hyphenated.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    if (name === "" || name.startsWith("-")) continue;
     parts.push(` data-${name}="${xml(String(value))}"`);
   }
   return parts.join("");
