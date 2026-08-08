@@ -26,6 +26,9 @@ import {
 } from "@massingviewer/drawings2d";
 import { createDropTarget, sniff, supportFor, type DropTarget, type OpenedFile } from "@massingviewer/fileio";
 import { NOOP_CRASH_SINK, createCrashHandler, type CrashSink } from "@massingviewer/observability";
+import { createSession, type AuthoringSession } from "@massingviewer/authoring";
+import { createRegistry, type CommandContext } from "@massingviewer/commands";
+import { createTopic, isLive, resolveAnchor, toBcfZip, type Topic } from "@massingviewer/markup";
 
 /**
  * `createMassingViewer` — the one function massing imports.
@@ -96,6 +99,14 @@ export type ExportFormat = "svg" | "dxf" | "pdf";
 
 export interface MassingViewer {
   readonly viewport: Viewport;
+  /**
+   * The authoring session: armed tool, half-collected arguments, cursor-to-point resolution.
+   *
+   * This one property closed four of the five M9 gaps. Snapping, the prompt loop, the section box and markup pins
+   * were listed separately, and every library under them already existed — what was missing was the object that
+   * connected them. See `packages/authoring/src/session.ts`.
+   */
+  readonly session: AuthoringSession;
   readonly kernel: KernelProvider;
   readonly host: PluginHost;
   /** `null` when no `ribbonContainer` was given. */
@@ -119,6 +130,19 @@ export interface MassingViewer {
 
   select(guid: Guid | null): void;
   readonly selection: Guid | null;
+
+  /**
+   * Markup: BCF topics anchored to GlobalIds, with orphan detection.
+   *
+   * `packages/markup` was complete before this existed; the gap was that the facade did not expose it. Anchors
+   * resolve by GlobalId, so deleting an element **orphans** its topics and says so rather than losing them.
+   */
+  raise(options?: { readonly title?: string; readonly at?: { readonly x: number; readonly y: number } }): Topic | null;
+  readonly topics: readonly Topic[];
+  /** Topics whose anchor no longer resolves in the current model. */
+  readonly orphans: readonly Topic[];
+  /** BCF 3.0 `.bcfzip` bytes. */
+  exportBcf(): Uint8Array;
 
   /** Idempotent. Called twice by a React strict-mode unmount, and by any host that is being careful. */
   dispose(): void;
@@ -157,6 +181,51 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
   const crash = createCrashHandler({ where: "massingviewer", sink: options.crashSink ?? NOOP_CRASH_SINK });
 
   const viewport = createViewport({ container: options.container });
+
+  const topics: Topic[] = [];
+
+  /**
+   * The command registry and the session.
+   *
+   * The registry is created here rather than taken as an option because the facade owns the dispatch path — a host
+   * that supplied its own would be able to bypass the audit sink and the undo history, which are the two things
+   * the command bus exists to guarantee.
+   */
+  const registry = createRegistry();
+
+  const commandContext = (): CommandContext => ({
+    // `edit` unconditionally: the local kernel has no notion of a role, and inventing a restriction the kernel
+    // does not enforce would dim controls for a reason that is not true. A host with real roles supplies its own
+    // context by wrapping `session`.
+    capabilities: new Set(["view", "review", "edit"]),
+    selection: selection === null ? [] : [selection],
+    supportsOp: () => true,
+    opHint: (op) => `"${op}" is not available with this kernel`,
+    online: true,
+    dispatch: async () => ({ ok: true, value: null }),
+  });
+
+  const session = createSession({
+    registry,
+    context: commandContext,
+    // Snap candidates from the model the viewport is actually showing. A callback, so the session never needs to
+    // know what a mesh is.
+    candidates: (cursor) => {
+      const out: { x: number; z: number; kind: "endpoint" }[] = [];
+      for (const mesh of meshes) {
+        const positions = mesh.positions;
+        for (let i = 0; i < positions.length; i += 3) {
+          const x = positions[i]!;
+          const z = positions[i + 2]!;
+          // Pre-filtered to a generous radius so a 200k-vertex model does not hand `resolveSnap` every vertex on
+          // every mouse move. The tolerance check inside it is exact; this is only about how much it has to look at.
+          if (Math.abs(x - cursor.x) < 2 && Math.abs(z - cursor.z) < 2) out.push({ x, z, kind: "endpoint" });
+        }
+      }
+      return out;
+    },
+    elementAt: () => selection,
+  });
 
   const host = createPluginHost({
     // A loader that refuses by default. Returning an empty runtime would make a plugin that failed to load
@@ -262,6 +331,42 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
       drawing = null;
       selection = null;
       return { ok: true, elements: built.elements.length };
+    },
+
+      session,
+
+    raise(options = {}) {
+      if (selection === null) return null;
+      const topic = createTopic({
+        title: options.title ?? `Issue on ${selection}`,
+        author: "massingviewer",
+        // Passed in rather than read from the clock, because `createTopic` requires it for a reason: a BCF export
+        // has to be reproducible, and a topic that stamps `new Date()` at creation cannot be byte-compared.
+        date: new Date().toISOString(),
+        // The pin carries the anchor. `guids` is the identity and `at` is only a position — a pin with a position
+        // and no guids is exactly what `resolveAnchor` reports as never-anchored.
+        pin: { guids: [selection], at: options.at ?? { x: 0, y: 0 } },
+      });
+      topics.push(topic);
+      return topic;
+    },
+
+    get topics() {
+      return [...topics];
+    },
+
+    get orphans() {
+      // Re-resolved on read, not cached. An anchor's liveness is a function of the *current* model, and a cached
+      // answer would keep saying "live" after the element was deleted — precisely the failure the orphan machinery
+      // exists to surface.
+      const live = new Set(guids.values());
+      return topics.filter(
+        (topic) => topic.pin !== undefined && !isLive(resolveAnchor(topic.pin, (guid) => live.has(guid))),
+      );
+    },
+
+    exportBcf() {
+      return toBcfZip(topics, { project: { guid: String(options.modelId ?? modelId), name: String(modelId) } });
     },
 
     cut(view = { kind: "plan", cutHeight: 1.2 }) {

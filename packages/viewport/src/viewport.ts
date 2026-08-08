@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createSection, type SectionController } from "./section.js";
+import { createWalk, type WalkController, type WalkOptions } from "./walk.js";
 import { frameLoop } from "./raf.js";
 import { attachPixelGovernor, initialState } from "./pixelGovernor.js";
 import { decideResize, observeSize, type Size } from "./resize.js";
@@ -22,6 +24,8 @@ import type { ModelId } from "@massingviewer/core";
  * `.frag` source becomes a second loader behind the same interface rather than a different viewport.
  */
 export interface ViewportOptions {
+  /** Walk-mode tuning. Eye height in particular: 1.6 m is what makes a low soffit look low.*/
+  readonly walk?: WalkOptions;
   readonly container: HTMLElement;
   /** Cap on device pixel ratio. Above ~2 the cost is real and the difference is not. */
   readonly maxPixelRatio?: number;
@@ -39,6 +43,15 @@ export interface Viewport {
   /** Pick the element under a pointer event, or null. */
   pick(event: { clientX: number; clientY: number }): { expressId: number; guid: string | null } | null;
   select(expressIds: readonly number[]): void;
+  /**
+   * Interactive clipping — a plane or a box.
+   *
+   * Distinct from `drawings2d`'s cutting, and the distinction matters: this *hides* fragments, so the cut face is
+   * hollow. A capped section is a drawing, not a view state.
+   */
+  readonly section: SectionController;
+  /** First-person walk. One implementation, so massing can delete both of its two. */
+  readonly walk: WalkController;
   readonly selection: readonly number[];
   onSelect(fn: (expressIds: readonly number[]) => void): () => void;
   readonly stats: () => { triangles: number; drawCalls: number; geometries: number; textures: number; fps: number };
@@ -148,6 +161,8 @@ export function createViewport(options: ViewportOptions): Viewport {
   // coupling in a stack that already has a version-parity gate. This is ~60 lines and does what a CAD
   // viewport needs — orbit, pan, dolly, with the target as the pivot so orbit-around-selection is trivial.
   const controls = createOrbit(renderer.domElement, camera, new THREE.Vector3(4, 1.2, 3));
+  const section = createSection(renderer, modelRoot);
+  const walk = createWalk(renderer.domElement, camera, options.walk);
 
   const stopLoop = frameLoop(
     () => {
@@ -162,8 +177,22 @@ export function createViewport(options: ViewportOptions): Viewport {
       } else {
         lastFpsAt = now;
       }
+      /**
+       * Walk before the orbit controls, and with a real `dt`.
+       *
+       * The `dt` is what makes movement frame-rate independent. A fixed step per frame walks twice as fast on a
+       * 120 Hz display as on a 60 Hz one — and the pixel governor here *deliberately* varies the frame rate under
+       * load, so a fixed step would make walking speed depend on how heavy the model is.
+       *
+       * Clamped, because `dt` after a tab has been backgrounded is however long the tab was hidden. Without the
+       * clamp, returning to a tab teleports the camera through the building.
+       */
+      const dt = lastFrameAt === 0 ? 0 : Math.min((now - lastFrameAt) / 1000, 0.1);
       lastFrameAt = now;
-      controls.update();
+      walk.update(dt);
+      // Skipped while walking: the orbit controls would fight the first-person camera for the same state, and
+      // the visible result is a view that snaps back the instant you move.
+      if (!walk.active) controls.update();
       renderer.render(scene, camera);
     },
     () => alive,
@@ -187,6 +216,9 @@ export function createViewport(options: ViewportOptions): Viewport {
     current = buildScene(meshes, resolveGuid, { modelId });
     index = elementIndex(current);
     modelRoot.add(current.group);
+    // A rebuild creates new materials, and new materials carry no clipping planes. Without this the first edit
+    // after setting a section would silently clear it — and the user would blame the edit, not the reload.
+    section.reapply(current.group);
     fit(current.bounds);
     return current;
   }
@@ -264,11 +296,17 @@ export function createViewport(options: ViewportOptions): Viewport {
       textures: renderer.info.memory.textures,
       fps,
     }),
+    section,
+    walk,
     dispose() {
       // Order matters. Stop the loop before disposing the renderer, or the next scheduled frame renders
       // into a disposed context — which throws asynchronously from a place with no useful stack.
       alive = false;
       stopLoop();
+      // Before the renderer: `walk.dispose` exits pointer lock, and `section.dispose` touches materials. Both
+      // need a live context, and both are cheap — the cost of getting the order wrong is an async throw.
+      walk.dispose();
+      section.dispose();
       detachGovernor();
       stopObserving();
       controls.dispose();

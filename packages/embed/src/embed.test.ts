@@ -34,8 +34,13 @@ describe("the M9 seam ledger", () => {
     // `MassingViewer` plus the option names a host passes in.
     const members = new Set([
       "viewport",
+      "session",
       "kernel",
       "host",
+      "raise",
+      "topics",
+      "orphans",
+      "exportBcf",
       "ribbon",
       "modelId",
       "open",
@@ -63,14 +68,31 @@ describe("the M9 seam ledger", () => {
     }
   });
 
-  it("reports readiness as false while any gap remains", () => {
-    // And it must. A partial adoption means both copies live, which is the fork the plan says ends the project —
-    // so "mostly ready" has to read as "not ready".
+  it("reports the seam as ready, with every movable capability covered", () => {
+    // This test used to assert the opposite — `gaps.length > 0` and `ready === false` — and it failed the moment
+    // the gaps were closed. Worth keeping the story: a test that asserts the *current* state of a ratchet breaks
+    // when the ratchet moves, and it breaks in the direction of success, which is the confusing direction.
+    //
+    // The mechanism ("ready is false while any gap remains") is asserted below against a synthetic ledger, where
+    // it belongs. What this one asserts is the state, and it is now allowed to say so.
     const coverage = seamCoverage();
-    expect(coverage.gaps.length).toBeGreaterThan(0);
+    expect(coverage.gaps).toEqual([]);
+    expect(coverage.ready).toBe(true);
+    expect(coverage.ratio).toBe(1);
+    expect(seamSummary()).not.toContain("Remaining:");
+  });
+
+  it("still refuses to call a partial seam ready", () => {
+    // The mechanism, on a synthetic ledger so it cannot rot as the real one improves. A partial adoption means both
+    // copies of the engine live, which is the fork the plan says ends the project — so "mostly ready" has to read
+    // as "not ready", however close the fraction gets.
+    const partial = [
+      { id: "a", description: "done", state: "covered" as const, via: "viewport" },
+      { id: "b", description: "not done", state: "gap" as const, note: "still to do" },
+    ];
+    const coverage = seamCoverage(partial);
     expect(coverage.ready).toBe(false);
-    expect(coverage.ratio).toBeGreaterThan(0.5);
-    expect(seamSummary()).toContain("Remaining:");
+    expect(coverage.ratio).toBe(0.5);
   });
 
   it("does not count a boundary as a gap", () => {

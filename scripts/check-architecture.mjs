@@ -41,6 +41,11 @@ const LAYERS = [
   ["geometry-math", "ui-model", "catalog", "jobs", "ifc", "observability"],
   ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory"],
   ["drawings2d", "markup", "markup-ui", "commands", "plugin-host", "assets"],
+  // `authoring` gets a layer of its own, between the command bus and presentation, and the reason is that it
+  // genuinely sits there: it consumes `commands` and `geometry-math` and is consumed by `viewport`-side hosts and
+  // by `embed`. Putting it beside `commands` would need a same-layer exception, and the honest fix for
+  // "the shared thing belongs one layer down" does not apply here — the shared thing IS `commands`.
+  ["authoring"],
   ["viewport", "ui-react", "ribbon", "fileio"],
   ["embed", "cli"],
 ];

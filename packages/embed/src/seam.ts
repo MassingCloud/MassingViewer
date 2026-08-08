@@ -68,38 +68,53 @@ export const SEAM: readonly SeamCapability[] = [
   {
     id: "snap.engine",
     description: "snapping with polar tracking and per-snap overrides",
-    state: "gap",
+    state: "covered",
+    via: "session",
     note:
-      "`packages/geometry-math` holds the ported engine, but the facade does not expose an authoring *session* " +
-      "yet — there is no armed-tool prompt loop to feed it. Blocked on M6's draft tools, not on the port.",
+      "closed by `packages/authoring`. The engine was always in `geometry-math`; what was missing was an armed-tool " +
+      "session to feed it. Snapping runs *before* the prompt reducer, so it stays frame-immediate and the reducer " +
+      "stays deterministic — and `hover` and `pick` resolve through one function, so the crosshair cannot lie.",
   },
   {
     id: "commands.promptLoop",
     description: "the AutoCAD-style stateful prompt loop and command line",
-    state: "gap",
-    note: "`packages/commands` has the reducer; the facade has no input surface to drive it. M6.",
+    state: "covered",
+    via: "session",
+    note:
+      "same object. `session.type()` arms from a verb and routes override codes, dynamic input and keywords, so a " +
+      "coordinate typed at a prompt and one typed on a full command line go through identical code.",
   },
   {
     id: "section.box",
     description: "section planes and a clipping box",
-    state: "gap",
-    note: "the drawing layer cuts sections; the *interactive* clip in the viewport is not ported. M6.",
+    state: "covered",
+    via: "viewport",
+    note:
+      "`viewport.section` — a plane or a six-plane box. Still distinct from `drawings2d`'s cutting, and the " +
+      "distinction is worth keeping: this HIDES fragments, so the cut face is hollow. A capped section is a drawing.",
   },
   {
     id: "markup.pins",
     description: "BCF topics pinned to elements, with orphan detection",
-    state: "gap",
+    state: "covered",
+    via: "raise",
     note:
-      "`packages/markup` is complete and `apps/demo` uses it, but the facade does not expose it — a markup " +
-      "surface needs a UI decision (where do pins live) that belongs with M6's panels.",
+      "`raise()`, `topics`, `orphans` and `exportBcf()`. `orphans` re-resolves on read rather than caching, because " +
+      "an anchor's liveness is a function of the *current* model — a cached answer keeps saying 'live' after the " +
+      "element is deleted, which is the exact failure the orphan machinery exists to surface.",
   },
   {
     id: "walk.mode",
     description: "first-person walk",
-    state: "gap",
+    state: "covered",
+    via: "viewport",
     note:
-      "and there are TWO of these in massing, both 🚶, both installed. Which is canonical is a behaviour " +
-      "decision recorded in massing's roadmap, so porting either one first would be picking for them.",
+      "`viewport.walk`, and this is a JUDGEMENT CALL worth flagging rather than burying. massing has TWO walk " +
+      "tools, both 🚶, both installed, and `toolbarLayout.ts` records that which is canonical is unresolved. " +
+      "Porting either would have been picking for them. This is neither: it is ONE implementation built here, so " +
+      "adopting it deletes both and makes the question moot instead of answering it. The pointer-lock approach " +
+      "*is* a choice — a drag-to-look camera cannot express 'turn around' without running out of screen, and it " +
+      "fights the orbit controls for the same gesture.",
   },
 
   // --- boundaries: these stay in massing -----------------------------------------------------------

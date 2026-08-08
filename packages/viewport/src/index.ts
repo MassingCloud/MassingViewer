@@ -8,6 +8,12 @@
 export { createViewport } from "./viewport.js";
 export type { Viewport, ViewportOptions } from "./viewport.js";
 
+export { createSection } from "./section.js";
+export type { SectionController, SectionMode, SectionState } from "./section.js";
+
+export { createWalk } from "./walk.js";
+export type { WalkController, WalkOptions } from "./walk.js";
+
 export { buildScene, disposeScene, elementIndex } from "./meshes.js";
 export type { SourceMesh, SceneElement, BuildResult, GuidResolver } from "./meshes.js";
 
