@@ -108,13 +108,21 @@ tag is the deliberate act.
 
 ## The per-package tags have to be pushed
 
-`changeset publish` creates a tag per published package — `@massing/core@0.1.0` — **locally only**. It does not
-push them, and the workflow has to.
+`changeset publish` prints `New tag: @massing/core@0.1.0` per package, and the obvious reading — that it has
+created a git tag you can push — has now failed twice:
 
-The first release proved it the hard way: twenty tags were created on the runner, none reached the remote, and
-they died with the runner. The workflow comment had asserted that changesets pushed them, which is the
-wrong-but-plausible kind of note that stops anyone checking. The tags for 0.1.0 were recreated by hand at the
-commit that produced them.
+1. **0.1.0** had no push step at all. Twenty tags were created on the runner and died with it. The workflow
+   comment asserted changesets pushed them, which is the wrong-but-plausible kind of note that stops anyone
+   checking.
+2. **0.1.1** added `git push origin --tags`, which reported **"Everything up-to-date"**. So at the moment the push
+   ran, the four tags changesets had just announced were not in the local repository.
+
+The second is unexplained, and a release record that depends on behaviour nobody can explain is not a record. So
+`scripts/tag-published.mjs` does the tagging from the one unambiguous source — what each package manifest says its
+version is, in the tree that was just published — and pushes the refs **by name**, so the push either moves them
+or fails saying why. It is idempotent, because re-running a partly-failed release is normal.
+
+Run it by hand with `npm run tag:published` if a release ever lands without its tags.
 
 Those tags are the only thing that answers "which commit produced this published version", which is the first
 question a bisect over a published regression asks. npm cannot tell you.
