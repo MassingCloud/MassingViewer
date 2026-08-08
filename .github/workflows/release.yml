@@ -1,19 +1,40 @@
 name: Release
 
-# Publishing is gated on a secret that is deliberately not set yet.
+# Publishing happens on a `release-*` tag, and the version bump happens on a human's machine.
 #
-# `NPM_TOKEN` is absent, so this workflow will refuse rather than half-publish. That is the intended state:
-# publishing to a shared npm scope is public and effectively irreversible (a version number can never be
-# reused, even after `npm unpublish`), so it needs a deliberate act by someone with the credentials — not a
-# side effect of merging a PR.
+# ## Why not a version PR
 #
-# To enable: add `NPM_TOKEN` (an automation token for the @massingviewer scope) under repository secrets. The
-# workflow then publishes with npm provenance, so a consumer can verify the tarball was built by this repo's CI
-# rather than someone's laptop.
+# The previous design used `changesets/action` to open a version PR and publish when it merged. It never worked
+# here: **the `MassingCloud` organisation has "Allow GitHub Actions to create and approve pull requests" off**, and
+# that setting is hierarchical — enterprise, then organisation, then repository — so a lower level can never grant
+# what a higher one withholds. The job requested `pull-requests: write` and got it, and the org policy refused the
+# API call anyway.
+#
+# That policy is off by *default*, and for a good reason: a workflow that can open a PR is a privilege-escalation
+# path, because a second workflow can approve it. Loosening an org-wide policy for every current and future repo,
+# to gain a convenience PR in one, is the wrong trade for a repository that SHA-pins every action, runs gitleaks
+# with an empty ignore file, and publishes with provenance.
+#
+# So the release stopped needing the permission instead of asking for it. This workflow has **strictly less**
+# authority than the one it replaces: no `pull-requests` scope at all, and nothing here writes a version.
+#
+# ## The flow
+#
+#   1. `npm run changeset:version` locally — bumps versions, writes changelogs, consumes the changesets.
+#   2. Read the diff. This is the review step the version PR was providing, and reading a local diff is more
+#      review than approving a bot's PR.
+#   3. Commit it, push, then `git tag release-<date>` and push the tag.
+#   4. This workflow verifies, checks the tree is publishable, and publishes.
+#
+# ## What is still gated
+#
+# `NPM_TOKEN` absent means nothing is published — a notice, not a failure. Publishing to a shared npm scope is
+# irreversible: a version number can never be reused, even after `npm unpublish`. See docs/releasing.md.
 
 on:
   push:
-    branches: [main]
+    tags: ["release-*"]
+  # For a dry run: everything except the publish, so the gates can be exercised without burning a version.
   workflow_dispatch:
 
 permissions:
@@ -27,16 +48,20 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create the release commit and tags
-      pull-requests: write # open the version PR
-      id-token: write # npm provenance via OIDC
+      # `changeset publish` pushes one git tag per published package — those are the authoritative record of what
+      # went out, and they are what `npm view` cannot tell you. That is the only reason this is `write`.
+      contents: write
+      # npm provenance via OIDC. Without it the tarball is unsigned, which would defeat the point of pinning and
+      # auditing everything else.
+      id-token: write
+      # Deliberately NO `pull-requests` scope. Nothing here opens a PR, so nothing here should be able to.
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          # Full history so changesets can work out what changed since the last release.
+          # Full history so changesets can see what was already released.
           fetch-depth: 0
-          # Credentials ARE needed here: this job pushes the version commit and tags. The one workflow where
-          # the zizmor artipacked exception is justified, so it is stated rather than left as an inconsistency.
+          # Needed: `changeset publish` pushes per-package tags. Narrower than before, where the same credentials
+          # also pushed a version commit and opened a PR.
           persist-credentials: true
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
@@ -47,13 +72,22 @@ jobs:
 
       - run: npm ci
 
-      # Everything the PR gates check, again, on the exact tree about to be published. A release is the one
-      # place where re-running a check that already passed is worth the minutes: the cost of publishing a
-      # broken version is a version number burned for ever.
+      # Everything the PR gates check, again, on the exact tree about to be published. A release is the one place
+      # where re-running a check that already passed is worth the minutes: the cost of publishing a broken version
+      # is a version number burned for ever.
       - name: Verify
         run: npm run verify
 
+      # The gate this design needs. Moving `changeset version` onto a laptop buys the privilege reduction above
+      # and introduces exactly one new failure mode: tagging without having run it. That fails *silently* —
+      # `changeset publish` finds every version already on npm, publishes nothing, and exits 0, so the release
+      # looks successful while shipping nothing. Or worse, a partial version run ships a set of versions that were
+      # never tested together.
+      - name: Release readiness (versions bumped, changelogs written, nothing pending)
+        run: npm run gate:release
+
       - name: Guard — refuse to publish without a token
+        id: guard
         run: |
           if [ -z "${NPM_TOKEN}" ]; then
             echo "::notice::NPM_TOKEN is not set, so nothing will be published."
@@ -64,38 +98,35 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-        id: guard
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # A manual run is a dry run: the gates above are the point, and publishing on a button press would make the
+      # deliberate act — pushing a tag — bypassable.
+      - name: Note that a manual run does not publish
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "::notice::workflow_dispatch is a dry run. Push a release-* tag to publish."
+
       - name: Generate SBOM for the release
-        if: steps.guard.outputs.skip == 'false'
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
         # Written **outside the working tree**, deliberately. It used to land in the repo root, and the changesets
-        # action runs `git add .` — so the first release run committed a 486 KB generated SBOM onto the
-        # `changeset-release/main` branch, and every release after it would have done the same. A generated
-        # artifact in version control is noise that grows, and it arrived without anyone choosing it.
+        # action ran `git add .` — so the first release run committed a 486 KB generated SBOM onto the release
+        # branch, and every release after it would have done the same. The changesets action is gone now, but the
+        # reasoning stands on its own: a generated artifact in version control is noise that grows.
         run: npx --yes @cyclonedx/cyclonedx-npm@latest --output-format JSON --output-file "$RUNNER_TEMP/sbom.cdx.json"
 
-      - name: Create a version PR, or publish
-        if: steps.guard.outputs.skip == 'false'
-        uses: changesets/action@c8bada60c408975afd1a20b3db81d6eee6789308 # v1.4.9
-        with:
-          # `changeset version` on a normal push opens a release PR; merging that PR is what actually
-          # publishes. Two steps deliberately: it means the version bump and changelog are reviewable, and
-          # nobody publishes by accident.
-          version: npm run changeset:version
-          publish: npm run changeset:publish
-          commit: "release: version packages"
-          title: "release: version packages"
+      - name: Publish
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
+        # `changeset publish` directly, not the action. It publishes every package whose version is not yet on
+        # npm and creates a git tag per package — and it is a no-op for anything already published, so a re-run
+        # of a failed release is safe rather than a second attempt at a burned version.
+        run: npm run changeset:publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Provenance requires the OIDC token above. Without it npm publishes unsigned, which defeats the
-          # point of pinning and auditing everything else.
           NPM_CONFIG_PROVENANCE: "true"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: steps.guard.outputs.skip == 'false'
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
         with:
           name: sbom-release
           path: ${{ runner.temp }}/sbom.cdx.json

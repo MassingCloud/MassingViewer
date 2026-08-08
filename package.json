@@ -46,11 +46,12 @@
     "e2e:ui": "node scripts/e2e.mjs --ui",
     "e2e:chromium": "node scripts/e2e.mjs --project=chromium",
     "changeset": "changeset",
-    "changeset:version": "changeset version && npm install --package-lock-only",
+    "changeset:version": "node scripts/changeset-version.mjs",
     "changeset:publish": "npm run build && changeset publish",
     "gate:bundle": "node scripts/bundle-budget.mjs",
     "gate:doccode": "node scripts/check-doc-code.mjs",
-    "gate:flags": "node scripts/check-flags.mjs"
+    "gate:flags": "node scripts/check-flags.mjs",
+    "gate:release": "node scripts/check-release-ready.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "0.7.0",
