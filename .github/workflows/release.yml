@@ -48,8 +48,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      # `changeset publish` pushes one git tag per published package — those are the authoritative record of what
-      # went out, and they are what `npm view` cannot tell you. That is the only reason this is `write`.
+      # Pushing the per-package tags `changeset publish` creates. Those tags are the authoritative record of
+      # what shipped, and the step below has to push them explicitly — `changeset publish` creates them
+      # **locally only**. The first release proved it: twenty tags were created on the runner, none reached the
+      # remote, and they died with the runner. The comment here used to claim changesets pushed them, which is
+      # exactly the kind of wrong-but-plausible note that stops anyone checking.
       contents: write
       # npm provenance via OIDC. Without it the tarball is unsigned, which would defeat the point of pinning and
       # auditing everything else.
@@ -60,7 +63,7 @@ jobs:
         with:
           # Full history so changesets can see what was already released.
           fetch-depth: 0
-          # Needed: `changeset publish` pushes per-package tags. Narrower than before, where the same credentials
+          # Needed so the tag-push step below can authenticate. Narrower than before, where the same credentials
           # also pushed a version commit and opened a PR.
           persist-credentials: true
 
@@ -140,6 +143,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
+
+      - name: Push the per-package tags
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
+        # `changeset publish` created these locally. Without this they are lost with the runner, and the repo has
+        # no record of which commit produced `@massing/core@0.1.0` — which is the one question a bisect over a
+        # published regression has to answer.
+        #
+        # `--no-verify` is deliberately absent, and `|| true` deliberately too: a tag push that fails should be
+        # visible. It cannot clobber anything, because every tag names a version that was just published for the
+        # first time, so a collision would mean something is badly wrong and is worth failing on.
+        run: git push origin --tags
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'

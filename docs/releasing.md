@@ -102,11 +102,39 @@ not a side effect of a merge.
 be exercised without burning a version. Publishing on a button press would make pushing a tag bypassable, and the
 tag is the deliberate act.
 
+## The per-package tags have to be pushed
+
+`changeset publish` creates a tag per published package — `@massing/core@0.1.0` — **locally only**. It does not
+push them, and the workflow has to.
+
+The first release proved it the hard way: twenty tags were created on the runner, none reached the remote, and
+they died with the runner. The workflow comment had asserted that changesets pushed them, which is the
+wrong-but-plausible kind of note that stops anyone checking. The tags for 0.1.0 were recreated by hand at the
+commit that produced them.
+
+Those tags are the only thing that answers "which commit produced this published version", which is the first
+question a bisect over a published regression asks. npm cannot tell you.
+
 ## Re-running a failed release
 
 Safe. `changeset publish` is a no-op for any version already on npm, so a partially-failed release can be re-run
 and it will publish only what did not make it. Delete and re-push the tag, or use `workflow_dispatch` to check the
 gates first.
+
+## Verifying a publish: the registry is eventually consistent
+
+**Do not conclude a publish failed because the registry 404s.** Brand-new packages under a new scope can take
+minutes to appear, and `npm view` caches negative lookups on top of that — so a freshly-published package can
+read as absent from two independent angles at once.
+
+That happened on the first release, and the trap is worth naming precisely: I checked `@types/node` as a control,
+it returned real data, and I took that as proof the instrument worked and therefore that the absence was real.
+The instrument *was* working. **A control that proves your tool works does not prove an observed absence is real
+when the system is eventually consistent.** The publish had already succeeded.
+
+The reliable check is the workflow log — `changeset publish` prints `success packages published successfully:`
+followed by every package it published. That is authoritative at the moment it runs. Confirm against the registry
+afterwards with `npm cache clean --force && npm view <pkg> --prefer-online`, and give it a few minutes.
 
 ## If you would rather have the version PR back
 
