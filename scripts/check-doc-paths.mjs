@@ -70,6 +70,43 @@ try {
 }
 
 /**
+ * Every dependency name declared anywhere in the workspace.
+ *
+ * Needed because a handful of npm packages are named like files — `ssim.js`, and by convention most of the
+ * `*.js` family — so the extension test below flags them as unresolvable paths. Resolving against the declared
+ * dependency set rather than a hand-kept allowlist means the next such package is handled by installing it,
+ * which is the difference between a rule and a list of exceptions.
+ *
+ * Declared, not installed: `node_modules` is not authoritative about what this repo depends on, and the gate
+ * must give the same answer before and after `npm ci`.
+ */
+function declaredPackages() {
+  const names = new Set();
+  const read = (rel) => {
+    try {
+      const json = JSON.parse(readFileSync(join(ROOT, rel), "utf8"));
+      for (const field of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
+        for (const name of Object.keys(json[field] ?? {})) names.add(name);
+      }
+    } catch {
+      /* not a package, or unreadable — the packaging gate owns that complaint */
+    }
+  };
+  read("package.json");
+  for (const group of ["packages", "apps"]) {
+    let entries = [];
+    try {
+      entries = readdirSync(join(ROOT, group));
+    } catch {
+      continue;
+    }
+    for (const entry of entries) read(`${group}/${entry}/package.json`);
+  }
+  return names;
+}
+const PACKAGES = declaredPackages();
+
+/**
  * A backticked token that looks like a path we should be able to resolve.
  *
  * Deliberately narrow. Backticks are also used for identifiers (`resolveSnap`), npm packages
@@ -85,6 +122,8 @@ function looksLikePath(token) {
   if (/^https?:/.test(token)) return false;
   if (token.startsWith("#")) return false; // in-page anchor
   if (token.startsWith("mailto:")) return false;
+  // A declared dependency, not a file. `ssim.js` is a package; `svg.ts` is a file.
+  if (PACKAGES.has(token)) return false;
   // Must carry a known source/doc extension, or be an explicit directory reference.
   if (/\.(ts|tsx|mjs|js|json|md|py|yml|yaml|css|html|tsv|txt|frag|ifc|svg|conf)$/.test(token)) return true;
   if (token.endsWith("/") && token.includes("/")) return true;

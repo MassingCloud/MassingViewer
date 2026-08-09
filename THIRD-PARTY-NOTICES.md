@@ -6,12 +6,12 @@ MassingViewer depends on the packages below. This project accepts only permissiv
 posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 
 Generated from `package-lock.json` rather than from an installed `node_modules`, so this list is the
-same on every platform and covers all 61 platform-specific binaries — not only the handful
+same on every platform and covers all 73 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-403 package(s) across 12 license(s).
+419 package(s) across 12 license(s).
 
-## MIT (320)
+## MIT (323)
 
 - `@babel/code-frame` 7.29.7
 - `@babel/compat-data` 7.29.7
@@ -141,6 +141,7 @@ installed on whichever host happened to run the generator.
 - `@types/json-schema` 7.0.15
 - `@types/node` 12.20.55
 - `@types/node` 24.10.1
+- `@types/pngjs` 6.0.5
 - `@types/react` 19.2.18
 - `@types/react-dom` 19.2.4
 - `@types/stats.js` 0.17.4
@@ -280,6 +281,7 @@ installed on whichever host happened to run the generator.
 - `picomatch` 2.3.2
 - `picomatch` 4.0.5
 - `pify` 4.0.1
+- `pngjs` 7.0.0
 - `postcss` 8.5.26
 - `prelude-ls` 1.2.1
 - `prettier` 2.8.8
@@ -303,6 +305,7 @@ installed on whichever host happened to run the generator.
 - `shebang-command` 2.0.0
 - `shebang-regex` 3.0.0
 - `slash` 3.0.0
+- `ssim.js` 3.5.0
 - `stackback` 0.0.2
 - `std-env` 4.2.0
 - `strip-ansi` 6.0.1
@@ -334,6 +337,40 @@ installed on whichever host happened to run the generator.
 - `zod` 4.4.3
 - `zod-validation-error` 4.0.2
 
+## MPL-2.0 (31)
+
+- `@axe-core/playwright` 4.12.1
+- `@ifc-lite/data` 3.2.0
+- `@ifc-lite/drawing-2d` 1.20.0
+- `@ifc-lite/geometry` 3.6.0
+- `@ifc-lite/wasm` 4.3.0
+- `@resvg/resvg-js` 2.6.2
+- `@resvg/resvg-js-android-arm-eabi` 2.6.2 _(android/arm)_
+- `@resvg/resvg-js-android-arm64` 2.6.2 _(android/arm64)_
+- `@resvg/resvg-js-darwin-arm64` 2.6.2 _(darwin/arm64)_
+- `@resvg/resvg-js-darwin-x64` 2.6.2 _(darwin/x64)_
+- `@resvg/resvg-js-linux-arm-gnueabihf` 2.6.2 _(linux/arm)_
+- `@resvg/resvg-js-linux-arm64-gnu` 2.6.2 _(linux/arm64)_
+- `@resvg/resvg-js-linux-arm64-musl` 2.6.2 _(linux/arm64)_
+- `@resvg/resvg-js-linux-x64-gnu` 2.6.2 _(linux/x64)_
+- `@resvg/resvg-js-linux-x64-musl` 2.6.2 _(linux/x64)_
+- `@resvg/resvg-js-win32-arm64-msvc` 2.6.2 _(win32/arm64)_
+- `@resvg/resvg-js-win32-ia32-msvc` 2.6.2 _(win32/ia32)_
+- `@resvg/resvg-js-win32-x64-msvc` 2.6.2 _(win32/x64)_
+- `axe-core` 4.12.1
+- `lightningcss` 1.33.0
+- `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
+- `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_
+- `lightningcss-darwin-x64` 1.33.0 _(darwin/x64)_
+- `lightningcss-freebsd-x64` 1.33.0 _(freebsd/x64)_
+- `lightningcss-linux-arm-gnueabihf` 1.33.0 _(linux/arm)_
+- `lightningcss-linux-arm64-gnu` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-arm64-musl` 1.33.0 _(linux/arm64)_
+- `lightningcss-linux-x64-gnu` 1.33.0 _(linux/x64)_
+- `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
+- `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
+- `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
+
 ## Apache-2.0 (21)
 
 - `@dimforge/rapier3d-compat` 0.12.0
@@ -357,27 +394,6 @@ installed on whichever host happened to run the generator.
 - `playwright` 1.57.0
 - `playwright-core` 1.57.0
 - `typescript` 5.9.3
-
-## MPL-2.0 (18)
-
-- `@axe-core/playwright` 4.12.1
-- `@ifc-lite/data` 3.2.0
-- `@ifc-lite/drawing-2d` 1.20.0
-- `@ifc-lite/geometry` 3.6.0
-- `@ifc-lite/wasm` 4.3.0
-- `axe-core` 4.12.1
-- `lightningcss` 1.33.0
-- `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
-- `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_
-- `lightningcss-darwin-x64` 1.33.0 _(darwin/x64)_
-- `lightningcss-freebsd-x64` 1.33.0 _(freebsd/x64)_
-- `lightningcss-linux-arm-gnueabihf` 1.33.0 _(linux/arm)_
-- `lightningcss-linux-arm64-gnu` 1.33.0 _(linux/arm64)_
-- `lightningcss-linux-arm64-musl` 1.33.0 _(linux/arm64)_
-- `lightningcss-linux-x64-gnu` 1.33.0 _(linux/x64)_
-- `lightningcss-linux-x64-musl` 1.33.0 _(linux/x64)_
-- `lightningcss-win32-arm64-msvc` 1.33.0 _(win32/arm64)_
-- `lightningcss-win32-x64-msvc` 1.33.0 _(win32/x64)_
 
 ## ISC (15)
 

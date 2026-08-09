@@ -75,11 +75,13 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**1,167 unit tests, 62 E2E tests each on Chromium, Firefox, WebKit and iPad, and 11 repo gates** are green —
+**1,178 unit tests, 62 E2E tests each on Chromium, Firefox, WebKit and iPad, and 11 repo gates** are green —
 plus dedicated Playwright projects for the React shell (9), WCAG 2.2 AA via `axe-core` (4) and viewport visual
 regression (2). The E2E suite includes a **memory-leak gate**: twenty model replacements must leave *exactly* the
 same number of GPU buffers as one, because three.js does not free them when an object leaves the scene graph and
-the symptom of getting that wrong is a tab that gets slow and then dies.
+the symptom of getting that wrong is a tab that gets slow and then dies. Drawings are gated at three tiers, the
+third of which rasterises them through pinned `resvg` nightly — because line weight and dash pattern are invisible
+to a semantic digest, and a plan whose linework all became hairline-thin is unreadable while every digest matches.
 
 - **Exports SVG and DXF from one drawing.** Both are pure functions of `(Drawing, Theme, Paper)`, so a DXF a
   consultant opens measures the same as the SVG a reviewer approved — and `dxfLimitations()` states what R12
@@ -108,13 +110,10 @@ the symptom of getting that wrong is a tab that gets slow and then dies.
   `[object Object]` in a property panel is worse than nothing. An element with no property sets says so, which is
   a different statement from one the kernel could not answer for, and both beat silence.
 
-**What is not built.** Levels toggles the construction grid rather than drawing storey planes; Tier-3 drawing
-rasterisation and the long-task gate are absent (see [docs/testing.md](docs/testing.md)); and openings are
-subtracted only from rectangular profiles — anything else is drawn solid **and reported**, never silently.
-
-Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
-[docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and
-desktop.yml and mobile.yml would package apps that do not exist yet. See [the roadmap](#roadmap).
+**What is not built.** Levels toggles the construction grid rather than drawing storey planes; openings are
+subtracted only from rectangular profiles — anything else is drawn solid **and reported**, never silently; a
+frame-time gate and a long-task gate are absent (see [docs/testing.md](docs/testing.md)); and desktop.yml and
+mobile.yml would package apps that do not exist yet. See [the roadmap](#roadmap).
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).
@@ -203,7 +202,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M2 | `geometry-math` + `commands` published | ✅ done |
 | M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 `RemoteKernel` passes the suite against a behavioural stub. The recipe ledger's `remote` column stays at 0, because filling it needs a run against a real massing server — see [docs/kernels/authoring.md](docs/kernels/authoring.md) |
 | M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
-| M5 | 2D drawings + markup — **the full loop** | 🔨 SVG, DXF, PDF, BCF and Tier-1/2 goldens done. Tier-3 rasterisation absent; **door and window openings are not cut into plans** |
+| M5 | 2D drawings + markup — **the full loop** | ✅ **done.** SVG, DXF, PDF and BCF export, plus all three golden tiers: semantic digests and structural assertions per PR, and nightly rasterisation against pinned `resvg`. Door and window openings are cut into plans; non-rectangular profiles are drawn solid and reported |
 | M6 | Authoring tools, gizmos, inspector | ✅ **done.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E — plus a move/rotate/push-pull gizmo and a property inspector. Storey planes and a guide underlay remain, and are M10 |
 | M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
 | M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |

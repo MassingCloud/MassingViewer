@@ -19,16 +19,14 @@ permissions:
 # Three jobs the plan asks for and this workflow does not yet run. Written down because a nightly that runs one job
 # reads, at a glance, like a nightly that runs everything — and `docs/testing.md` points here for the gap:
 #
-#   - **Tier-3 drawing rasterisation.** `resvg` → PNG → SSIM ≥ 0.995 against a baseline, title block masked, resvg
-#     version pinned. Tiers 1 and 2 (semantic digests and structural assertions) run per-PR in
-#     `fixtures/golden.test.ts`; this is the one that catches hatch patterns and line weights, which a digest cannot
-#     express. `resvg` is not a dependency yet.
 #   - **p95 frame time.** The `perf` job below measures *drawing generation*, which is a pure function and belongs
 #     in Node. Frame time is a browser measurement and needs a rendering loop instrumented over many frames; the
 #     visual job renders single frames and cannot report it.
 #   - **The long-task gate.** Nothing over 50 ms during the golden path, which is what keeps the Worker boundary real
 #     rather than nominal. The perf job below measures drawing generation in Node, where there is no main thread to
 #     block, so this needs a browser trace.
+#
+# **Tier-3 drawing rasterisation is done** and runs in the `raster` job below.
 #
 # The **memory-leak gate is done** and runs per-PR rather than here: `e2e/memory.spec.ts` takes about five seconds
 # and is exactly deterministic, so deferring it to a nightly would only delay the signal. See docs/testing.md.
@@ -131,6 +129,44 @@ jobs:
             playwright-report/
             test-results/
             e2e/visual/
+          retention-days: 14
+
+  raster:
+    name: Tier-3 drawing rasterisation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Render the golden plans and compare pixels
+        # Nightly rather than per-PR for one reason, and it is the plan's risk #11: pixel baselines are the classic
+        # vehicle for reflexive re-baselining. Keeping the failure out of the merge path keeps it something someone
+        # investigates. The comparator itself is covered per-PR by `fixtures/raster-compare.test.ts`, because a
+        # comparator that answers "same" to everything makes this job green while asserting nothing.
+        #
+        # First run on Linux is also a measurement: the baselines were rendered on win32-x64, and whether resvg
+        # agrees bit-for-bit across architectures is stated as an open question in `raster-compare.ts` rather than
+        # assumed. If it disagrees, the failure prints the differing-pixel count and the worst channel delta, and
+        # AA_TOLERANCE gets set from that instead of guessed.
+        env:
+          RASTER: "1"
+        run: npx vitest run fixtures/raster.test.ts
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          # The render and a diff image per failing view. A raster failure that ships only a similarity number is
+          # not diagnosable — the whole value is being able to look at what changed.
+          name: raster-diff
+          path: test-results/raster/
           retention-days: 14
 
   perf:

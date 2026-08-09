@@ -93,10 +93,10 @@ place, a lost `guid`), and it diffs **readably** — a reviewer sees "layer A-WA
 entity's `guid` resolves to a real GlobalId. No geometry outside the sheet border. All text inside its
 bounding box.
 
-**Tier 3 — rasterised perceptual diff (nightly, or on a `drawings` label).** `resvg` (Rust, deterministic,
-no browser) to PNG, then SSIM against a baseline at 0.995, with the title block masked and the `resvg`
-version pinned. This catches what a digest cannot express — hatch pattern changes, line-weight errors —
-without gating every PR on pixel luck.
+**Tier 3 — rasterised perceptual diff (nightly).** `resvg` (Rust, deterministic, no browser) to PNG, then
+SSIM against a baseline at 0.995, with the `resvg` version pinned. This catches what a digest cannot express —
+hatch pattern changes, line-weight errors — without gating every PR on pixel luck. *As built it also asserts
+pixel equality, and there is no masked title block; both differences are explained below.*
 
 ### What is implemented
 
@@ -115,8 +115,43 @@ the others can.
 `fixtures/broken.ifc` exists solely to exercise `DrawingProvenance.incomplete`. A field with no failing input has
 never actually been tested — and it found a real one.
 
-**Tier 3 is not implemented.** `resvg` is not a dependency and there is no nightly rasterisation job. It is listed
-in `.github/workflows/nightly.yml` as outstanding rather than described here as if it ran.
+**Tier 3 is implemented**, in `fixtures/raster.test.ts`, with eight baselines under `fixtures/raster/` and a
+nightly `raster` job. It departs from the recipe above in four places, each measured rather than chosen:
+
+- **The gate is pixel equality first, SSIM second.** These renders are deterministic — `resvg` is pinned, system
+  fonts are off, no GPU is involved — so the honest assertion is that the pixels match, within a 2/255 tolerance for
+  anti-aliasing arithmetic that might differ between host architectures. SSIM's 0.995 floor is kept as an
+  independent second check, because it is what catches a difference spread too thinly to trip a pixel count.
+  SSIM cannot be primary here: `mssim` is a mean over the whole sheet, and a single hairline lightened by 30% is
+  0.06% of it — it scores 0.9994 and passes. Line weight is one of the two things this tier exists to catch.
+- **`ssim.js`'s default options are overridden, and that mattered more than the threshold.** It defaults to the
+  original paper's automatic downsampling at `maxSize: 256`, which is right for photographs and destroys linework.
+  Measured: with the defaults, **a line shifted three pixels scores exactly 1.000000.** No floor below 1.0 catches
+  that. `raster-compare.test.ts` asserts this specific number so a library change cannot silently re-blind the gate.
+- **There is no masked title block, because there is no title block.** `svg.ts` emits a border and the drawing —
+  no date, no revision, no generator stamp — so nothing in the output is nondeterministic. The one thing that
+  *would* be is text, since `resvg` resolves `sans-serif` against host fonts. System fonts are off, which makes
+  text deterministic by making it **invisible**, so the suite **refuses** text entities rather than masking a
+  region. A mask hides a region from the gate for ever; a refusal makes the next person choose. When grid bubbles
+  or dimensions land, the fix is a committed licensed font, and the failure message says so.
+- **One fixture is baselined, not two.** `broken` renders **byte-identically** to `sample` in all eight views —
+  its only difference is `provenance.incomplete`, which is not drawn. Eight duplicate PNGs would be 150 kB of
+  binary that looks like coverage and asserts nothing, so the equality is a test instead.
+
+It also asserts something no per-view baseline can: **the equivalence structure of the eight views.** Pairs listed
+as identical must be pixel-identical, and every unlisted pair must differ. If the theme stopped distinguishing
+`cut` from `below`, every view would render the same plan and every individual baseline would still match its own
+file. Only comparing views notices.
+
+**Sabotage-tested, twice, and the second result is the argument for the tier existing.** Removing the `below` role's
+dash pattern failed six views with *"5117 of 1809600 pixels differ … worst by 75/255, mssim 0.994124. First differs
+near 41.7, 20.2 mm"* — while **Tier 1 and Tier 2 passed all 28 tests**, because a digest carries no paint. Making
+`belowDepth` silently ignored failed the shallow view *and* named all three view pairs that wrongly collapsed.
+
+Tier 3 also draws the one line where the two tiers disagree, which is worth knowing: `plan-0050` and `plan-0300`
+have **different digests and identical pixels**. The section walk emits collinear intermediate vertices at
+different points along the same edges — same drawing, different vertex list. Each tier is right about the question
+it asks, and it is the clearest illustration of why neither replaces the other.
 
 ### Two bugs the suite found on its first run
 
@@ -199,12 +234,13 @@ from the model did **not** move this gate: the baseline was unchanged and the te
 bug — the building's *outline* is identical and an opening in a wall face is interior detail seen edge-on from the
 default camera — but it is worth stating plainly, because it is easy to read "visual regression" as "notices any
 visible change". It notices geometry appearing, vanishing or moving. Openings, hatch patterns and line weights are
-what Tier 3 rasterisation is for, and Tier 3 is not implemented. The semantic digests caught the same change
-loudly, across fourteen of sixteen goldens, which is the division of labour working.
+what Tier 3 rasterisation is for. The semantic digests caught the same change loudly, across fourteen of sixteen
+goldens, which is the division of labour working — and Tier 3 now covers the paint half of it for 2D.
 
 **Not implemented:** the digest-pinned container, `--deterministic-mode`, seeded RNG and frozen clocks. The current
 job pins the rasteriser, DPR and colour profile and relies on the renderer-keyed baseline to fail loudly when the
-runner image changes ANGLE. Nightly SSIM is not implemented either. Both recorded in
+runner image changes ANGLE. Nightly SSIM over the **3D viewport** is not implemented either — the 2D `raster` job
+is a different thing, over `resvg` output where determinism is achievable. Both recorded in
 `.github/workflows/nightly.yml`.
 
 ## 5. E2E — Playwright
