@@ -60,6 +60,9 @@
       "path": "./packages/observability"
     },
     {
+      "path": "./packages/pwa"
+    },
+    {
       "path": "./packages/authoring"
     },
     {

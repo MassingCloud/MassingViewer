@@ -40,6 +40,7 @@ import {
   type PluginManifest,
 } from "@massing/plugin-host";
 import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/observability";
+import { browserEnvironment, isolationStatus } from "@massing/pwa";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
@@ -195,6 +196,18 @@ function renderModelPanel() {
   const withGuid = built.elements.filter((e) => e.guid !== null).length;
   const pct = Math.round((100 * withGuid) / Math.max(1, built.elements.length));
   row(dl, "GlobalIds", `${withGuid}/${built.elements.length} (${pct}%)`, pct === 100 ? "ok" : "warn");
+
+  /**
+   * Threading, shown rather than left to be discovered.
+   *
+   * The plan's instruction is that the single-threaded fallback must be **visible**, because a silent one is a
+   * 5× perf cliff with no error and no warning — just a deployment that is inexplicably slower than another. It
+   * is `muted` rather than `warn` here on purpose: nothing in this app needs `SharedArrayBuffer` yet (ADR-0010),
+   * so single-threaded is the expected state and flagging it as a problem would be crying wolf. The row exists so
+   * that when something *does* need it, the answer is already on screen.
+   */
+  const isolation = isolationStatus(browserEnvironment());
+  row(dl, "Threads", isolation.isolated ? "shared memory" : "single", isolation.isolated ? "ok" : "muted");
 }
 renderModelPanel();
 

@@ -1058,3 +1058,68 @@ test("nothing is silently skipped by the tessellator", async ({ page }) => {
   await expect(heading).toBeHidden();
   await expect(page.locator("#skipped li")).toHaveCount(0);
 });
+
+test("registers a service worker that controls the page", async ({ page }) => {
+  /**
+   * The precondition for offline, asserted in **every** browser including WebKit.
+   *
+   * Split out from the reload test below because the two are checkable in different places, and collapsing them
+   * would have cost the Safari coverage that matters most: this half passes on WebKit and iPad, the reload half
+   * cannot run there for a reason that is about Playwright rather than about Safari. Skipping the whole test on
+   * WebKit would have quietly dropped the moat browser from the claim.
+   *
+   * "Controls the page", not "is registered". A worker that installed but never claimed this client intercepted
+   * nothing, so it would cache nothing for the reload that matters.
+   */
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 20_000 });
+
+  // And it precached something. A controlling worker with an empty cache is the failure mode a registration
+  // check alone would miss — `cache.add` rejects per entry, so a wholly failed install still leaves a controller.
+  const cached = await page.evaluate(async () => {
+    const names = await caches.keys();
+    const cache = await caches.open(names[0]!);
+    return (await cache.keys()).length;
+  });
+  expect(cached, "the worker controls the page but cached nothing, so a reload offline would still fail").toBeGreaterThan(1);
+});
+
+test("survives a reload with the network gone, not just a session", async ({ page, context }, testInfo) => {
+  /**
+   * The offline claim, in the form a user would actually test it.
+   *
+   * "Zero network requests after first paint" (above) is a real property and it is not this one. That one says the
+   * app does not *phone home* during a session; it says nothing about whether the app can be *opened* without a
+   * network, because index.html and the bundle came off the wire before the assertion started. Before the service
+   * worker landed, a refresh offline produced the browser's own error page — the session survived and the reload
+   * did not, which is the case someone on a train hits first.
+   *
+   * **Chromium only, and the reason is the harness rather than the browser.** On WebKit and iPad,
+   * `page.reload()` under `setOffline(true)` fails with "WebKit encountered an internal error" — Playwright's
+   * offline emulation does not survive a reload there. The worker itself registers and controls the page on
+   * WebKit, which is what the test above asserts on every project; what is missing on Safari is *this
+   * verification*, not the feature. Recorded in docs/deployment.md rather than left as an unexplained skip.
+   */
+  test.skip(
+    testInfo.project.name !== "chromium",
+    "Playwright's offline emulation cannot survive page.reload() on WebKit; the worker itself is asserted above",
+  );
+
+  await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 20_000 });
+
+  await context.setOffline(true);
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" });
+
+    // The whole app, from cache: the shell, the bundle, and the kernel's own worker script — which is a separate
+    // request and therefore a separate chance to fail.
+    await expect(page.locator("#viewport canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 30_000 });
+    await expect(page.locator("#model")).toContainText("6/6 (100%)");
+  } finally {
+    // Restored even on failure, or every later test in this file inherits an offline browser and fails for a
+    // reason that has nothing to do with what it is testing.
+    await context.setOffline(false);
+  }
+});

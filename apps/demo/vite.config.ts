@@ -2,6 +2,7 @@ import { readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { defineConfig } from "vite";
+import { massingPwa } from "@massing/pwa/vite";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -46,6 +47,15 @@ function workspaceAliases(): { find: RegExp; replacement: string }[] {
 }
 
 export default defineConfig({
+  /**
+   * The offline service worker.
+   *
+   * `crossOriginIsolation` is left off. Nothing here needs `SharedArrayBuffer` — no `@thatopen/fragments`, no
+   * `web-ifc`, no `Atomics`; ADR-0010 records why, and COEP `require-corp` would break cross-origin subresources
+   * for no gain. Until now "works offline" survived a session but not a reload, because index.html and the bundle
+   * were never cached; that is what this fixes, and it is the demo's headline claim.
+   */
+  plugins: [massingPwa()],
   resolve: { alias: workspaceAliases() },
   // Relative base so the built demo works from a subpath (GitHub Pages) without a rebuild.
   base: "./",

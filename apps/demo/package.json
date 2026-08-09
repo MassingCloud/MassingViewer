@@ -20,7 +20,8 @@
     "@massing/plugin-host": "0.1.0",
     "@massing/ribbon": "0.1.0",
     "@massing/ui-model": "0.1.0",
-    "@massing/viewport": "0.1.1"
+    "@massing/viewport": "0.1.1",
+    "@massing/pwa": "0.1.0"
   },
   "devDependencies": {
     "vite": "8.1.5"

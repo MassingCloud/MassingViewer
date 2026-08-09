@@ -1,0 +1,43 @@
+{
+  "name": "@massing/pwa",
+  "version": "0.1.0",
+  "description": "One service worker doing two jobs — offline precaching and, when something actually needs SharedArrayBuffer, cross-origin isolation. With a fallback you can see.",
+  "license": "MIT",
+  "keywords": [
+    "service-worker",
+    "offline",
+    "pwa",
+    "cross-origin-isolation",
+    "sharedarraybuffer"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/pwa"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

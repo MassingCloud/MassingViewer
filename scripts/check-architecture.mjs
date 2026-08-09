@@ -38,7 +38,7 @@ const LAYERS = [
   // for tessellation elsewhere. What actually shipped is pure TypeScript with no DOM, no network and no WASM —
   // which is the definition of this layer. Leaving it at 2 would have forced a same-layer exception for
   // `kernel-local -> ifc`, papering over a classification that had simply become wrong.
-  ["geometry-math", "ui-model", "catalog", "jobs", "ifc", "observability"],
+  ["geometry-math", "ui-model", "catalog", "jobs", "ifc", "observability", "pwa"],
   ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory"],
   ["drawings2d", "markup", "markup-ui", "commands", "plugin-host", "assets"],
   // `authoring` gets a layer of its own, between the command bus and presentation, and the reason is that it
