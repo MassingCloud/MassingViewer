@@ -70,7 +70,9 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**647 unit tests, 25 E2E tests on Chromium, Firefox, WebKit and iPad, and 9 repo gates** are green.
+**1,071 unit tests, 34 E2E tests each on Chromium, Firefox, WebKit and iPad, and 11 repo gates** are green —
+plus dedicated Playwright projects for the React shell (9), WCAG 2.2 AA via `axe-core` (4) and viewport visual
+regression (2).
 
 - **Exports SVG and DXF from one drawing.** Both are pure functions of `(Drawing, Theme, Paper)`, so a DXF a
   consultant opens measures the same as the SVG a reviewer approved — and `dxfLimitations()` states what R12
@@ -80,8 +82,21 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
   groups that collapse to dropdowns as the window narrows and **never drop a verb** — asserted at every integer
   width from 320 to 3840 — full keyboard navigation, and controls that dim with a reason instead of vanishing.
 
-What is **not** built: PDF export, the plugin manifest system, and the dockable panel layout. See
-[the roadmap](#roadmap).
+**What is not built, and this is the honest headline.** The pure pieces of interactive authoring all exist and
+are tested — the snap engine, the polar and dynamic-input parsers, the prompt-loop reducer, and the
+`move_element` / `rotate_element` / `set_extrusion_depth` kernel operations. **The interactive layer that joins
+them does not.** There is no transform gizmo you can drag, no push/pull handle, no grid or level overlay, and no
+property inspector. The ribbon has a button reading *"Edit in place — drag the gizmo to move the selected
+element"* and there is no gizmo behind it.
+
+Concretely, M6's own acceptance test — *snap to a grid intersection, type `12'6`, commit, and see the wall in 3D
+and in the plan with a matching `data-guid`* — cannot be performed today: `@massing/authoring` is consumed only
+by `packages/embed`, and the dynamic-input parser is wired to no UI at all. Authoring works through the `+ Wall`
+button and the kernel API, not through direct manipulation.
+
+Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
+[docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and
+desktop.yml and mobile.yml would package apps that do not exist yet. See [the roadmap](#roadmap).
 
 Nothing here is API-stable until `1.0.0`. Packages are published at `0.x`, where **minor bumps may
 break** — see [the versioning policy](CONTRIBUTING.md#versioning).
@@ -167,13 +182,14 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 |---|---|---|
 | M0 | Repo, CI gates, 2D engine bake-off, sample fixtures | ✅ done |
 | M1 | Walking skeleton — load and orbit a model, zero backend | ✅ done |
-| M2 | `geometry-math` + `commands` published | ⏳ |
-| M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 suite + reference kernel done; `RemoteKernel` needs a reachable massing server |
-| M4 | `LocalKernel` — **author offline** | ⏳ |
-| M5 | 2D drawings + markup — **the full loop** | ⏳ |
-| M6 | Authoring tools, gizmos, inspector | ⏳ |
-| M7 | React ribbon shell, accessibility, i18n | ⏳ |
-| M8 | Enterprise hardening → `1.0.0` | ⏳ |
+| M2 | `geometry-math` + `commands` published | ✅ done |
+| M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 `RemoteKernel` passes the suite against a behavioural stub. The recipe ledger's `remote` column stays at 0, because filling it needs a run against a real massing server — see [docs/kernels/authoring.md](docs/kernels/authoring.md) |
+| M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
+| M5 | 2D drawings + markup — **the full loop** | 🔨 SVG, DXF, PDF, BCF and Tier-1/2 goldens done. Tier-3 rasterisation absent; **door and window openings are not cut into plans** |
+| M6 | Authoring tools, gizmos, inspector | ❌ **not started.** The pure parts (snap, dynamic input, prompt reducer, the three transform operations) exist and are tested; nothing joins them to a pointer. This is the largest open gap |
+| M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
+| M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |
+| M9 | massing consumes `@massing/*` | 🔨 `packages/embed` is the facade; massing has not adopted it |
 
 ## Design principles
 
