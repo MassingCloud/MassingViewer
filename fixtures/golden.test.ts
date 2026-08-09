@@ -240,41 +240,37 @@ describe("Tier 2 — structural assertions", () => {
     });
   }
 
-  it("the sample's nominal plan cuts every wall", () => {
-    // The one assertion anchored to *knowable truth* rather than to internal consistency: four authored walls, all
-    // crossing 1.2 m, so four cut loops and four distinct guids.
-    const drawing = drawingFor("sample", { kind: "plan", cutHeight: 1.2 });
-    const wallCuts = drawing.entities.filter((e) => e.ifcClass === "IfcWall" && e.role === "cut");
-    expect(wallCuts).toHaveLength(4);
-    expect(new Set(wallCuts.map((e) => e.guid)).size).toBe(4);
-  });
-
-  it("DOES NOT open the doors and windows — a known defect, asserted so it cannot be forgotten", () => {
+  it("the sample's nominal plan cuts every wall, and cuts the pierced ones twice", () => {
     /**
-     * **This test documents a bug rather than a feature.**
+     * The one assertion anchored to *knowable truth* rather than to internal consistency, and the number
+     * `build-sample.mjs` promised from the beginning:
      *
-     * `fixtures/build-sample.mjs` authors a door in the south wall and a window in the north as real
-     * `IfcOpeningElement` + `IfcRelVoidsElement`, and says why: *"A plan cut at 1.2 m passes through both, so each
-     * of those walls must yield TWO loops."* It does not. `apps/demo/src/tessellate.ts` contains **no** handling of
-     * `IFCRELVOIDSELEMENT` at all, so the voids are never subtracted and a plan shows an unbroken wall where the
-     * door is.
+     * > *"A plan cut at 1.2 m passes through both, so each of those walls must yield TWO loops."*
      *
-     * That matters more than a fixture comment being optimistic. The plan calls IFC → plan → markup → PDF "the
-     * moat demo", and a plan with no door openings is not a drawing anyone would issue.
-     *
-     * Asserted at the *current* count deliberately. Writing `toHaveLength(4)` with no explanation would encode the
-     * defect as correct and the next reader would have no way to tell. When voids are implemented this test fails,
-     * which is the intended signal — delete it and restore the six-loop assertion above.
+     * Four authored walls; a door in the south and a window in the north, both open at 1.2 m. So **six** cut
+     * loops across **four** distinct GlobalIds. It read four for as long as the tessellator ignored
+     * `IfcRelVoidsElement`, and this file carried a test asserting that defect on purpose so it could not be
+     * forgotten. That test is now gone, which is what it was for.
      */
     const drawing = drawingFor("sample", { kind: "plan", cutHeight: 1.2 });
     const wallCuts = drawing.entities.filter((e) => e.ifcClass === "IfcWall" && e.role === "cut");
-    // Six is correct. Four is what the pipeline produces.
-    expect(wallCuts.length, "voids are now subtracted — see the comment, this is good news").toBe(4);
+    expect(wallCuts).toHaveLength(6);
+    // Six loops from four walls, not four from one: the pierced walls contribute two each.
+    expect(new Set(wallCuts.map((e) => e.guid)).size).toBe(4);
+  });
 
-    // And the openings really are in the model, so this is a pipeline gap and not a fixture that lacks them.
-    const ifc = readFileSync(join(HERE, "sample.ifc"), "utf8");
-    expect(ifc).toContain("IFCOPENINGELEMENT");
-    expect(ifc).toContain("IFCRELVOIDSELEMENT");
+  it("a cut below every opening yields one loop per wall", () => {
+    /**
+     * The other half of the same claim, and the reason `plan-0300` is one of the eight views.
+     *
+     * At 300 mm the door is open (it reaches the floor) and the window is not. So the south wall still splits and
+     * the other three do not: five loops. A sectioner that ignored voids passed the 1.2 m case with four and this
+     * one with four too — identical numbers for opposite reasons, which is why one view was never enough.
+     */
+    const drawing = drawingFor("sample", { kind: "plan", cutHeight: 0.3 });
+    const wallCuts = drawing.entities.filter((e) => e.ifcClass === "IfcWall" && e.role === "cut");
+    expect(wallCuts).toHaveLength(5);
+    expect(new Set(wallCuts.map((e) => e.guid)).size).toBe(4);
   });
 
   it("the broken fixture reports what it could not section, instead of silently dropping it", () => {

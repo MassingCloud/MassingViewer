@@ -126,11 +126,14 @@ in `.github/workflows/nightly.yml` as outstanding rather than described here as 
    short reported `incomplete: []` and full coverage. That is precisely the failure the field was added to prevent,
    relocated one stage upstream where nothing was looking. `DrawingInput.skipped` is the channel; `generatePlan`
    seeds `incomplete` from it, prefixed `before generation:` so a reader knows which stage lost it.
-2. **Doors and windows are not cut into plans.** `apps/demo/src/tessellate.ts` contains no handling of
-   `IFCRELVOIDSELEMENT` at all, so `IfcOpeningElement` voids are never subtracted and a plan shows an unbroken wall
-   where the door is. `build-sample.mjs` authors both as real voids and states the expectation — six wall loops at a
-   1.2 m cut — which the pipeline does not meet. This is asserted at the *current* count with an explanation, so
-   the defect is recorded rather than encoded as correct; the test fails when voids land, which is the signal.
+2. **Doors and windows were not cut into plans.** `apps/demo/src/tessellate.ts` had no handling of
+   `IFCRELVOIDSELEMENT` at all, so `IfcOpeningElement` voids were never subtracted and a plan showed an unbroken
+   wall where the door is. `build-sample.mjs` authors both as real voids and states the expectation — six wall loops
+   at a 1.2 m cut — which the pipeline did not meet. **Fixed.** The suite carried a test asserting the defect on
+   purpose, with the reasoning written out, so it could not be forgotten; that test failed with the message
+   *"voids are now subtracted — see the comment, this is good news"* and has been deleted, which is what it was for.
+   The digests now split the south wall at 3.0 m and 3.9 m and the north wall at 2.0 m and 3.5 m — exactly the
+   intervals the fixture authors.
 
 ### Known wart
 
@@ -190,6 +193,14 @@ blessed away.
 
 Sabotage-tested: deleting the baseline produced the write-then-fail message; zeroing a 3×3 block of occupied cells
 (a wall vanishing) reported *"9 cell(s) changed occupancy by more than 1/8 — that is geometry, not antialiasing"*.
+
+**What it demonstrably does not catch, measured rather than assumed.** Subtracting every door and window opening
+from the model did **not** move this gate: the baseline was unchanged and the test passed. That is correct, not a
+bug — the building's *outline* is identical and an opening in a wall face is interior detail seen edge-on from the
+default camera — but it is worth stating plainly, because it is easy to read "visual regression" as "notices any
+visible change". It notices geometry appearing, vanishing or moving. Openings, hatch patterns and line weights are
+what Tier 3 rasterisation is for, and Tier 3 is not implemented. The semantic digests caught the same change
+loudly, across fourteen of sixteen goldens, which is the division of labour working.
 
 **Not implemented:** the digest-pinned container, `--deterministic-mode`, seeded RNG and frozen clocks. The current
 job pins the rasteriser, DPR and colour profile and relies on the renderer-keyed baseline to fail loudly when the

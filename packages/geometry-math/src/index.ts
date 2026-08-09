@@ -1,3 +1,5 @@
+export { bandsForVoids, splitProfileByVoid } from "./voids.js";
+export type { Band, Point2, VoidAxis, VoidCut, VoidSplit } from "./voids.js";
 // @massing/geometry-math — the precision kit.
 //
 // Everything here is pure: same input, same output, no DOM, no renderer, no network, no clock. That is

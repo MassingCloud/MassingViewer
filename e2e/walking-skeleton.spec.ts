@@ -49,7 +49,18 @@ async function readHandle(page: Page): Promise<Handle> {
     const canvas = mv.viewport.renderer.domElement;
     const container = canvas.parentElement!;
     return {
-      elements: mv.elements.map((e) => ({
+      /**
+       * **Distinct IFC elements**, deduplicated by expressID — not meshes.
+       *
+       * A wall with a door is now several extrusions (two jambs and a lintel) and `showModel` makes one
+       * `SceneElement` per mesh, all sharing the host's expressID. Every count in this file means *elements*, so
+       * four tests started failing with "expected 6, received 11" the moment openings began being subtracted —
+       * reporting a modelling regression where the model had become more correct. Deduplicating here fixes all of
+       * them at once, and makes the helper mean what its name says.
+       *
+       * The per-band shape has its own tests, which count meshes deliberately.
+       */
+      elements: [...new Map(mv.elements.map((e) => [e.expressId, e])).values()].map((e) => ({
         expressId: e.expressId,
         guid: e.guid,
         ifcType: e.ifcType,
@@ -354,7 +365,14 @@ test("loads the sample building and reports it", async ({ page }) => {
   const h = await readHandle(page);
   // The fixture's known content — 4 walls, a slab, a column. Openings are voids, not drawn elements.
   expect(h.elements).toHaveLength(6);
-  expect(h.triangles).toBe(72);
+  /**
+   * 132 = 11 extrusions × 12 triangles each.
+   *
+   * It was 72 (six boxes) before openings were subtracted: the two pierced walls became three and four bands. An
+   * exact number is kept deliberately here rather than loosened — geometry changing is a thing that should be
+   * *reviewed*, and 11 × 12 is derivable rather than magic.
+   */
+  expect(h.triangles).toBe(132);
 
   const classes = h.elements.map((e) => e.ifcType).sort();
   expect(classes).toEqual(["IFCCOLUMN", "IFCSLAB", "IFCWALL", "IFCWALL", "IFCWALL", "IFCWALL"]);
@@ -1130,4 +1148,49 @@ test("survives a reload with the network gone, not just a session", async ({ pag
     // reason that has nothing to do with what it is testing.
     await context.setOffline(false);
   }
+});
+
+test("a wall with a door is several extrusions but still one element", async ({ page }) => {
+  /**
+   * Openings are subtracted, and the count stays honest.
+   *
+   * A wall with a door becomes two jambs and a lintel, and `showModel` makes one `SceneElement` per mesh — so
+   * `elements.length` counts *bands*. The Model panel jumped from 6 to 11 the moment voids started being
+   * subtracted, and that number is user-facing. Both halves are asserted here because fixing one without the other
+   * is easy and looks fine.
+   */
+  const bands = await page.evaluate(() => {
+    const byId = new Map<number, number>();
+    for (const element of window.__massingviewer!.elements) {
+      byId.set(element.expressId, (byId.get(element.expressId) ?? 0) + 1);
+    }
+    return {
+      distinct: byId.size,
+      // The south wall has a door reaching the floor: two jambs and a lintel.
+      southWall: byId.get(35) ?? 0,
+      // The north wall has a window: a sill band, two jambs and a head band.
+      northWall: byId.get(48) ?? 0,
+      // The west wall is unpierced.
+      westWall: byId.get(61) ?? 0,
+    };
+  });
+
+  expect(bands.southWall, "the door was not subtracted").toBe(3);
+  expect(bands.northWall, "the window was not subtracted").toBe(4);
+  expect(bands.westWall, "an unpierced wall should be one extrusion").toBe(1);
+  expect(bands.distinct).toBe(6);
+
+  // And the panel counts elements, not meshes.
+  await expect(page.locator("#model")).toContainText("6 elements");
+  await expect(page.locator("#model")).toContainText("6/6 (100%)");
+});
+
+test("selecting any band of a pierced wall selects the whole wall", async ({ page }) => {
+  // Every band carries the host's expressID and GlobalId, which is what makes a wall-with-a-hole behave as one
+  // element for selection, markup anchoring and plan highlighting.
+  const guids = await page.evaluate(() =>
+    window.__massingviewer!.elements.filter((e) => e.expressId === 35).map((e) => e.guid),
+  );
+  expect(guids).toHaveLength(3);
+  expect(new Set(guids).size, "the bands of one wall disagree about their GlobalId").toBe(1);
 });

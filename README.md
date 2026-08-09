@@ -55,6 +55,11 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
   entity table, and an entity nobody touched is re-emitted byte-for-byte — so moving one wall cannot delete a
   structural consultant's analytical model. See
   [ADR-0008](docs/adr/0008-local-kernel-geometry-stack.md).
+- **Doors and windows are real holes.** `IfcOpeningElement` voids are subtracted, so a wall with a door becomes
+  jambs and a lintel — visible in 3D, and cut as two separate loops by a plan passing through the opening. A plan
+  cut below a window sill shows that wall unbroken and one through it shows the gap, which is the difference
+  between a drawing and a picture of a massing model. An opening whose profile is not a rectangle is refused and
+  reported in the drawing's provenance rather than drawn solid in silence.
 - **Cuts a plan, and the plan is a live view.** Cut the model at 1.2 m onto A3, click a line in the plan, and
   that element selects in 3D — because every line carries the GlobalId of the element it came from, not a page
   coordinate. Select in 3D and *all* of that element's plan linework lights up. Author a wall and the open plan
@@ -101,8 +106,9 @@ regression (2).
   `[object Object]` in a property panel is worse than nothing. An element with no property sets says so, which is
   a different statement from one the kernel could not answer for, and both beat silence.
 
-**What is not built.** Levels toggles the construction grid rather than drawing storey planes. Doors and windows
-are still not cut into plans (see [docs/testing.md](docs/testing.md)), and the memory-leak gate is still absent.
+**What is not built.** Levels toggles the construction grid rather than drawing storey planes; the memory-leak
+gate and Tier-3 drawing rasterisation are both absent (see [docs/testing.md](docs/testing.md)); and openings are
+subtracted only from rectangular profiles — anything else is drawn solid **and reported**, never silently.
 
 Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
 [docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and

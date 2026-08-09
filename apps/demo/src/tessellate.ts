@@ -1,4 +1,5 @@
 import type { SourceMesh } from "@massing/viewport";
+import { bandsForVoids, type Point2, type VoidCut } from "@massing/geometry-math";
 
 /**
  * A minimal IFC tessellator: `IfcExtrudedAreaSolid` over `IfcArbitraryClosedProfileDef` only.
@@ -296,6 +297,31 @@ export function tessellate(ifcText: string): TessellateResult {
     return null;
   }
 
+  /**
+   * Host element → the openings that void it, from `IfcRelVoidsElement`.
+   *
+   * Indexed once. A per-element scan over every relationship is the quadratic mistake that is invisible on a
+   * six-element fixture and makes a real model feel broken.
+   */
+  const voidsByHost = new Map<number, number[]>();
+  for (const ent of ents.values()) {
+    if (ent.type !== "IFCRELVOIDSELEMENT") continue;
+    const [, , , , host, opening] = splitArgs(ent.args);
+    const hostId = refId(host ?? "");
+    const openingId = refId(opening ?? "");
+    if (hostId === null || openingId === null) continue;
+    const bucket = voidsByHost.get(hostId);
+    if (bucket) bucket.push(openingId);
+    else voidsByHost.set(hostId, [openingId]);
+  }
+
+  /** A profile in storey coordinates: the placement's rotation, then its translation. */
+  function toWorld(profile: readonly [number, number][], ox: number, oz: number, rotation: number): Point2[] {
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    return profile.map(([px, py]) => [px * cos - py * sin + ox, px * sin + py * cos + oz] as Point2);
+  }
+
   for (const ent of ents.values()) {
     if (!DRAWN.has(ent.type)) continue;
     const a = splitArgs(ent.args);
@@ -313,16 +339,78 @@ export function tessellate(ifcText: string): TessellateResult {
     }
 
     const [ox, oy, oz, rotation] = placementOffset(refId(a[5] ?? ""));
-    const g = prism(solid.profile, solid.depth, [ox, oy + solid.localZ, oz], rotation);
-    meshes.push({
-      expressId: ent.id,
-      ifcType: ent.type,
-      modelIndex: 0,
-      positions: g.positions,
-      normals: g.normals,
-      indices: g.indices,
-      color: CLASS_COLOR[ent.type] ?? [0.75, 0.75, 0.75, 1],
-    });
+
+    /**
+     * The openings through this element, in storey coordinates.
+     *
+     * Both profiles are transformed into a **common frame** rather than compared in their own local ones. In this
+     * fixture every placement is relative to the storey with no offset, so the local frames happen to coincide —
+     * which is exactly the coincidence that would make a local-frame implementation look correct here and be wrong
+     * on the first model whose walls carry their own placements.
+     */
+    const hostBase = oy + solid.localZ;
+    const cuts: VoidCut[] = [];
+    for (const openingId of voidsByHost.get(ent.id) ?? []) {
+      const opening = ents.get(openingId);
+      if (!opening) continue;
+      const openingSolid = solidOf(refId(splitArgs(opening.args)[6] ?? ""));
+      if (!openingSolid) {
+        skipped.push({
+          expressId: openingId,
+          type: opening.type,
+          reason: `voids ${ent.type} #${ent.id} but has no extrusion to subtract`,
+        });
+        continue;
+      }
+      const [oox, ooy, ooz, orot] = placementOffset(refId(splitArgs(opening.args)[5] ?? ""));
+      const sill = ooy + openingSolid.localZ - hostBase;
+      cuts.push({
+        sill,
+        head: sill + openingSolid.depth,
+        profile: toWorld(openingSolid.profile, oox, ooz, orot),
+      });
+    }
+
+    const world = toWorld(solid.profile, ox, oz, rotation);
+    const { bands, refused } = bandsForVoids(world, solid.depth, cuts);
+
+    /**
+     * A refused void is reported, never swallowed.
+     *
+     * This is the whole difference between a limitation and a lie. A wall whose opening could not be subtracted
+     * renders perfectly — no error, no gap, nothing to notice — and the person who finds out is reading the drawing
+     * on site. `DrawingProvenance.incomplete` is seeded from these, so the plan says which walls are missing holes.
+     */
+    if (refused > 0) {
+      skipped.push({
+        expressId: ent.id,
+        type: ent.type,
+        reason: `${refused} opening(s) could not be subtracted — the profile is not a rectangle, so the wall is drawn solid`,
+      });
+    }
+
+    /**
+     * One mesh per band, all carrying the host's expressID.
+     *
+     * Deliberately not merged into one buffer: `showModel` keys selection and GlobalId resolution off `expressId`,
+     * so several meshes sharing one id all select together and all resolve to the same GlobalId — which is the
+     * behaviour a wall-with-a-hole needs. Merging would work too and would make the *plan* wrong, because the
+     * sectioner walks triangles and a single soup spanning a gap still has no gap in its silhouette.
+     */
+    for (const band of bands) {
+      const depth = band.to - band.from;
+      if (depth <= 0) continue;
+      const g = prism(band.profile as readonly [number, number][], depth, [0, hostBase + band.from, 0], 0);
+      meshes.push({
+        expressId: ent.id,
+        ifcType: ent.type,
+        modelIndex: 0,
+        positions: g.positions,
+        normals: g.normals,
+        indices: g.indices,
+        color: CLASS_COLOR[ent.type] ?? [0.75, 0.75, 0.75, 1],
+      });
+    }
   }
 
   return { meshes, guids, skipped };

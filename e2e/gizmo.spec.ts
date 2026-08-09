@@ -68,6 +68,8 @@ async function measure(page: Page, guid: string): Promise<Measured> {
   const out = await page.evaluate((id) => {
     const mv = window.__massingviewer!;
     let found: { dx: number; dy: number; dz: number; minX: number; minZ: number } | null = null;
+    let min = { x: Infinity, y: Infinity, z: Infinity };
+    let max = { x: -Infinity, y: -Infinity, z: -Infinity };
     mv.viewport.scene.traverse((object) => {
       const mesh = object as unknown as {
         isMesh?: boolean;
@@ -79,12 +81,21 @@ async function measure(page: Page, guid: string): Promise<Measured> {
       mesh.geometry.computeBoundingBox();
       if (mesh.geometry.boundingBox === null) return;
       const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+      /**
+       * **Unioned** across every mesh carrying this GlobalId, not the first one found.
+       *
+       * A wall with a door is three extrusions. Measuring one of them measured a jamb — so the rotate test read a
+       * 3 m piece where it expected an 8 m wall and failed as "the long axis never swapped", when the wall had in
+       * fact rotated perfectly.
+       */
+      min = { x: Math.min(min.x, box.min.x), y: Math.min(min.y, box.min.y), z: Math.min(min.z, box.min.z) };
+      max = { x: Math.max(max.x, box.max.x), y: Math.max(max.y, box.max.y), z: Math.max(max.z, box.max.z) };
       found = {
-        dx: +(box.max.x - box.min.x).toFixed(3),
-        dy: +(box.max.y - box.min.y).toFixed(3),
-        dz: +(box.max.z - box.min.z).toFixed(3),
-        minX: +box.min.x.toFixed(3),
-        minZ: +box.min.z.toFixed(3),
+        dx: +(max.x - min.x).toFixed(3),
+        dy: +(max.y - min.y).toFixed(3),
+        dz: +(max.z - min.z).toFixed(3),
+        minX: +min.x.toFixed(3),
+        minZ: +min.z.toFixed(3),
       };
     });
     return found;
@@ -404,4 +415,22 @@ test("clicking quickly between elements does not leave the wrong properties on s
   await expect(page.locator("#sel")).toContainText("no property sets", { timeout: 20_000 });
   // The wall's pset must not have leaked onto the column.
   await expect(page.locator("#sel")).not.toContainText("Pset_WallCommon");
+});
+
+test("the handles wrap the whole pierced wall, not one of its bands", async ({ page }) => {
+  /**
+   * `elementAt` returns the *first* mesh matching an expressID, and a door wall now has three. Boxing that one
+   * piece would have put the handles around whichever band came first — most likely the lintel, floating above the
+   * opening — and it would have looked deliberate.
+   */
+  await ready(page);
+  await selectFirst(page, "IFCWALL");
+  const reach = await page.evaluate(
+    () =>
+      window.__massingviewer!.viewport.scene.children
+        .find((o) => o.name === "mv-gizmo")!
+        .children.find((c) => c.userData.role === "rotate")!.scale.x,
+  );
+  // The ring is sized `max(size.x, size.z) / 2 + 0.3`, so 4.3 for the whole 8 m wall. A 3 m jamb would give 1.8.
+  expect(reach).toBeCloseTo(4.3, 2);
 });

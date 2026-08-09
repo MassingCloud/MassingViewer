@@ -45,6 +45,7 @@ import { DE, createTranslator } from "@massing/i18n";
 import { TOOLS } from "@massing/ui-model";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
+import type * as THREE from "three";
 import { tessellate } from "./tessellate";
 import { wireDraft, type DraftController } from "./draft";
 
@@ -208,16 +209,21 @@ function renderModelPanel() {
   // `plural`, not `String(n)`. The row is one number today and the moment it becomes a sentence — which is what
   // the markup panel below already is — a concatenation would be untranslatable. Doing it here keeps one habit
   // rather than two.
-  row(dl, "Elements", i18n.plural("count.elements", built.elements.length));
+  row(dl, "Elements", i18n.plural("count.elements", distinctElements()));
   row(dl, "Triangles", built.triangles.toLocaleString());
   row(dl, "Parse", `${parseMs.toFixed(1)} ms`);
   row(dl, "Extent", `${formatLength(dims.x, units)} × ${formatLength(dims.z, units)}`);
   row(dl, "Height", formatLength(dims.y, units));
   // Identity coverage, shown rather than assumed. If this is not 100% something in the resolver is wrong and
   // every markup anchored to this model would be anchored to nothing.
-  const withGuid = built.elements.filter((e) => e.guid !== null).length;
-  const pct = Math.round((100 * withGuid) / Math.max(1, built.elements.length));
-  row(dl, "GlobalIds", `${withGuid}/${built.elements.length} (${pct}%)`, pct === 100 ? "ok" : "warn");
+  // Counted over distinct elements too, or a wall split into three bands would count its GlobalId three times and
+  // the coverage percentage would be an average over meshes rather than over the building.
+  const identified = new Set(
+    built.elements.filter((e) => e.guid !== null).map((e) => e.expressId),
+  ).size;
+  const total = distinctElements();
+  const pct = Math.round((100 * identified) / Math.max(1, total));
+  row(dl, "GlobalIds", `${identified}/${total} (${pct}%)`, pct === 100 ? "ok" : "warn");
 
   /**
    * Threading, shown rather than left to be discovered.
@@ -249,6 +255,40 @@ renderSkipped(skipped);
 // Derived on demand rather than captured once. Authoring replaces the whole model, and a map built at startup
 // would show "?" for the class of anything created afterwards — the panel quietly disagreeing with the model.
 const elementAt = (expressId: number) => built.elements.find((e) => e.expressId === expressId);
+
+/**
+ * Distinct IFC elements, not meshes.
+ *
+ * A wall with a door is now several extrusions — two jambs and a lintel — and `showModel` makes one `SceneElement`
+ * per mesh, all sharing the host's expressID. So `built.elements.length` counts *bands*, and the Model panel jumped
+ * from 6 elements to 11 the moment openings started being subtracted. The count is user-facing and was simply wrong.
+ */
+function distinctElements(): number {
+  // A `function` declaration, not a `const` arrow: `renderModelPanel()` runs at module top level *above* this
+  // point, and a `const` there is a temporal dead zone — the app threw "Cannot access 'distinctElements' before
+  // initialization" on load and rendered nothing. The crash handler reported it, which is the one reason it was a
+  // thirty-second fix rather than a blank page to debug.
+  return new Set(built.elements.map((e) => e.expressId)).size;
+}
+
+/**
+ * The world-space box of every mesh belonging to one element.
+ *
+ * The gizmo needs the whole wall, not one band. `elementAt` returns the *first* match, so handles on a door wall
+ * would have wrapped whichever piece happened to come first — most likely the lintel, floating above the opening.
+ */
+function unionBox(expressId: number): THREE.Box3 | null {
+  let box: THREE.Box3 | null = null;
+  for (const element of built.elements) {
+    if (element.expressId !== expressId) continue;
+    element.object.geometry.computeBoundingBox();
+    const local = element.object.geometry.boundingBox;
+    if (local === null) continue;
+    const world = local.clone().applyMatrix4(element.object.matrixWorld);
+    box = box === null ? world : box.union(world);
+  }
+  return box;
+}
 
 /**
  * The ONE way selection changes — the viewport highlight and the panel are written together.
@@ -286,13 +326,8 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
    * handles the size of the building. Computed here because `SceneElement.object` is the mesh and its bounding box
    * is not cached.
    */
-  if (element !== undefined) {
-    element.object.geometry.computeBoundingBox();
-    const local = element.object.geometry.boundingBox;
-    draft?.select(local === null ? null : { guid: hit.guid, box: local.clone().applyMatrix4(element.object.matrixWorld) });
-  } else {
-    draft?.select(null);
-  }
+  const box = element === undefined ? null : unionBox(hit.expressId);
+  draft?.select(box === null ? null : { guid: hit.guid, box });
 
   row(dl, "Class", element === undefined ? "?" : pascalIfc(element.ifcType));
   row(dl, "expressID", `#${hit.expressId}`);
@@ -674,9 +709,8 @@ function reattachGizmo(): void {
     draft.select(null);
     return;
   }
-  element.object.geometry.computeBoundingBox();
-  const local = element.object.geometry.boundingBox;
-  draft.select(local === null ? null : { guid: selectedGuid, box: local.clone().applyMatrix4(element.object.matrixWorld) });
+  const box = unionBox(element.expressId);
+  draft.select(box === null ? null : { guid: selectedGuid, box });
 }
 
 /**
