@@ -14,7 +14,8 @@
  * load the config but start nothing — are unaffected.
  */
 
-const URL_ = "http://127.0.0.1:4173/";
+// Same `E2E_PORT` as the server and the config. All three read it, or the escape hatch only half works.
+const URL_ = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4173)}/`;
 
 export default async function globalSetup(): Promise<void> {
   try {

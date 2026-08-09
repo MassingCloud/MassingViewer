@@ -23,14 +23,20 @@ permissions:
 #     version pinned. Tiers 1 and 2 (semantic digests and structural assertions) run per-PR in
 #     `fixtures/golden.test.ts`; this is the one that catches hatch patterns and line weights, which a digest cannot
 #     express. `resvg` is not a dependency yet.
-#   - **3D viewport visual regression.** Silhouette occupancy grid plus luminance histogram in a digest-pinned
-#     SwiftShader container, keyed by renderer signature. Deliberately not SSIM per-PR — see risk #11.
-#   - **Performance trend.** p95 frame time with a 20% tolerance band and committed trend JSON, plus drawing
-#     generation budgets against a generated large model. The large fixture belongs here rather than committed:
-#     a 240 MB IFC cannot go in a public repository and its golden digest would be unreadable.
+#   - **p95 frame time.** The `perf` job below measures *drawing generation*, which is a pure function and belongs
+#     in Node. Frame time is a browser measurement and needs a rendering loop instrumented over many frames; the
+#     visual job renders single frames and cannot report it.
+#   - **The memory-leak gate.** Mount, load, author 50, unmount, force GC, then assert `renderer.info.memory` back
+#     to baseline, `THREE.Cache` empty, JS heap within 5%, **zero pending animation-frame callbacks**, listener
+#     counts at baseline. The plan calls this the most-neglected gate for a long-lived three.js app and it does not
+#     exist. `raf.ts` exists precisely because an animation loop with no way to stop outlives what it was drawing.
+#   - **A docker-composed massing backend** for `@massing/kernel-remote`'s conformance suite, so it runs against a
+#     real service rather than the in-repo stub. See docs/kernels/authoring.md.
 #
-# Also outstanding: a docker-composed massing backend to run `@massing/kernel-remote`'s conformance suite against a
-# real service rather than the in-repo stub. See docs/kernels/authoring.md.
+# And two workflows the plan lists that are **not applicable yet rather than missing**: `desktop.yml` and
+# `mobile.yml` would package apps that do not exist — `apps/` holds `demo` and `shell`, and there is no Electron,
+# Tauri or Capacitor dependency anywhere. Creating empty workflows to match a checklist would be theatre. They
+# arrive with the apps.
 
 jobs:
   property-explore:
@@ -87,3 +93,76 @@ jobs:
             property until it passes is how a suite stops meaning anything.
 
           Run: $RUN_URL"
+
+  visual:
+    name: Viewport visual regression
+    runs-on: ubuntu-latest
+    # A hung browser job burns to GitHub's six-hour default and reports nothing, which is worse than a failure.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Silhouette occupancy and luminance
+        # Gated on occupancy and a luminance histogram rather than on pixels or SSIM. `docs/testing.md` rules out
+        # per-PR pixel comparison outright: it fails on one driver's antialiasing, the reflex becomes accepting
+        # every new baseline, and the suite becomes decoration that still reports green.
+        #
+        # SwiftShader is what makes the baseline meaningful — a software rasteriser produces identical output on any
+        # host. Baselines are keyed by renderer string, so a runner image that changes its ANGLE version fails
+        # loudly with "no baseline for renderer …" instead of silently comparing two different rasterisers.
+        run: npm run e2e -- --project=visual
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: visual-report
+          path: |
+            playwright-report/
+            test-results/
+            e2e/visual/
+          retention-days: 14
+
+  perf:
+    name: Drawing generation budgets and trend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: p95 against budget, and scaling
+        # Two checks, and the second is the one a per-case budget cannot make: per-mesh cost is compared between two
+        # single-storey cases where every element is genuinely sectioned, so 25x the elements should cost roughly
+        # 25x the time. A quadratic sectioner bends that curve while every absolute number stays inside its budget.
+        #
+        # The budgets currently carry "baselined": false — they are developer-machine measurements times three, and
+        # three is a guess. See perf/README.md: let this job run for a week, read the trend, set real numbers.
+        env:
+          PERF_TREND: append
+          PERF_STAMP: ${{ github.event.repository.updated_at }}
+        run: node scripts/perf-drawings.mjs
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          # Uploaded even on success, because the *trend* is the output. The committed perf/trend.jsonl is the
+          # durable record; this is how a run's line gets read before someone commits it.
+          name: perf-trend
+          path: perf/trend.jsonl
+          retention-days: 90

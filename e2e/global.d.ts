@@ -17,6 +17,7 @@ declare global {
       kernelId: string;
       renderNow(): void;
       sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };
+      renderSignature(grid?: number): { renderer: string; cells: number[]; luminance: number[] };
     };
   }
 }

@@ -1,0 +1,33 @@
+{
+  "_note": "Drawing-generation p95 budgets in milliseconds, checked by scripts/perf-drawings.mjs with a +20% band. See perf/README.md before changing a number: these are BASELINED FROM A DEVELOPER MACHINE and multiplied by 3 for runner headroom, which is a placeholder, not a measurement. Re-baseline from a real nightly run and drop the multiplier.",
+  "small": {
+    "p95Ms": 6,
+    "meshes": 40,
+    "note": "one storey, 40 elements. JIT-dominated; the floor under everything else.",
+    "baselined": false
+  },
+  "medium": {
+    "p95Ms": 20,
+    "meshes": 1000,
+    "note": "five storeys. Realistic: one floor sectioned, four rejected.",
+    "baselined": false
+  },
+  "large": {
+    "p95Ms": 45,
+    "meshes": 10000,
+    "note": "twenty storeys, 500 per floor. Rejection-dominated, which is what a real plan does.",
+    "baselined": false
+  },
+  "floor-small": {
+    "p95Ms": 14,
+    "meshes": 200,
+    "note": "single storey: every mesh is sectioned. Half of the scaling comparison.",
+    "baselined": false
+  },
+  "floor-large": {
+    "p95Ms": 320,
+    "meshes": 5000,
+    "note": "5000 sectioned elements on one floor. Deliberately extreme \u2014 and it exceeds the plan's 50 ms long-task budget, which is why generation belongs in a worker.",
+    "baselined": false
+  }
+}

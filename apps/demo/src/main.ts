@@ -1053,6 +1053,19 @@ declare global {
       renderNow(): void;
       /** Coverage over a fixed `grid x grid` of samples — resolution-independent by design. */
       sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };
+      /**
+       * The two signals the visual-regression job gates on: a silhouette occupancy grid and a luminance histogram.
+       *
+       * Not pixels, and not SSIM. `docs/testing.md` is explicit that gating per-PR on pixels is how a visual suite
+       * gets abandoned — one antialiasing difference and the reflex becomes accepting every new baseline. These two
+       * are coarse enough to be stable across driver versions and specific enough to catch a model that failed to
+       * load, a camera that moved, or a material that lost its shading.
+       */
+      renderSignature(grid?: number): {
+        renderer: string;
+        cells: number[];
+        luminance: number[];
+      };
     };
   }
 }
@@ -1130,5 +1143,70 @@ window.__massingviewer = {
       }
     }
     return { sampled, nonBackground, coverage: nonBackground / Math.max(1, sampled) };
+  },
+
+  /**
+   * A silhouette occupancy grid and a luminance histogram, read from a freshly rendered frame.
+   *
+   * `render()` is called first and the pixels are read immediately, for the reason massing's hero-capture
+   * documents: `preserveDrawingBuffer` is off, so the buffer is invalid once the frame is composited and a
+   * later read returns black. A visual baseline of an all-black frame is worse than no baseline — it passes.
+   *
+   * **Occupancy per cell, quantised to eighths.** A cell records how much of it is covered, not what colour it
+   * is. That survives an antialiasing or driver difference (which moves a handful of pixels inside a cell) and
+   * fails on a model that did not load, a camera that moved, or geometry that vanished. Quantising is what makes
+   * it a *stable* number rather than a float that differs in the last place on every machine.
+   *
+   * **Luminance in 8 buckets**, over the same samples. This is the half that notices shading: a material that
+   * lost its light response keeps its silhouette exactly and collapses its histogram into one bucket.
+   */
+  renderSignature(grid = 16) {
+    const canvas = viewport.renderer.domElement;
+    const gl = viewport.renderer.getContext();
+    viewport.renderer.render(viewport.scene, viewport.camera);
+
+    const cells: number[] = [];
+    const luminance = [0, 0, 0, 0, 0, 0, 0, 0];
+    // 4 samples per cell per axis, so a cell has 16 samples and occupancy has 17 possible values before
+    // quantisation. Reading every pixel would be more precise and far more fragile.
+    const per = 4;
+    const w = canvas.width;
+    const h = canvas.height;
+    const px = new Uint8Array(4);
+
+    for (let cy = 0; cy < grid; cy++) {
+      for (let cx = 0; cx < grid; cx++) {
+        let hit = 0;
+        for (let sy = 0; sy < per; sy++) {
+          for (let sx = 0; sx < per; sx++) {
+            const x = Math.min(w - 1, Math.floor(((cx + (sx + 0.5) / per) / grid) * w));
+            const y = Math.min(h - 1, Math.floor(((cy + (sy + 0.5) / per) / grid) * h));
+            gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+            const r = px[0]!;
+            const g = px[1]!;
+            const b = px[2]!;
+            // Clear colour 0x1a1d21 = (26,29,33), matching sampleFramebuffer's threshold.
+            const bg = Math.abs(r - 26) < 12 && Math.abs(g - 29) < 12 && Math.abs(b - 33) < 12;
+            if (!bg) {
+              hit++;
+              // Rec. 601 luma. Integer weights so the bucket cannot differ by a float rounding step.
+              const luma = (299 * r + 587 * g + 114 * b) / 1000;
+              luminance[Math.min(7, Math.floor((luma / 256) * 8))]!++;
+            }
+          }
+        }
+        // Eighths: 0 for empty, 8 for full. Coarse on purpose.
+        cells.push(Math.round((hit / (per * per)) * 8));
+      }
+    }
+
+    // The renderer string, because a baseline is only comparable within one rasteriser. A mismatched key must be a
+    // loud failure rather than a quiet comparison of two different renderers — see docs/testing.md.
+    const debug = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = debug
+      ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))
+      : String(gl.getParameter(gl.RENDERER));
+
+    return { renderer, cells, luminance };
   },
 };

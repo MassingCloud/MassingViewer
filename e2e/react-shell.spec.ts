@@ -33,7 +33,10 @@ test("renders the same ribbon as the vanilla demo", async ({ page }) => {
 
   // The other host, in the same browser at the same viewport size — so the collapse algorithm sees identical
   // inputs and any difference is the renderer rather than the window.
-  await page.goto("http://127.0.0.1:4173/");
+  // The demo's port, from the same `E2E_PORT` the server and the config read. Hardcoded, this test navigated to
+  // 4173 while everything else had moved, and the cross-host comparison silently compared the shell against
+  // whatever was on the old port — or nothing.
+  await page.goto(`http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4173)}/`);
   await expect(page.locator("#ribbon .mv-ribbon-tabs")).toBeVisible({ timeout: 20_000 });
   const vanilla = await ribbonShape(page);
 

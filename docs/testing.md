@@ -170,6 +170,32 @@ WebGL is not deterministic across GPUs, drivers or ANGLE backends. Making it det
 **Deliberately no Safari or iPad pixel parity.** Their renderers differ and always will. Chasing it is how
 this suite gets abandoned; cross-browser gets functional E2E instead.
 
+### What is implemented
+
+`e2e/visual.spec.ts`, as its own Playwright project (`npm run e2e -- --project=visual`), run nightly. Two signals,
+both computed from a freshly rendered frame via `renderSignature()` on the demo's test hook — which calls
+`render()` and reads pixels immediately, because `preserveDrawingBuffer` is off and a later read returns black:
+
+- **Occupancy**, a 16×16 grid, 16 samples per cell, quantised to eighths. A cell moving by more than 1/8 is
+  geometry rather than antialiasing; more than one such cell fails. A quarter of all cells moving *slightly* also
+  fails, because that is a camera nudge no single cell reveals.
+- **Luminance**, 8 buckets, compared as a normalised distribution with a total-variation limit of 0.15. This is the
+  half that notices *shading*: a material that lost its light response keeps its silhouette exactly and collapses
+  its histogram into one bucket.
+
+Baselines live in `e2e/visual/`, keyed by renderer string. A missing baseline is written **and then failed** — never
+silently accepted, because a baseline nobody looked at blesses whatever was on screen, including a black frame.
+There is also a baseline-independent guard asserting the frame is not blank and shading exists; it cannot be
+blessed away.
+
+Sabotage-tested: deleting the baseline produced the write-then-fail message; zeroing a 3×3 block of occupied cells
+(a wall vanishing) reported *"9 cell(s) changed occupancy by more than 1/8 — that is geometry, not antialiasing"*.
+
+**Not implemented:** the digest-pinned container, `--deterministic-mode`, seeded RNG and frozen clocks. The current
+job pins the rasteriser, DPR and colour profile and relies on the renderer-keyed baseline to fail loudly when the
+runner image changes ANGLE. Nightly SSIM is not implemented either. Both recorded in
+`.github/workflows/nightly.yml`.
+
 ## 5. E2E — Playwright
 
 **Matrix: `chromium` + `webkit` + `firefox` on every PR, and `webkit` is a required check.** Safari and
@@ -231,6 +257,34 @@ Flows:
   the three.js cache empty, JS heap within 5% of pre-mount, **zero pending animation-frame callbacks**, and
   listener counts at baseline. The frame-loop helper exists because an animation loop with no way to stop
   outlives whatever it was drawing for; test that property directly.
+
+### What is implemented
+
+**Drawing generation only**, via `scripts/perf-drawings.mjs` (`npm run perf`), run nightly. Five synthetic cases,
+p95 against `perf/budgets.json` with a +20% band, and an append-only committed trend in `perf/trend.jsonl`. Read
+`perf/README.md` before changing a budget — every entry currently carries `"baselined": false`, because the numbers
+are developer-machine measurements times three and three is a guess rather than a measurement.
+
+The second check is the one a per-case budget cannot make: per-mesh cost is compared between two single-storey
+cases where **every** element is genuinely sectioned, so 25× the elements should cost roughly 25× the time. A
+quadratic sectioner bends that curve while every absolute number stays comfortably inside its budget.
+
+That comparison is the way it is because the first version got it wrong. It compared per-mesh cost between a
+40-mesh case and a 10 000-mesh, 20-storey case and reported scaling *improving* — 26 µs/mesh down to 1 µs/mesh.
+Meaningless: the small figure was JIT-dominated and the large one dominated by cheap vertical-extent rejections, so
+the ratio measured the mix of the workload rather than the cost of the work. A quadratic would have sailed through.
+Sabotage-tested afterwards by injecting an O(n²) loop into the sectioner, which the corrected check reports as
+*"per-mesh cost grew 3.7x"*.
+
+`floor-large` — 5000 sectioned elements on one floor — takes about 100 ms and so exceeds the 50 ms long-task rule
+above. That is not a defect to optimise away; it is the argument for the boundary that already exists.
+`LocalKernel` is Worker-only by construction, and drawing generation belongs on the same side of it. The case is
+there to keep the number visible.
+
+**Not implemented:** frame time (a browser measurement, and the visual job renders single frames), the long-task
+gate, and the memory-leak gate. All three are named in `.github/workflows/nightly.yml`. The memory one is the
+expensive omission — the plan calls it the most-neglected gate for an app of this shape, and it is the only item on
+this page whose absence has no partial substitute.
 
 ## 7. Accessibility
 

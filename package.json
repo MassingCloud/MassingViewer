@@ -52,6 +52,7 @@
     "gate:doccode": "node scripts/check-doc-code.mjs",
     "gate:flags": "node scripts/check-flags.mjs",
     "gate:messages": "node scripts/check-messages.mjs",
+    "perf": "node scripts/perf-drawings.mjs",
     "gate:release": "node scripts/check-release-ready.mjs",
     "tag:published": "node scripts/tag-published.mjs"
   },

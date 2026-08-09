@@ -14,6 +14,17 @@ import { defineConfig, devices } from "@playwright/test";
  * layout and interaction regressions only — not the thing that will actually break. A real-device run belongs
  * on a weekly schedule against actual iPadOS.
  */
+/**
+ * The demo's port, and the shell's one above it.
+ *
+ * Read from the environment because `scripts/e2e-server.mjs` already honours `E2E_PORT` and this file did not —
+ * so the orphaned-server error message told the reader to "point this run somewhere else with E2E_PORT", they did,
+ * the server moved, and Playwright kept probing 4173 and failed with "Nothing is serving". An escape hatch that
+ * only works in half the system is worse than none, because it costs a debugging session to discover.
+ */
+const PORT = Number(process.env.E2E_PORT ?? 4173);
+const SHELL_PORT = PORT + 1;
+
 export default defineConfig({
   testDir: "e2e",
   // Both of these belong to one project each, so every other project is told to skip them.
@@ -27,7 +38,7 @@ export default defineConfig({
   // antialiasing differences there produce disagreements about the renderer rather than about the markup. That
   // is the definition of a flaky gate, and `docs/testing.md` is explicit that one gate people trust beats ten
   // they route around. Layout and touch differences across browsers are covered by the other four projects.
-  testIgnore: [/react-shell\.spec\.ts/, /a11y\.spec\.ts/],
+  testIgnore: [/react-shell\.spec\.ts/, /a11y\.spec\.ts/, /visual\.spec\.ts/],
 
   // NOT parallel, and this is not a workaround for flakiness — it is recognising what the tests contend for.
   //
@@ -69,7 +80,7 @@ export default defineConfig({
     // A literal address, never `localhost` — see the note in scripts/e2e-server.mjs. `localhost` resolved to
     // ::1 for the browser and 127.0.0.1 for the readiness probe, and the run took 6.5 minutes instead of 16
     // seconds because of it.
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: `http://127.0.0.1:${PORT}`,
     // All three are first-retry-only, and video especially.
     //
     // `retain-on-failure` sounds free and is not: Playwright *records* a video for every test and deletes it
@@ -157,6 +168,35 @@ export default defineConfig({
     },
     {
       /**
+       * Visual regression, Chromium + SwiftShader only, and **nightly rather than per-PR**.
+       *
+       * SwiftShader is what makes a baseline meaningful at all: a software rasteriser produces identical output on
+       * any host, where a real GPU differs between a developer's machine and a runner and turns every comparison
+       * into luck. The other projects deliberately do **not** run this — `docs/testing.md` rules out chasing
+       * Safari/iPad pixel parity, because that is how a visual suite gets abandoned.
+       */
+      name: "visual",
+      testIgnore: [],
+      testMatch: /visual\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        // Fixed, because occupancy is computed over a grid of the canvas and a different aspect ratio reframes
+        // every cell. The grid is resolution-independent; the aspect ratio is not.
+        viewport: { width: 1280, height: 800 },
+        launchOptions: {
+          args: [
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
+            "--enable-unsafe-swiftshader",
+            "--force-device-scale-factor=1",
+            "--disable-lcd-text",
+            "--force-color-profile=srgb",
+          ],
+        },
+      },
+    },
+    {
+      /**
        * WCAG 2.2 AA, gated at `serious` and above. See `e2e/a11y.spec.ts` for what it scans and why the gate
        * sits where it does, and `docs/accessibility.md` for what it honestly cannot cover.
        *
@@ -198,7 +238,7 @@ export default defineConfig({
       testMatch: /react-shell\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
-        baseURL: "http://127.0.0.1:4174",
+        baseURL: `http://127.0.0.1:${SHELL_PORT}`,
         launchOptions: {
           args: [
             "--use-gl=angle",
