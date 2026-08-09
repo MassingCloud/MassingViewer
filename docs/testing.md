@@ -250,6 +250,33 @@ iPad support is a stated differentiator (the nearest competitor is Chrome/Edge o
 nightly afterthought. iPad runs emulated per-PR plus a **weekly real-device run** — emulated WebKit does not
 reproduce real iOS memory pressure or WASM limits, which is precisely where an iPad fails.
 
+### Firefox does not run on a Windows host, and the runner says so once instead of sixty-two times
+
+`scripts/e2e.mjs` probes each requested project's browser engine before starting anything, and reports a launch
+failure as one diagnosed environment problem rather than as a test result.
+
+The occasion was a real one. On the Windows development host, every Firefox test fails with
+`browserType.launch: spawn UNKNOWN` — Node's placeholder for a `CreateProcess` error it has no mapping for, and the
+least informative string Windows can return. What it actually means, from the Application event log:
+
+> Activation context generation failed … Dependent Assembly **mozglue** … could not be found
+
+`mozglue.dll` is present and carries a correct embedded assembly manifest, in **two independently downloaded**
+Firefox builds, on a host where Chromium and WebKit both launch. So it is a host-level side-by-side fault, not a
+corrupt download, and nothing in this repository can fix it. CI runs Firefox on `ubuntu-latest` under `xvfb`, where
+Windows activation contexts do not exist, so the matrix leg is unaffected — the gap is local only.
+
+The preflight does not make such a run green. It exits 1, because *"the browser would not start"* and *"the tests
+pass"* are different claims and neither can be made. `E2E_SKIP_UNLAUNCHABLE=1` runs the remaining projects and
+prints `NOT RUNNING firefox` in the summary; it is never set in CI, where an unlaunchable browser is a real failure.
+
+**The first version of this preflight was worse than the problem**, and the fix is the interesting part. It derived
+the project list by regex over `playwright.config.ts` with a 400-character window between a project's `name:` and
+its `devices[…]`. `shell`'s are 445 apart. So it dropped `shell`, and the full matrix ran **five projects and
+reported green** — a diagnostic that silently shrank the run it existed to explain. The project list now comes from
+`playwright test --list --reporter=json`, which is Playwright's own answer, and a project whose engine cannot be
+determined disables the preflight entirely rather than being quietly excluded from the run.
+
 ### The suite runs serially, on purpose
 
 `fullyParallel: false`, `workers: 1`. This is not a flakiness workaround — it is what the tests contend for.

@@ -29,8 +29,10 @@
  * Arguments are forwarded, so `npm run e2e -- --project=webkit --grep Escape` works as expected.
  */
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
+import { devices, chromium, firefox, webkit } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 4173);
 const URL_ = `http://127.0.0.1:${PORT}/`;
@@ -70,6 +72,152 @@ if (heldPort !== null) {
       `     Or point this run somewhere else with E2E_PORT.`,
   );
   process.exit(1);
+}
+
+/**
+ * Preflight: can the browsers this run needs actually start?
+ *
+ * The same lesson as the port check above, applied one layer out. When a browser binary cannot be spawned,
+ * Playwright reports it **once per test** — so a Windows host whose Firefox will not launch produces sixty-two
+ * identical `browserType.launch: spawn UNKNOWN` failures and no indication that a single environmental fault
+ * caused all of them. That is a suite that reads as broken code, and the reasonable response to it is to stop
+ * running the suite.
+ *
+ * `spawn UNKNOWN` is Node's placeholder for a `CreateProcess` error it has no mapping for, which makes it the
+ * least informative string Windows can hand back. The one that occasioned this check was:
+ *
+ *   > The application has failed to start because its side-by-side configuration is incorrect
+ *   > Activation context generation failed … Dependent Assembly mozglue … could not be found
+ *
+ * — with `mozglue.dll` present and carrying a correct embedded assembly manifest, in two independently
+ * downloaded Firefox builds, on a host where Chromium and WebKit both launch. So: a host-level SxS fault, not a
+ * bad download and nothing this repository can fix. CI runs Firefox on `ubuntu-latest` under xvfb, where
+ * Windows activation contexts do not exist.
+ *
+ * This does not make the run green. It replaces sixty-two copies of the wrong diagnosis with one right one.
+ */
+const PW_CLI = "node_modules/@playwright/test/cli.js";
+
+/**
+ * Which browser engine each project drives, parsed from the config.
+ *
+ * The engine itself comes from Playwright's own `devices` table rather than from reading a device name and
+ * guessing — `ipad` is WebKit and `shell` is Chromium, so a hand-written copy of that mapping would be wrong
+ * within a week. The window is generous because the projects in that file are separated by long comments: at 400
+ * characters this silently missed `shell`, whose `name:` and `devices[…]` are 445 apart, and the first version of
+ * this preflight then ran five projects while reporting nothing about the sixth. Hence `configuredProjects()`
+ * below, which does not trust this function's coverage.
+ */
+function projectEngines() {
+  const map = new Map();
+  try {
+    const config = readFileSync(new URL("../playwright.config.ts", import.meta.url), "utf8");
+    for (const [, project, device] of config.matchAll(/name:\s*"([^"]+)"[\s\S]{0,1500}?devices\[\s*"([^"]+)"\s*\]/g)) {
+      const engine = devices[device]?.defaultBrowserType;
+      if (engine !== undefined && !map.has(project)) map.set(project, engine);
+    }
+  } catch {
+    /* no preflight, then */
+  }
+  return map;
+}
+
+/**
+ * Playwright's own list of configured projects.
+ *
+ * Authoritative, where a regex over a TypeScript file is not. It costs one extra process and it is the only thing
+ * that makes it safe to *reduce* a matrix: without it, a project this script failed to parse would quietly not
+ * run, and a smaller green matrix is exactly the shape of result nobody questions.
+ */
+function configuredProjects() {
+  try {
+    const listed = execFileSync(process.execPath, [PW_CLI, "test", "--list", "--reporter=json"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    return JSON.parse(listed).config.projects.map((project) => project.name);
+  } catch {
+    return null;
+  }
+}
+
+const LAUNCHERS = { chromium, firefox, webkit };
+const args = process.argv.slice(2);
+const engines = projectEngines();
+
+/** The projects this invocation will run: whatever `--project` asked for, or all of them. */
+const requested = args
+  .flatMap((arg, i) => (arg.startsWith("--project=") ? [arg.slice(10)] : arg === "--project" ? [args[i + 1]] : []))
+  .filter((name) => name !== undefined);
+const projects = requested.length > 0 ? requested : (configuredProjects() ?? []);
+
+// A project whose engine could not be determined disables the preflight rather than being dropped from it. The
+// check is cheap insurance against the failure this file already made once: a diagnostic that shrinks the run it
+// was meant to explain is worse than no diagnostic at all.
+const unmapped = projects.filter((project) => !engines.has(project));
+if (unmapped.length > 0) {
+  console.error(
+    `e2e: skipping the browser-launch preflight — no engine known for ${unmapped.join(", ")}. ` +
+      `Every project still runs; only the diagnosis is unavailable.`,
+  );
+  projects.length = 0;
+}
+
+const broken = new Map();
+for (const engine of new Set(projects.map((p) => engines.get(p)).filter((e) => e !== undefined))) {
+  try {
+    const browser = await LAUNCHERS[engine].launch();
+    await browser.close();
+  } catch (error) {
+    // First line only. Playwright appends its launch command and a call log, which is useful in a report and
+    // noise in a summary — the rest is in the report if anyone wants it.
+    const message = error instanceof Error ? error.message : String(error);
+    broken.set(engine, message.split(/\r?\n/)[0]);
+  }
+}
+
+if (broken.size > 0) {
+  const unlaunchable = projects.filter((p) => broken.has(engines.get(p)));
+  const skip = process.env.E2E_SKIP_UNLAUNCHABLE === "1";
+  const say = (...lines) => console.error(lines.map((line) => (line === "" ? "" : `     ${line}`)).join("\n"));
+
+  console.error(`\ne2e: ${broken.size} browser engine(s) on this host cannot be launched at all.\n`);
+  for (const [engine, message] of broken) say(`${engine}: ${message}`);
+  say(
+    "",
+    `Affected projects: ${unlaunchable.join(", ")}`,
+    "This is the host, not the test code — every test in those projects would report the same launch error.",
+    "Try `npx playwright install --force <engine>` first; if it persists the binary is fine and the operating",
+    "system is refusing to start it. On Windows, check the Application event log for SideBySide entries, which",
+    "name the assembly that failed to resolve.",
+    "",
+  );
+
+  if (!skip) {
+    say(
+      'Exiting 1, because "the browser would not start" and "the tests pass" are different claims and this run',
+      "can make neither. To get the other projects' results anyway, set E2E_SKIP_UNLAUNCHABLE=1 — which prints",
+      "what it skipped, and is never set in CI, where an unlaunchable browser is a real failure rather than a",
+      "local quirk.",
+      "",
+    );
+    process.exit(1);
+  }
+
+  const remaining = projects.filter((p) => !broken.has(engines.get(p)));
+  if (remaining.length === 0) {
+    say("E2E_SKIP_UNLAUNCHABLE=1 leaves nothing to run. Exiting 1.", "");
+    process.exit(1);
+  }
+  say(`E2E_SKIP_UNLAUNCHABLE=1: NOT RUNNING ${unlaunchable.join(", ")}. Running ${remaining.join(", ")} only.`, "");
+  // Rewritten rather than appended: the original `--project` flags would otherwise still ask for the broken one.
+  args.splice(
+    0,
+    args.length,
+    ...args.filter((arg, i) => !arg.startsWith("--project") && args[i - 1] !== "--project"),
+    ...remaining.map((p) => `--project=${p}`),
+  );
 }
 
 const serverOutput = [];
@@ -143,7 +291,7 @@ if (!ready) {
   process.exit(1);
 }
 
-const playwright = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", ...process.argv.slice(2)], {
+const playwright = spawn(process.execPath, [PW_CLI, "test", ...args], {
   stdio: "inherit",
 });
 
