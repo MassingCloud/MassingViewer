@@ -184,6 +184,22 @@ The mechanism is not theoretical. `LocalKernel`'s fifteen ops existed and were u
 the ledger still read `planned` and the floor still read 0. The suite promoted them by failing with *"the kernel
 declares these but the ledger does not credit them"* until the table caught up.
 
+### When your kernel discovers its ops, the ledger cannot measure it
+
+`describeRecipeParity` compares the ledger against what `ops()` returns. That only means something if `ops()` is
+a property of *your kernel*. `RemoteKernel`'s is not: it discovers ops from `GET /reference/authoring-matrix`,
+so `ops()` reports whatever service it happens to be pointed at.
+
+So `packages/kernel-remote/src/conformance.test.ts` runs `describeKernel` but deliberately **does not** run
+`describeRecipeParity`, and the `remote` column stays `planned` for all 96 with a floor of 0. Wiring it against
+the in-repo stub would make the ledger track the stub's two-row test matrix — a number that goes green while
+measuring nothing, which is worse than the honest zero. If you write a discovering kernel, do the same.
+
+Filling that column needs a run against a real massing server, which is the nightly docker-composed job the
+plan asks for. **That job does not exist yet.** Until it does, `RemoteKernel` is verified against the protocol
+as documented, not against massing's implementation of it — two different claims, and the whole value of the
+suite is in not conflating them.
+
 ## Practical notes
 
 **Run in a worker.** `LocalKernel` cannot be constructed without a transport (`createLocalKernel(transport)`),

@@ -1,0 +1,45 @@
+{
+  "name": "@massing/kernel-remote",
+  "version": "0.0.0",
+  "description": "KernelProvider over massing's authoring service. Operations are discovered from the service's own matrix rather than hardcoded, and transactions declare \"inverse\" because the service has none.",
+  "license": "MIT",
+  "keywords": [
+    "ifc",
+    "kernel",
+    "http",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/kernel-remote"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@massing/core": "0.1.0",
+    "@massing/kernel-api": "0.1.0"
+  },
+  "devDependencies": {
+    "@massing/kernel-conformance": "0.1.0"
+  }
+}
