@@ -16,7 +16,7 @@ import {
   type Inference,
   type OverrideKind,
   type SnapOverrideHandle,
-} from "@massing/geometry-math";
+  gridSnaps,} from "@massing/geometry-math";
 import {
   begin,
   step,
@@ -171,6 +171,17 @@ export interface AuthoringSession {
   key(key: string, modifiers?: Modifiers): Promise<StepOutcome>;
   /** A whole token typed at the command line, or a full `WALL 0,0 @5<0` line. */
   type(text: string): Promise<StepOutcome>;
+  /**
+   * Discard any pending typed constraint, without cancelling the command.
+   *
+   * Exists because **the host owns the character buffer and the session owns whole tokens** — `dynKeystroke`
+   * accumulates keystrokes, and the whole buffer arrives through {@link type}. So when the user backspaces the
+   * buffer to empty, only the host knows; the session is still holding the constraint parsed from the last
+   * non-empty version, and the next Enter would commit the number the user just deleted.
+   *
+   * Neither existing call does this. `key("Escape")` cancels the entire command and `type("")` is an accept.
+   */
+  clearTyped(): void;
   setSnap(patch: Partial<SnapSettings>): void;
   readonly state: SessionState;
 }
@@ -336,7 +347,7 @@ export function createSession(deps: SessionDeps): AuthoringSession {
     const suppressed = effect !== null && effect.mode === "off";
     if (!suppressed && (snap.enabled || armedOverride !== null)) {
       const candidates = [...deps.candidates(at)];
-      if (snap.grid !== null) candidates.push(gridCandidate(at, snap.grid));
+      if (snap.grid !== null) candidates.push(...gridSnaps(at, snap.grid, snap.tolerance));
       snapped = resolveSnap(at, candidates, snap.tolerance, onlyKind);
       if (snapped !== null) at = { x: snapped.x, z: snapped.z };
     }
@@ -512,6 +523,10 @@ export function createSession(deps: SessionDeps): AuthoringSession {
       return await routeTyped(trimmed);
     },
 
+    clearTyped() {
+      dyn = null;
+    },
+
     setSnap(patch) {
       snap = { ...snap, ...patch };
     },
@@ -619,13 +634,11 @@ function overrideEffect(kind: OverrideKind): OverrideEffect {
 }
 
 /** The nearest grid intersection, as a candidate so it competes with real geometry rather than pre-empting it. */
-function gridCandidate(cursor: Vec2, pitch: number): SnapCandidate {
-  return {
-    x: Math.round(cursor.x / pitch) * pitch,
-    z: Math.round(cursor.z / pitch) * pitch,
-    kind: "grid",
-  };
-}
+// `gridCandidate` used to live here and returned exactly one point: the nearest intersection. `gridSnaps` in
+// `@massing/geometry-math` replaced it when the draft tools landed, and it is a better answer in three ways —
+// it offers *every* intersection inside the tolerance so `resolveSnap` breaks the tie by priority the way it does
+// everywhere else, it tests distance in a circle rather than implicitly in a square, and it refuses a
+// non-positive pitch instead of producing NaN that then fails every comparison in silence.
 
 /** Re-exported so a host can offer the override codes without importing `geometry-math` directly. */
 export { ALL_OVERRIDE_KINDS, KEY_SHORTCUT_MAP, OVERRIDE_CODES, OVERRIDE_LABEL };

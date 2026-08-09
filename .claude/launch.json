@@ -10,7 +10,8 @@
         "--workspace",
         "@massing/demo"
       ],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     },
     {
       "name": "shell",
@@ -21,7 +22,8 @@
         "--workspace",
         "@massing/shell"
       ],
-      "port": 5174
+      "port": 5174,
+      "autoPort": true
     }
   ]
 }

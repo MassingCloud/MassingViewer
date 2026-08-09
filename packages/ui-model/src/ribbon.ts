@@ -115,6 +115,11 @@ const HOMES: Record<string, { tab: TabId; group: string; size?: ItemSize }> = {
   "Copy selected element (offset E,N,Z metres)": { tab: "build", group: "modify", size: "medium" },
   "Rotate selected element (degrees about Z)": { tab: "build", group: "modify", size: "medium" },
   "Delete selected element": { tab: "build", group: "modify", size: "small" },
+  // The draw verbs get a group of their own on Build, at the highest priority in the tab: on a narrow window a
+  // drafter needs Draw long after they can spare Collaborate.
+  "Draw a wall between two points (W)": { tab: "build", group: "draw", size: "large" },
+  "Draw a slab from a closed outline": { tab: "build", group: "draw", size: "large" },
+  "Place a column at a point": { tab: "build", group: "draw", size: "large" },
   "Add door to selected wall": { tab: "build", group: "openings", size: "large" },
   "Add window to selected wall": { tab: "build", group: "openings", size: "large" },
   "Edit a property on the selected element": { tab: "build", group: "data", size: "medium" },
@@ -165,6 +170,7 @@ const GROUP_LABELS: Record<string, string> = {
   measure: "Measure",
   assist: "Assist",
   modify: "Modify",
+  draw: "Draw",
   openings: "Openings",
   data: "Data",
   reference: "Reference",
@@ -185,6 +191,7 @@ const GROUP_PRIORITY: Record<string, number> = {
   select: 100,
   modify: 100,
   measure: 90,
+  draw: 95,
   openings: 85,
   section: 80,
   views: 75,

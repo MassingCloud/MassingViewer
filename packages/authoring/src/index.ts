@@ -26,3 +26,7 @@ export type {
   SnapSettings,
   StepOutcome,
 } from "./session.js";
+
+// The draft commands: the declaration that joins a prompt sequence to a kernel operation. See draft.ts —
+// `createRegistry()` was being called with nothing registered, which is why the ribbon's buttons armed nothing.
+export { draftCommands, type DraftDeps } from "./draft.js";

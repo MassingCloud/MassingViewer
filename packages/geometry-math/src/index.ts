@@ -15,6 +15,7 @@
 // ---------------------------------------------------------------------------------------------------
 export {
   resolveSnap,
+  gridSnaps,
   perpendicularSnaps,
   nearestSnaps,
   segmentSnaps,

@@ -163,3 +163,38 @@ button.tool.armed { border-color: var(--accent); background: #2b3a4d; }
   font-size: 13px;
   color: var(--text);
 }
+
+/*
+ * The dynamic-input HUD.
+ *
+ * Over the viewport rather than in the side panel, because a readout you have to look away from is a readout
+ * nobody uses — the whole point of dynamic input is that the number is where your eyes already are. Positioned
+ * bottom-centre: near the crosshair without sitting under it.
+ */
+#dyn-hud {
+  position: absolute;
+  left: 50%;
+  bottom: 3.2rem;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #3a4550;
+  border-radius: 4px;
+  background: #12161acc;
+  color: #d7dee6;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  /* Never intercepts a pick. The HUD sits over the canvas at the exact height a drafter clicks, so a pointer
+     event landing on it instead of the model would swallow the click that was meant to place a point. */
+  pointer-events: none;
+}
+
+#dyn-hud[hidden] {
+  display: none;
+}
+
+/* The shell is the positioning context for the HUD. Without this it would anchor to the page and drift with
+   scroll — which the demo does not have today, and would gain the moment a panel grows. */
+.shell {
+  position: relative;
+}

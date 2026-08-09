@@ -82,17 +82,18 @@ regression (2).
   groups that collapse to dropdowns as the window narrows and **never drop a verb** — asserted at every integer
   width from 320 to 3840 — full keyboard navigation, and controls that dim with a reason instead of vanishing.
 
-**What is not built, and this is the honest headline.** The pure pieces of interactive authoring all exist and
-are tested — the snap engine, the polar and dynamic-input parsers, the prompt-loop reducer, and the
-`move_element` / `rotate_element` / `set_extrusion_depth` kernel operations. **The interactive layer that joins
-them does not.** There is no transform gizmo you can drag, no push/pull handle, no grid or level overlay, and no
-property inspector. The ribbon has a button reading *"Edit in place — drag the gizmo to move the selected
-element"* and there is no gizmo behind it.
+- **Draws by hand, with snapping and typed dimensions.** Pick Wall, Slab or Column from the ribbon and a 1 m
+  construction grid appears with a crosshair that snaps — to the building's own corners first and to a grid
+  intersection second, because a drafter reaching for a corner wants the corner. Then **type the dimension**:
+  `12'6` produces a wall 3.810 m long, asserted by measuring the geometry rather than by reading the label. The
+  readout sits beside the crosshair, showing the live distance and bearing until you type over it. A refusal — a
+  double-clicked zero-length wall — states the measurement and **leaves the tool armed with your first point
+  intact**, because losing work to a validation message is how people stop trusting a tool.
 
-Concretely, M6's own acceptance test — *snap to a grid intersection, type `12'6`, commit, and see the wall in 3D
-and in the plan with a matching `data-guid`* — cannot be performed today: `@massing/authoring` is consumed only
-by `packages/embed`, and the dynamic-input parser is wired to no UI at all. Authoring works through the `+ Wall`
-button and the kernel API, not through direct manipulation.
+**What is not built.** There is no transform gizmo you can drag, no push/pull handle, and no property inspector.
+The ribbon has a button reading *"Edit in place — drag the gizmo to move the selected element"* and there is no
+gizmo behind it; `move_element`, `rotate_element` and `set_extrusion_depth` are implemented in the kernel and
+reachable only through the API. Levels toggles the construction grid rather than drawing storey planes.
 
 Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
 [docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and
@@ -186,7 +187,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 `RemoteKernel` passes the suite against a behavioural stub. The recipe ledger's `remote` column stays at 0, because filling it needs a run against a real massing server — see [docs/kernels/authoring.md](docs/kernels/authoring.md) |
 | M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
 | M5 | 2D drawings + markup — **the full loop** | 🔨 SVG, DXF, PDF, BCF and Tier-1/2 goldens done. Tier-3 rasterisation absent; **door and window openings are not cut into plans** |
-| M6 | Authoring tools, gizmos, inspector | ❌ **not started.** The pure parts (snap, dynamic input, prompt reducer, the three transform operations) exist and are tested; nothing joins them to a pointer. This is the largest open gap |
+| M6 | Authoring tools, gizmos, inspector | 🔨 **drafting works.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E. Still missing: the transform gizmo, the push/pull handle and the property inspector |
 | M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
 | M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |
 | M9 | massing consumes `@massing/*` | 🔨 `packages/embed` is the facade; massing has not adopted it |

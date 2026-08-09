@@ -60,7 +60,10 @@ export default defineConfig({
   // Relative base so the built demo works from a subpath (GitHub Pages) without a rebuild.
   base: "./",
   build: { outDir: "dist", emptyOutDir: true, target: "es2023" },
-  server: { port: 5173, open: false },
+  // The port comes from the environment, defaulting to 5173. Hardcoded, the dev server cannot start at all when
+  // another process already holds that port — and "port in use" is a needlessly hard stop for something that has
+  // no reason to care which port it gets.
+  server: { port: Number(process.env.PORT ?? 5173), open: false },
   // The fixture is imported as a raw string via `?raw`, so it is inlined at build time and the demo makes
   // ZERO network requests after first paint — which is the property M1 is supposed to demonstrate.
   assetsInclude: ["**/*.ifc"],

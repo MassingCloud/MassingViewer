@@ -7,7 +7,6 @@ import {
   PAPER_SIZES,
   type Drawing,
   type DrawingInput,
-
   fitToPaper,
   generatePlan,
   dxfLimitations,
@@ -43,9 +42,11 @@ import {
 import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/observability";
 import { browserEnvironment, isolationStatus } from "@massing/pwa";
 import { DE, createTranslator } from "@massing/i18n";
+import { TOOLS } from "@massing/ui-model";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
+import { wireDraft, type DraftController } from "./draft";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
 // paint the demo makes zero network requests, so it is provably working without a backend. massing's own Pages
@@ -110,6 +111,9 @@ app.innerHTML = `
         <ul id="skipped"></ul>
       </aside>
     </main>
+    <!-- The dynamic-input HUD. Sits over the viewport, above the footer, because it belongs beside the crosshair
+         rather than in a panel — a readout you have to look away to read is a readout nobody uses. -->
+    <div id="dyn-hud" hidden aria-live="polite"></div>
     <footer>
       <span>drag orbit &middot; shift+drag pan &middot; wheel zoom</span>
       <span class="spacer"></span>
@@ -404,6 +408,13 @@ el("#open").addEventListener("click", () => {
 });
 
 window.addEventListener("keydown", (e) => {
+  // While a draft tool is armed, these keys belong to it: `f` is a valid character in a typed distance, and
+  // Escape cancels the *command* rather than the selection. The draft module's own handler already ran and
+  // consumed them — this guard stops the second, unrelated meaning from also firing.
+  if (draft !== null && draft.session.state.armed !== null) {
+    if (e.key === "Escape") draft.disarm();
+    return;
+  }
   if (e.key === "f" || e.key === "F") viewport.fit();
   if (e.key === "Escape") applySelection(null);
 });
@@ -445,6 +456,16 @@ function renderKernelPanel(note: string, cls?: string): void {
 }
 
 let kernelOps = 0;
+
+/**
+ * The draft-tool controller, created once the kernel has answered.
+ *
+ * `null` until then, and every call site uses `draft?.` for a real reason rather than defensiveness: the worker
+ * takes a moment to start, and a wall tool armed before the kernel can say which operations it supports would
+ * show every verb as enabled and then refuse on click. `availability()` reads the op list, so the list has to
+ * exist first.
+ */
+let draft: DraftController | null = null;
 let kernelReady = false;
 
 async function startKernel(): Promise<void> {
@@ -457,6 +478,61 @@ async function startKernel(): Promise<void> {
   kernelOps = ops.ok ? ops.value.length : 0;
   kernelReady = ops.ok;
   renderKernelPanel(kernelReady ? "ready — no network" : "worker did not answer", kernelReady ? "ok" : "warn");
+
+  if (!kernelReady) return;
+  draft = wireDraft({
+    viewport,
+    kernel,
+    modelId: MODEL,
+    canvas: el("#viewport"),
+    hud: el("#dyn-hud"),
+    // A getter, not a snapshot: authoring replaces the mesh array, and a captured reference would keep the draft
+    // tool snapping to the geometry the model had when the worker started.
+    meshes: () => sourceMeshes,
+    onModelChanged: reloadFromKernel,
+    status: (message, kind) => {
+      el("#status").textContent = message;
+      el("#status").className = kind ?? "muted";
+    },
+    canEdit: () => true,
+  });
+  // The ribbon re-evaluates availability, so the three draw verbs stop being dimmed the moment the kernel is up.
+  ribbon.update({ selection: false, canEdit: true });
+}
+
+/**
+ * Re-render from the kernel's own IFC output, and refresh everything that describes the model.
+ *
+ * Extracted when the draft tools landed and needed the identical sequence. Duplicating it was the alternative and
+ * would have been the worse kind of duplication: the two copies would have diverged in *which panels they
+ * refreshed*, so a wall drawn with the wall tool would leave the markup list or the plan stale while the same wall
+ * from `+ Wall` did not. That is a bug nobody attributes to a missing function call.
+ *
+ * Deliberately a full round trip — export, re-tessellate, re-upload — rather than adding a mesh locally. Anything
+ * less would prove the command worked and not that the *file* changed, and the file is what a user keeps.
+ */
+async function reloadFromKernel(): Promise<void> {
+  const exported = await kernel.exportIfc(MODEL);
+  if (!exported.ok) {
+    renderKernelPanel(exported.error.message, "warn");
+    return;
+  }
+  const next = tessellate(new TextDecoder().decode(exported.value));
+  built = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
+  sourceMeshes = next.meshes;
+  sourceGuids = next.guids;
+  // Reassigned with the meshes, or the plan reports the *previous* model's losses — stale provenance is worse
+  // than none, because it looks like an answer.
+  sourceSkipped = next.skipped;
+  // A plan is a *view*: if one is open it must follow the edit, not go stale until someone presses the button.
+  if (drawing !== null) generate();
+  // An edit is exactly when an anchor can break, so the markup list is re-resolved rather than left stale.
+  renderTopics();
+  renderModelPanel();
+  renderSkipped(next.skipped);
+  // The draft tool's snap candidates come from this geometry. Left stale, the next point would snap to where the
+  // previous wall used to be — a wall in the wrong place, with no error anywhere.
+  draft?.refreshSnaps();
 }
 
 /**
@@ -485,28 +561,8 @@ async function authorWall(): Promise<void> {
       return;
     }
 
-    const exported = await kernel.exportIfc(MODEL);
-    if (!exported.ok) {
-      renderKernelPanel(exported.error.message, "warn");
-      return;
-    }
     authored += 1;
-
-    const ifc = new TextDecoder().decode(exported.value);
-    const next = tessellate(ifc);
-    const rebuilt = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
-    built = rebuilt;
-    sourceMeshes = next.meshes;
-    sourceGuids = next.guids;
-    // Reassigned with the meshes, or the plan reports the *previous* model's losses — stale provenance is
-    // worse than none, because it looks like an answer.
-    sourceSkipped = next.skipped;
-    // A plan is a *view*: if one is open it must follow the edit, not go stale until someone presses the button.
-    if (drawing !== null) generate();
-    // An edit is exactly when an anchor can break, so the markup list is re-resolved rather than left stale.
-    renderTopics();
-    renderModelPanel();
-    renderSkipped(next.skipped);
+    await reloadFromKernel();
     renderKernelPanel(`authored ${applied.value.created.length} element · v${applied.value.modelVersion}`, "ok");
   } finally {
     button.disabled = false;
@@ -859,6 +915,22 @@ const RIBBON_ACTIONS: Record<string, () => void> = {
   "plan-beside-model": () => generate(),
   "delete-selected-element": () => void deleteSelected(),
   "add-door-to-selected-wall": () => ribbon.announce("Add door needs the wall tool first"),
+  /**
+   * Levels toggles the construction grid.
+   *
+   * The nearest honest mapping in the inherited table: the tool is "Toggle storey levels overlay" and the grid is
+   * drawn at the active level's elevation. It is not the full storey-plane overlay the title implies, and saying
+   * so in the announcement is better than a button that half-does what it says without mentioning it.
+   */
+  "toggle-storey-levels-overlay": () => {
+    if (draft === null) {
+      ribbon.announce("The grid needs the kernel to finish starting");
+      return;
+    }
+    const on = !draft.grid.isVisible;
+    draft.grid.visible(on);
+    ribbon.announce(on ? "Construction grid on, 1 m" : "Construction grid off");
+  },
 };
 
 /**
@@ -938,6 +1010,18 @@ const ribbon = createRibbon(el("#ribbon"), {
   groups: ribbonFrom(host.contributions()),
   handlers: {
     onTool: (id, item) => {
+      /**
+       * A draft verb, first.
+       *
+       * Before `RIBBON_ACTIONS` rather than after, because arming a tool is a *mode change* and must not be
+       * shadowed by a one-shot action that happens to share an id. `armByToolId` returns false for anything that
+       * is not a draft verb, so this is a filter and not a claim on every button.
+       */
+      if (draft?.armByToolId(id) === true) {
+        ribbon.announce(`${item.label} armed — click to place points, Escape to cancel`);
+        return;
+      }
+
       // A built-in tool with a demo implementation.
       const action = RIBBON_ACTIONS[id];
       if (action !== undefined) {
@@ -1040,6 +1124,14 @@ declare global {
       readonly authored: number;
       kernelId: string;
       /**
+       * How many tools the inherited table holds.
+       *
+       * Exposed so an E2E test can assert "every tool in the table reaches the DOM" without hardcoding a total.
+       * It used to read `30 + 1`, and adding the three M6 draw verbs broke two tests that then reported the
+       * ribbon had *lost* a tool. A literal tests the number someone typed last time; this tests the property.
+       */
+      readonly toolCount: number;
+      /**
        * The markup topics, and the camera distance.
        *
        * Both were exposed on the object and **missing from this declaration**, which never failed because
@@ -1103,6 +1195,9 @@ window.__massingviewer = {
     return Math.hypot(p.x - cx, p.y - cy, p.z - cz);
   },
   kernelId: kernel.id,
+  get toolCount() {
+    return TOOLS.length;
+  },
   renderNow() {
     viewport.renderer.render(viewport.scene, viewport.camera);
   },

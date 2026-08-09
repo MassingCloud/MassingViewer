@@ -57,6 +57,16 @@ export const DE: Catalogue = {
   "count.topics.one": "{count} Vorgang",
   "count.topics.other": "{count} Vorgänge",
 
+  "group.draw": "Zeichnen",
+  // The M6 draw verbs. Translated rather than deferred: they are the first thing a drafter touches, and
+  // "Wand"/"Decke"/"Stütze" are the terms a German drafter actually uses — not literal renderings of the English.
+  "tool.draw-a-wall-between-two-points-w.label": "Wand",
+  "tool.draw-a-wall-between-two-points-w.title": "Wand zwischen zwei Punkten zeichnen (W)",
+  "tool.draw-a-slab-from-a-closed-outline.label": "Decke",
+  "tool.draw-a-slab-from-a-closed-outline.title": "Decke aus einem geschlossenen Umriss zeichnen",
+  "tool.place-a-column-at-a-point.label": "Stütze",
+  "tool.place-a-column-at-a-point.title": "Stütze an einem Punkt setzen",
+
   // --- a sample of tool labels. The long compounds here are the width pressure the ribbon has to survive.
   "tool.toggle-storey-levels-overlay.label": "Ebenen",
   "tool.toggle-storey-levels-overlay.title": "Geschossebenen einblenden",

@@ -974,13 +974,22 @@ test("the ribbon renders one panel, not seven stacked", async ({ page }) => {
   expect(ribbonHeight).toBeLessThan(160);
 });
 
-test("the ribbon holds all 30 inherited tools, and dims rather than hides", async ({ page }) => {
+test("the ribbon holds every tool in the table, and dims rather than hides", async ({ page }) => {
   // Asserting the render, not the table: `ui-model` already proves every tool has a home, and that is a
   // different claim from every tool producing a button.
-  // 31 = the 30 inherited tools plus one contributed by the example plugin. Written as a sum rather than as a
-  // magic number, because the composition is the interesting part: the plugin's button is rendered by the same
-  // code, in the same collapse algorithm, as a built-in one.
-  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30 + 1);
+  /**
+   * Counted from the table rather than written as a literal.
+   *
+   * It used to read `30 + 1`, and adding the three M6 draw verbs broke it in both places — reported as "the
+   * ribbon lost a tool" when the ribbon had in fact gained three. A hardcoded total tests the number I typed last
+   * time; deriving it tests the property, which is *every tool in the table reaches the DOM*. `ui-model` already
+   * proves every tool has a home, and that is a different claim from every tool producing a button.
+   *
+   * The `+ 1` stays a written sum, because the composition is the interesting part: the example plugin's button is
+   * rendered by the same code, through the same collapse algorithm, as a built-in one.
+   */
+  const expected = await page.evaluate(() => window.__massingviewer!.toolCount);
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(expected + 1);
   await expect(page.locator('#ribbon [role="tab"]')).toHaveCount(7);
 
   // With nothing selected, the selection verbs are dimmed — present, focusable, and explaining themselves.
@@ -1034,11 +1043,10 @@ test("the ribbon collapses groups on a narrow viewport without losing a tool", a
     )
     .toBeGreaterThan(0);
 
-  // Still all thirty. Collapsed is not gone.
-  // 31 = the 30 inherited tools plus one contributed by the example plugin. Written as a sum rather than as a
-  // magic number, because the composition is the interesting part: the plugin's button is rendered by the same
-  // code, in the same collapse algorithm, as a built-in one.
-  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(30 + 1);
+  // Still every one of them. Collapsed is not gone — and derived from the table, so adding a verb cannot make this
+  // fail as "a tool was lost".
+  const expected = await page.evaluate(() => window.__massingviewer!.toolCount);
+  await expect(page.locator("#ribbon button[data-tool]")).toHaveCount(expected + 1);
   // And the ribbon never becomes the thing that makes the page scroll sideways.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(overflow, "the page must not scroll horizontally").toBe(false);

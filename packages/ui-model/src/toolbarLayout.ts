@@ -85,6 +85,17 @@ export const TOOLS: ToolSpec[] = [
   { title: "Measure area (A)", label: "Area", group: "measure" },
   { title: "Clear measurements", label: "Clear", group: "measure" },
   // ── author ─────────────────────────────────────────────────────────────────────────────────────
+  // The three draw verbs, added for M6. They are listed here rather than only in the demo because
+  // `builtinManifests()` derives the built-in ribbon from *this table* — a tool that is not here cannot appear
+  // in the ribbon, cannot get a message key (the message gate checks this table in both directions), and cannot
+  // be covered by the every-tool-reachable property test. massing's own bar logged "not described by
+  // toolbarLayout" for a shipped push/pull verb for exactly this reason.
+  //
+  // Not `primary`: the floating bar has a hard cap, and promoting a tool there silently demotes another. The
+  // ribbon places them from HOMES, where they get a Draw group of their own on Build.
+  { title: "Draw a wall between two points (W)", label: "Wall", group: "author" },
+  { title: "Draw a slab from a closed outline", label: "Slab", group: "author" },
+  { title: "Place a column at a point", label: "Column", group: "author" },
   { title: "Edit in place — drag the gizmo to move the selected element", label: "Edit in place",
     group: "author", primary: onEditableSelection },
   // R38-PUSHPULL — shipped v0.3.821 and NOT registered here, so the bar logged
@@ -174,6 +185,12 @@ export function describe(spec: ToolSpec): string {
  * wearing a blank.
  */
 export const TOOL_ICON: Record<string, string> = {
+  // The M6 draw verbs. `box` for a wall and a column and `layers` for a slab are the nearest honest matches in
+  // the vendored set — no glyph is invented, because the gate below asserts every name here was actually
+  // vendored and a typo renders nothing, which looks exactly like "this button has no icon yet".
+  "Wall": "box",
+  "Slab": "layers",
+  "Column": "box",
   "Guide underlay": "scan",     // A29-GUIDE-UNDERLAY — a scanned plan, traced over
   "Levels": "layers",
   "Show all": "eye",

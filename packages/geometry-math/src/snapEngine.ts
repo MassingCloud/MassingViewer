@@ -159,3 +159,52 @@ export function applyDynamicInput(
   const a = hasA ? input.angle! * DEG : curA;
   return { x: origin.x + r * Math.cos(a), z: origin.z + r * Math.sin(a) };
 }
+
+/**
+ * Snap candidates at the intersections of a regular construction grid.
+ *
+ * ## Why this is computed rather than materialised
+ *
+ * The obvious implementation builds a list of every intersection once and hands it to `resolveSnap`. That is
+ * wrong at both ends: a 200 m site on a 500 mm grid is 160 000 points to allocate and scan per frame, and a grid
+ * is conceptually *infinite* — the moment the camera pans past the pre-built extent, snapping silently stops
+ * working in a way that looks like a bug in the snap engine. Rounding to the nearest multiple is O(1) and has no
+ * edge.
+ *
+ * ## Why it returns several candidates and not just the nearest
+ *
+ * `resolveSnap` breaks ties by priority, and it can only do that if it is given the alternatives. Near the centre
+ * of a cell all four corners can be inside the tolerance, and the one that wins should be decided by the same
+ * rule that decides everywhere else rather than by this function guessing first.
+ *
+ * `grid` is the lowest-priority `SnapKind` on purpose (see `PRIORITY` above): a real model endpoint at the same
+ * distance beats a grid intersection, because the drafter is trying to meet the building, not the paper.
+ */
+export function gridSnaps(
+  cursor: { x: number; z: number },
+  spacing: number,
+  radius: number,
+): SnapCandidate[] {
+  // A non-positive spacing would make `Math.round(x / 0)` produce NaN or Infinity and poison every downstream
+  // comparison — silently, because NaN fails every `<` test rather than throwing. Refuse instead.
+  if (!Number.isFinite(spacing) || spacing <= 0) return [];
+  if (!Number.isFinite(radius) || radius <= 0) return [];
+
+  const out: SnapCandidate[] = [];
+  // How many cells the radius can reach. `ceil` rather than `round`: a radius fractionally over one cell must
+  // still consider the next intersection out, or a snap blinks off at exactly the tolerance boundary.
+  const reach = Math.ceil(radius / spacing);
+  const baseX = Math.round(cursor.x / spacing);
+  const baseZ = Math.round(cursor.z / spacing);
+
+  for (let i = -reach; i <= reach; i++) {
+    for (let j = -reach; j <= reach; j++) {
+      const x = (baseX + i) * spacing;
+      const z = (baseZ + j) * spacing;
+      // Circular, not square. A square test would snap to a corner 1.41 × tolerance away along the diagonal,
+      // which reads as the crosshair jumping further than the tolerance the user set.
+      if (Math.hypot(x - cursor.x, z - cursor.z) <= radius) out.push({ x, z, kind: "grid" });
+    }
+  }
+  return out;
+}

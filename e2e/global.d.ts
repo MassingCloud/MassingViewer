@@ -15,6 +15,7 @@ declare global {
       readonly cameraDistance: number;
       readonly topics: readonly { guid: string; title: string; type: string; pin?: { guids: readonly string[] } }[];
       kernelId: string;
+      readonly toolCount: number;
       renderNow(): void;
       sampleFramebuffer(grid?: number): { sampled: number; nonBackground: number; coverage: number };
       renderSignature(grid?: number): { renderer: string; cells: number[]; luminance: number[] };

@@ -1,3 +1,5 @@
+export { createGrid, createPreview, screenToGround } from "./draft.js";
+export type { GridController, GridOptions, GroundPoint, PreviewController, PreviewState } from "./draft.js";
 // @massing/viewport — the only package permitted to import `three`.
 //
 // That confinement is enforced by scripts/check-architecture.mjs, and it is not a style rule: massing's
