@@ -1,3 +1,4 @@
+import type { MessageKey } from "@massing/i18n";
 import { TOOLS, type ToolContext, type ToolSpec } from "./toolbarLayout.js";
 
 /**
@@ -425,7 +426,19 @@ export function everyToolReachable(
 export type Availability =
   | { readonly state: "enabled" }
   /** Dimmed, never hidden — and `reason` is required, so "dimmed for no stated reason" is unrepresentable. */
-  | { readonly state: "dimmed"; readonly reason: string };
+  | {
+      readonly state: "dimmed";
+      readonly reason: string;
+      /**
+       * The catalogue key for {@link reason}, when this repository produced the text.
+       *
+       * Two fields rather than one because not every reason can be catalogued. A plugin supplies its own prose,
+       * and `RemoteKernel` forwards the *service's* refusal text — neither was ever in a catalogue, and a
+       * key-only design would render `availability.someKey` at them. So `reason` stays the required English
+       * fallback and this is the optional upgrade, which is the same shape the ribbon uses for labels.
+       */
+      readonly reasonKey?: MessageKey;
+    };
 
 /**
  * Whether a tool is usable, and if not, why — in words a user can act on.
@@ -441,10 +454,14 @@ export type Availability =
 export function availabilityOf(tool: ToolSpec, ctx: ToolContext): Availability {
   const needsSelection = tool.primary !== undefined && tool.primary !== "always";
   if (tool.group === "author" && !ctx.canEdit) {
-    return { state: "dimmed", reason: "Requires the Editor role on this project" };
+    return {
+      state: "dimmed",
+      reason: "Requires the Editor role on this project",
+      reasonKey: "availability.needsEdit",
+    };
   }
   if (needsSelection && !ctx.selection) {
-    return { state: "dimmed", reason: "Select an element first" };
+    return { state: "dimmed", reason: "Select an element first", reasonKey: "availability.needsSelection" };
   }
   return { state: "enabled" };
 }

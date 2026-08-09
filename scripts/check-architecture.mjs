@@ -31,7 +31,11 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
  * layer down.
  */
 const LAYERS = [
-  ["core", "kernel-api", "kernel-conformance"],
+  // `i18n` sits at the foundation with no dependencies of its own, which is what lets `ui-model` (layer 1) and
+  // every presentation package above it translate without an upward edge. It deliberately does NOT depend on
+  // `core`: nothing in a message catalogue needs a unit or a GlobalId, and the one place the two meet — number
+  // formatting — is `Intl`'s job rather than `core`'s.
+  ["core", "kernel-api", "kernel-conformance", "i18n"],
   // `ifc` sits here rather than at layer 2 where the original plan put it, and the move is a consequence of
   // docs/adr/0008-local-kernel-geometry-stack.md rather than a convenience. The plan assumed this package would
   // wrap `web-ifc` and therefore carry WASM; the ADR decided the entity table is ours and web-ifc is used only

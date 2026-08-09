@@ -63,6 +63,9 @@
       "path": "./packages/pwa"
     },
     {
+      "path": "./packages/i18n"
+    },
+    {
       "path": "./packages/authoring"
     },
     {

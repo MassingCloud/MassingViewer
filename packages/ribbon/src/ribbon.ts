@@ -1,3 +1,4 @@
+import { EN_TRANSLATOR, type MessageKey, type Translator } from "@massing/i18n";
 import {
   type Availability,
   type ItemSize,
@@ -49,6 +50,18 @@ export interface RibbonHandlers {
 
 export interface RibbonOptions {
   readonly handlers: RibbonHandlers;
+  /**
+   * Translator for every string this renders.
+   *
+   * Optional, defaulting to English — so a host that has not thought about locale gets byte-identical output to
+   * before, and the ribbon does not become the reason M9 is blocked on massing adopting i18n first.
+   *
+   * A tool's label is looked up as `tool.<id>.label`, where `<id>` is the same identity the `data-tool` attribute
+   * carries. When the catalogue has no entry the item's own `label` is used, which is what lets a contributed
+   * plugin group — whose labels come from a manifest and were never in any catalogue — render its own text rather
+   * than a bare key.
+   */
+  readonly translate?: Translator;
   readonly context?: ToolContext;
   /** Override the tool table — for tests, and for a host that has extra verbs. */
   readonly tools?: readonly ToolSpec[];
@@ -109,6 +122,27 @@ const GLYPHS: Record<string, string> = {
 export function createRibbon(container: HTMLElement, options: RibbonOptions): Ribbon {
   const tools = options.tools ?? TOOLS;
   const groups = options.groups ?? buildRibbon(tools);
+
+  const i18n = options.translate ?? EN_TRANSLATOR;
+
+  /**
+   * Translate a key, falling back to a literal.
+   *
+   * The fallback is what makes this safe to apply everywhere at once. Three sources of label reach this ribbon —
+   * the inherited tool table, plugin manifests, and contextual tabs derived from an IFC class — and only the first
+   * is in the catalogue. Without a literal fallback the other two would render as `tool.some-plugin-verb.label`,
+   * which is a worse product than untranslated English and would have shown up as a plugin-author bug report.
+   */
+  const tr = (key: string, literal: string, params?: Readonly<Record<string, string | number>>): string => {
+    const translated = i18n.t(key as MessageKey, params);
+    // `t()` returns the key itself when nothing has it, which is precisely the signal that this is not a
+    // catalogued string.
+    return translated === key ? literal : translated;
+  };
+
+  const itemLabel = (item: RibbonItem): string => tr(`tool.${item.id}.label`, item.label);
+  const itemTitle = (item: RibbonItem): string => tr(`tool.${item.id}.title`, item.title);
+  const groupLabel = (group: RibbonGroup): string => tr(`group.${group.id}`, group.label);
   /**
    * Stable id → tool.
    *
@@ -151,7 +185,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
   const tablist = document.createElement("div");
   tablist.className = "mv-ribbon-tabs";
   tablist.setAttribute("role", "tablist");
-  tablist.setAttribute("aria-label", "Ribbon");
+  tablist.setAttribute("aria-label", i18n.t("ribbon.label"));
   container.appendChild(tablist);
 
   const panels = document.createElement("div");
@@ -212,7 +246,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     // One toolbar per group, so arrow keys move within a group and Tab moves between them — which is what the
     // WAI-ARIA toolbar pattern specifies, and what makes 13 groups navigable rather than a 30-stop tab sequence.
     element.setAttribute("role", "toolbar");
-    element.setAttribute("aria-label", group.label);
+    element.setAttribute("aria-label", groupLabel(group));
     element.addEventListener("keydown", (event) => onGroupKey(event, group));
 
     const items = document.createElement("div");
@@ -224,7 +258,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
       button.type = "button";
       button.className = "mv-ribbon-item";
       button.dataset.tool = item.id;
-      button.title = item.title;
+      button.title = itemTitle(item);
       // `data-cap` is massing's own mechanism, kept verbatim so its CSS and its tests transfer.
       button.dataset.cap = "edit";
       // The first item of every group is the group's tab stop, set at construction rather than only in
@@ -234,7 +268,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
       button.innerHTML =
         `<span class="mv-ribbon-glyph" aria-hidden="true">${GLYPHS[group.id] ?? "•"}</span>` +
         `<span class="mv-ribbon-label"></span>`;
-      button.querySelector(".mv-ribbon-label")!.textContent = item.label;
+      button.querySelector(".mv-ribbon-label")!.textContent = itemLabel(item);
       button.addEventListener("click", () => activate(item.id));
       items.appendChild(button);
       itemButtons.set(item.id, button);
@@ -246,8 +280,8 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     more.type = "button";
     more.className = "mv-ribbon-more";
     more.setAttribute("aria-expanded", "false");
-    more.setAttribute("aria-label", `${group.label} — more`);
-    more.innerHTML = `<span class="mv-ribbon-glyph" aria-hidden="true">${GLYPHS[group.id] ?? "•"}</span><span>${group.label}</span>`;
+    more.setAttribute("aria-label", i18n.t("ribbon.more", { group: groupLabel(group) }));
+    more.innerHTML = `<span class="mv-ribbon-glyph" aria-hidden="true">${GLYPHS[group.id] ?? "•"}</span><span>${groupLabel(group)}</span>`;
     more.addEventListener("click", () => {
       const open = element.classList.toggle("mv-open");
       more.setAttribute("aria-expanded", String(open));
@@ -256,7 +290,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
 
     const caption = document.createElement("div");
     caption.className = "mv-ribbon-group-label";
-    caption.textContent = group.label;
+    caption.textContent = groupLabel(group);
     element.appendChild(caption);
 
     groupElements.set(group.id, element);
@@ -269,12 +303,15 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     // A dimmed control is focusable and announced, and does nothing when pressed. Removing it from the tab order
     // would hide the very thing dimming is meant to teach.
     if (button.getAttribute("aria-disabled") === "true") {
-      announce(`${button.querySelector(".mv-ribbon-label")?.textContent ?? id}: ${button.dataset.reason ?? "unavailable"}`);
+      announce(
+        `${button.querySelector(".mv-ribbon-label")?.textContent ?? id}: ` +
+          `${button.dataset.reason ?? i18n.t("ribbon.unavailable")}`,
+      );
       return;
     }
     const item = byId.get(id);
     if (item === undefined) return;
-    announce(`${item.label} armed`);
+    announce(i18n.t("ribbon.armed", { tool: itemLabel(item) }));
     options.handlers.onTool(id, item);
   }
 
@@ -317,7 +354,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
   // --- tabs -------------------------------------------------------------------------------------
 
   for (const tab of tabs) {
-    makeTab(tab.id, tab.label, false);
+    makeTab(tab.id, tr(`tab.${tab.id}`, tab.label), false);
     makePanel(tab.id, tab.id);
   }
 
@@ -366,12 +403,16 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
       button.setAttribute("aria-disabled", String(dimmed));
       button.classList.toggle("mv-dimmed", dimmed);
       if (dimmed) {
-        button.dataset.reason = state.reason;
+        // Translated when this repository produced the text, verbatim when it did not — a plugin's own prose and a
+        // remote service's refusal both arrive with no key and must survive untouched. The dimmed control exists
+        // to *teach*, so the one string that must not silently stay English is this one.
+        const reason = state.reasonKey === undefined ? state.reason : i18n.t(state.reasonKey);
+        button.dataset.reason = reason;
         // The reason is on the element, so the CSS `::after` badge and the tooltip say the same thing.
-        button.title = `${item.title} — ${state.reason}`;
+        button.title = `${itemTitle(item)} — ${reason}`;
       } else {
         delete button.dataset.reason;
-        button.title = item.title;
+        button.title = itemTitle(item);
       }
     }
   }
@@ -426,7 +467,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     }
     const next = wanted[0];
     if (next !== undefined && contextualClass !== next.id) {
-      makeTab(next.id, next.label, true);
+      makeTab(next.id, tr(`tab.${next.id}`, next.label), true);
       makePanel(next.id, next.id);
       contextualClass = next.id;
       // Added, never replacing: the permanent tabs do not move, so muscle memory survives a selection.

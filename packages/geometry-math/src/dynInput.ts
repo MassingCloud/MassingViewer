@@ -15,7 +15,13 @@ const FT = 0.3048;
 /** Parse the distance part: metric decimal ("6", "2.5") OR imperial ("12'6", "12'6.5", "12'", '30"').
  *  Imperial converts to metres — the model is metric; the KEYBOARD is whatever the drafter thinks in.
  *  Returns metres, or null when the text is not a well-formed positive length. */
-function parseDistance(s: string): number | null {
+function parseDistance(raw: string): number | null {
+  // A comma is a decimal separator. This buffer only ever holds ONE number — the grammar puts the bearing after a
+  // `<`, which `parseDynConstraint` has already split off — so there is no coordinate reading to compete with,
+  // and refusing `2,5` would make the field feel broken to most of the world. The genuinely ambiguous case is a
+  // coordinate token, handled in `cadCommands.ts`; see
+  // docs/adr/0011-decimal-comma-and-the-coordinate-grammar.md.
+  const s = raw.replaceAll(",", ".");
   const imp = /^(\d+(?:\.\d+)?)'(\d+(?:\.\d+)?)?"?$/.exec(s);   // 12'6 · 12'6.5 · 12' · 12'6"
   if (imp) {
     const feet = Number(imp[1]);
@@ -53,7 +59,8 @@ export function parseDynConstraint(buf: string): DynConstraint | null {
   }
   if (i >= 0) {
     if (aPart === "") return null;                            // "6<" — angle started but missing
-    const a = Number(aPart);
+    // Also one number, also unambiguous: `<30,5` is thirty and a half degrees.
+    const a = Number(aPart.replaceAll(",", "."));
     if (!Number.isFinite(a)) return null;
     out.angle = a;
   }

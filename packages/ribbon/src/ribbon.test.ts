@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TOOLS, buildRibbon, type ToolContext } from "@massing/ui-model";
+import { DE, EN, createTranslator, type Translator } from "@massing/i18n";
 import { createRibbon, type Ribbon } from "./ribbon.js";
 
 /**
@@ -25,6 +26,20 @@ function mount(width = 1600, context: ToolContext = CONTEXT): Ribbon {
   container = document.createElement("div");
   document.body.appendChild(container);
   return createRibbon(container, { handlers: { onTool }, context, measure: () => width });
+}
+
+/**
+ * Mount with a translator and hand back the container.
+ *
+ * Separate from `mount` rather than a fourth positional argument: the existing helper returns the `Ribbon` handle
+ * and stores the container in a module-level `let`, which is fine for tests that mount once and would silently
+ * cross-talk in the comparison test below, where two ribbons are alive at the same time.
+ */
+function mountWith(translate?: Translator): { host: HTMLElement; ribbon: Ribbon } {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRibbon(host, { handlers: { onTool }, context: CONTEXT, measure: () => 1600, translate });
+  return { host, ribbon: r };
 }
 
 beforeEach(() => {
@@ -321,5 +336,67 @@ describe("lifecycle", () => {
     ribbon.setTab("nonexistent");
     expect(ribbon.activeTab).toBe("home");
     expect(container.querySelector<HTMLElement>("#mv-panel-home")!.hidden).toBe(false);
+  });
+});
+
+describe("translation", () => {
+  /**
+   * The ribbon in a second language.
+   *
+   * The reason this is here rather than in `@massing/i18n`: a translator that returns the right string proves
+   * nothing about a renderer that never asks it. Every mistake worth catching is at the boundary — a label read
+   * straight off the tool table, a string concatenated in an `aria-label`, a `title` attribute nobody routed.
+   */
+  const german = () => createTranslator({ locale: "de", catalogue: DE });
+
+  it("renders translated tab labels", () => {
+    const { host } = mountWith(german());
+    const tabs = [...host.querySelectorAll('[role="tab"]')].map((t) => t.textContent);
+    expect(tabs).toContain("Start");
+    expect(tabs).not.toContain("Home");
+  });
+
+  it("translates a tool's label and its title attribute", () => {
+    const { host } = mountWith(german());
+    const levels = host.querySelector<HTMLElement>('button[data-tool="toggle-storey-levels-overlay"]')!;
+    expect(levels.querySelector(".mv-ribbon-label")!.textContent).toBe("Ebenen");
+    // The `title` is the tooltip and is a separate lookup, so it is a separate chance to have been missed.
+    expect(levels.title).toBe("Geschossebenen einblenden");
+  });
+
+  it("translates the tablist's accessible name", () => {
+    const { host } = mountWith(german());
+    expect(host.querySelector('[role="tablist"]')!.getAttribute("aria-label")).toBe("Multifunktionsleiste");
+  });
+
+  it("translates the live-region announcement, not just the visible label", () => {
+    const { host } = mountWith(german());
+    host.querySelector<HTMLElement>('button[data-tool="toggle-storey-levels-overlay"]')!.click();
+    // "Ebenen aktiviert" — the sentence is a catalogue string with a slot, not `${label} armed` with the label
+    // swapped. A screen-reader user in a German UI otherwise hears half a sentence in each language.
+    expect(host.querySelector(".mv-ribbon-live")!.textContent).toBe("Ebenen aktiviert");
+  });
+
+  it("falls back to English for a tool the catalogue has not reached", () => {
+    const { host } = mountWith(german());
+    const move = host.querySelector<HTMLElement>('button[data-tool="move-selected-element-e-n-z-metres"]')!;
+    // Untranslated, and rendering its English label rather than the key. This is what makes shipping a partial
+    // catalogue safe rather than reckless.
+    expect(move.querySelector(".mv-ribbon-label")!.textContent).toBe("Move");
+  });
+
+  it("keeps `data-tool` in English, because it is an identity and not a label", () => {
+    const { host } = mountWith(german());
+    // The E2E suite and every keybinding select on this. If it localised, a macro recorded in German would not
+    // replay for anyone else — the same reasoning that keeps the command grammar locale-independent.
+    expect(host.querySelector('button[data-tool="toggle-storey-levels-overlay"]')).not.toBeNull();
+  });
+
+  it("renders identically to before when no translator is given", () => {
+    const withDefault = mountWith();
+    const withEnglish = mountWith(createTranslator({ locale: "en", catalogue: EN }));
+    const shape = (host: HTMLElement) =>
+      [...host.querySelectorAll("button[data-tool]")].map((b) => b.textContent).join("|");
+    expect(shape(withDefault.host)).toBe(shape(withEnglish.host));
   });
 });

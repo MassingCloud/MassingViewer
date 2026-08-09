@@ -128,7 +128,17 @@ export function formatLength(metres: number, units: UnitSystem): string {
  * not-yet-parseable, and neither is an error worth interrupting the user for.
  */
 export function parseLength(input: string, defaultUnit: LengthUnit = "m"): number | null {
-  const s = input.trim().toLowerCase().replace(/\s+/g, " ");
+  // A comma is a decimal separator here, and this is the safe half of a genuinely dangerous ambiguity.
+  //
+  // Most of the world writes 3,5 for three and a half. In a *single-number* field there is no competing
+  // reading, so accepting it is free and refusing it makes the tool feel broken to most of its potential users.
+  //
+  // In a **coordinate** token the same three characters mean the point (3, 5), and there the ambiguity is real
+  // and unresolvable — both readings are valid input. That case is handled in `cadCommands.point()`, which keeps
+  // `,` as the coordinate separator and accepts `;` as an explicit alternative so decimal-comma users have an
+  // unambiguous form. See docs/adr/0011-decimal-comma-and-the-coordinate-grammar.md; the two halves must be read
+  // together, because making them consistent-but-wrong is the tempting mistake.
+  const s = input.trim().toLowerCase().replaceAll(",", ".").replace(/\s+/g, " ");
   if (s === "") return null;
 
   const negative = s.startsWith("-");

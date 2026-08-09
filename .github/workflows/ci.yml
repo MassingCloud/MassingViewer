@@ -145,6 +145,12 @@ jobs:
         # unrelated PR, which is the shape of a gate people learn to route around.
         run: npm run gate:flags
 
+      - name: Messages (plural completeness, orphan keys, tool coverage)
+        # Prints translation coverage per locale and does NOT gate on it. Gating completeness would mean either
+        # blocking a release on a language's last string or committing machine output to turn the number green —
+        # and the second is worse than the gap, because it reads as reviewed and nobody looks again.
+        run: npm run gate:messages
+
   dependency-review:
     # A second, GitHub-native line of defence on the license posture. It sees things a manifest scan does
     # not — and the deny list here is deliberately the same one as scripts/check-licenses.mjs, so a

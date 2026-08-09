@@ -24,8 +24,57 @@ interface CadCommand {
 }
 
 /**
+ * Split a coordinate token into its components, resolving the decimal-comma ambiguity.
+ *
+ * ## The trap
+ *
+ * `3,5` means the point (3, 5) to an anglophone drafter and the single number 3.5 to most of the rest of the
+ * world. Both readings are valid input to this grammar, so **no amount of cleverness can tell them apart** — and
+ * the failure is silent: a wall is drawn in the wrong place, no error appears, and a drafter has no reason to
+ * suspect the parser. That is what makes it worth an ADR rather than a guess.
+ *
+ * ## The resolution
+ *
+ * A semicolon is an explicit alternative coordinate separator. When it is present, `,` is a decimal separator:
+ *
+ * - `3,5` → the point (3, 5). Unchanged, and the only reading available when there is nothing to disambiguate.
+ * - `3,5;7,2` → the point (3.5, 7.2). Unambiguous, and the convention decimal-comma users already know from CSV
+ *   and from spreadsheet formulas in their own locale.
+ *
+ * Locale is deliberately **not** consulted. Two reasons, and the second is the one that decides it:
+ *
+ * 1. AutoCAD's command grammar is `,`-separated with a `.` decimal in every locale. A drafter's muscle memory is
+ *    a stronger constraint than their number-formatting preference.
+ * 2. **A locale-dependent parser makes a saved macro mean different things to different people.** Command
+ *    invocations are serialisable by design — that is what makes macros, the audit log and replay work — and a
+ *    recorded `WALL 0,0 3,5` that draws one wall for a German colleague and another for an American one is a data
+ *    corruption bug wearing an i18n hat. Formatting for *display* is locale-aware; the grammar is not.
+ *
+ * Single-number fields have no ambiguity at all, so `,` is simply a decimal separator there — see `parseLength`
+ * in `@massing/core` and `parseDynConstraint` below.
+ */
+function coordinateParts(body: string): number[] | null {
+  // `;` present → explicit separator, so a comma inside a component can only be a decimal point.
+  const raw = body.includes(";")
+    ? body.split(";").map((s) => s.trim().replaceAll(",", "."))
+    : body.split(",").map((s) => s.trim());
+
+  // An empty component is an error, never a zero.
+  //
+  // `Number("")` is 0, so `5,` resolved to the point (5, 0) and drew a wall to somewhere the drafter never
+  // typed — silently, with no error. The polar branch below has carried a comment about exactly this hazard since
+  // extraction ("a sloppy split would silently draw a wrong wall… a drafter would never notice") and the guard was
+  // never applied to the cartesian branch beside it. Found by the decimal-comma tests, which added `;` and hit the
+  // same hole one character over.
+  if (raw.some((s) => s === "")) return null;
+  return raw.map((s) => Number(s));
+}
+
+/**
  * Parse a point token into an absolute [x,y] tuple (meters). Supports the AutoCAD coordinate grammar:
  *  · `x,y` (or `x,y,z`, z ignored) — absolute cartesian;
+ *  · `x,y;…` — the same, with `;` separating components so `,` reads as a decimal point (see
+ *    {@link coordinateParts});
  *  · `d<a`  — absolute **polar**: distance d at angle a° (CCW from +X/east), measured from the origin;
  *  · `@dx,dy` — **relative** cartesian: offset from `prev` (the previous point in the command);
  *  · `@d<a`  — relative polar: distance d at angle a° from `prev`.
@@ -43,19 +92,23 @@ function point(tok: string | undefined, prev?: [number, number]): [number, numbe
     // never notice. Malformed polar must be an error, not a guess.
     const parts = body.split("<");
     if (parts.length !== 2 || parts[0]!.trim() === "" || parts[1]!.trim() === "") return null;
-    const d = Number(parts[0]), ang = Number(parts[1]);
+    // `d<a` has one number on each side of the `<`, so a comma in either can only be a decimal separator —
+    // the same unambiguous case as a distance field, and `5,5<45` is what a German drafter will type.
+    const d = Number(parts[0]!.replaceAll(",", ".")), ang = Number(parts[1]!.replaceAll(",", "."));
     if (!Number.isFinite(d) || !Number.isFinite(ang)) return null;
     const r = (ang * Math.PI) / 180;
     return [base[0] + d * Math.cos(r), base[1] + d * Math.sin(r)];
   }
-  const parts = body.split(",").map((s) => Number(s.trim()));
-  if (parts.length < 2 || parts.some((n) => !Number.isFinite(n))) return null;
+  const parts = coordinateParts(body);
+  if (parts === null || parts.length < 2 || parts.some((n) => !Number.isFinite(n))) return null;
   return [base[0] + parts[0]!, base[1] + parts[1]!];
 }
 
 function num(tok: string | undefined, fallback: number): number {
   if (tok === undefined || tok === "") return fallback;
-  const n = Number(tok);
+  // A standalone argument — a height, a thickness — is one number, so a comma is a decimal separator. `WALL 0,0
+  // 5,0 2,7` is a 2.7 m wall to most of the world, and reading it as NaN would refuse valid input.
+  const n = Number(tok.replaceAll(",", "."));
   return Number.isFinite(n) ? n : NaN;
 }
 

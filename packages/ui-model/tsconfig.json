@@ -9,6 +9,9 @@
     // massing's vanilla-DOM app and the React shell agree on one layout table instead of two.
     "lib": ["ES2023"]
   },
+  // `i18n` only, and only for `MessageKey`: `Availability.reasonKey` names a catalogue entry so the ribbon can
+  // translate a refusal. No DOM comes with it — `i18n` has none either.
+  "references": [{ "path": "../i18n" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

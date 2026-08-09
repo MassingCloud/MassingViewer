@@ -35,5 +35,8 @@
   },
   "scripts": {
     "build": "tsc --build"
+  },
+  "dependencies": {
+    "@massing/i18n": "0.1.0"
   }
 }

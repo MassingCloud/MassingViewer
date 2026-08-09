@@ -41,6 +41,7 @@ import {
 } from "@massing/plugin-host";
 import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/observability";
 import { browserEnvironment, isolationStatus } from "@massing/pwa";
+import { DE, createTranslator } from "@massing/i18n";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
 import { tessellate } from "./tessellate";
@@ -146,6 +147,16 @@ el("#viewport").insertAdjacentHTML(
   '<div id="drop-hint" hidden><span>Drop an IFC to open it</span></div>',
 );
 
+/**
+ * The translator, from the browser's own locale.
+ *
+ * `navigator.language` rather than a setting, because a first-run app has no setting and the browser's answer is
+ * the best available guess. German is the only catalogue that exists, so everything else lands on English via the
+ * fallback rather than on a blank UI — see docs/i18n.md for how far the translation actually reaches.
+ */
+const locale = navigator.language.split("-")[0] ?? "en";
+const i18n = createTranslator({ locale, catalogue: locale === "de" ? DE : {} });
+
 const viewport = createViewport({ container: el("#viewport") });
 
 const resolveGuid = (expressId: number): Guid | null => toGuid(guids.get(expressId));
@@ -186,7 +197,10 @@ const dims = {
 function renderModelPanel() {
   const dl = el("#model");
   dl.innerHTML = "";
-  row(dl, "Elements", String(built.elements.length));
+  // `plural`, not `String(n)`. The row is one number today and the moment it becomes a sentence — which is what
+  // the markup panel below already is — a concatenation would be untranslatable. Doing it here keeps one habit
+  // rather than two.
+  row(dl, "Elements", i18n.plural("count.elements", built.elements.length));
   row(dl, "Triangles", built.triangles.toLocaleString());
   row(dl, "Parse", `${parseMs.toFixed(1)} ms`);
   row(dl, "Extent", `${formatLength(dims.x, units)} × ${formatLength(dims.z, units)}`);
@@ -684,7 +698,7 @@ function renderTopics(): void {
 
   const dl = el("#markup-info");
   dl.innerHTML = "";
-  row(dl, "Topics", String(topics.length));
+  row(dl, "Topics", i18n.plural("count.topics", topics.length));
   const orphaned = topics.filter(
     (t) => t.pin !== undefined && !isLive(resolveAnchor(t.pin, exists as never)),
   ).length;
