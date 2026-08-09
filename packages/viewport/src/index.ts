@@ -1,3 +1,5 @@
+export { createGizmo } from "./gizmo.js";
+export type { GizmoCommit, GizmoController, GizmoOptions, HeightDelta, MoveDelta, RotateDelta } from "./gizmo.js";
 export { createGrid, createPreview, screenToGround } from "./draft.js";
 export type { GridController, GridOptions, GroundPoint, PreviewController, PreviewState } from "./draft.js";
 // @massing/viewport — the only package permitted to import `three`.

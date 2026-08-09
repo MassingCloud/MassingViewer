@@ -80,10 +80,21 @@ test("draws a wall at a typed imperial distance — the M6 criterion", async ({ 
   await page.mouse.move(x + 160, y);
   await expect(page.locator("#dyn-hud")).toContainText("m");
 
-  // 12'6 — twelve feet six inches, which is 3.810 m.
-  await page.keyboard.type("12'6");
+  /**
+   * `12'6<0` — twelve feet six inches due east.
+   *
+   * The bearing is pinned deliberately, and the first version of this test omitted it. Without one the wall
+   * follows the cursor's direction, which landed at 45° — and the assertion below measured
+   * `max(width, depth)` of the bounding box, which for a diagonal wall is **not its length**. It read 2.826 and
+   * the test failed while the geometry was perfectly correct: for a 45° wall of length L and thickness t, the
+   * bounding box is 0.7071·(L + t) across, so 2.826 *is* 3.81 m long.
+   *
+   * Pinning the bearing makes the wall axis-aligned, so the bounding box and the length are the same number — and
+   * it exercises the angle half of the dynamic-input grammar rather than only the distance.
+   */
+  await page.keyboard.type("12'6<0");
   // Echoed as typed, not converted, so the user sees what they entered.
-  await expect(page.locator("#dyn-hud")).toContainText("12'6");
+  await expect(page.locator("#dyn-hud")).toContainText("12'6<0");
 
   await page.keyboard.press("Enter");
   await expect(page.locator("#status")).toContainText("committed", { timeout: 20_000 });
@@ -115,7 +126,8 @@ test("draws a wall at a typed imperial distance — the M6 criterion", async ({ 
         minZ = Math.min(minZ, p[i + 2]!);
         maxZ = Math.max(maxZ, p[i + 2]!);
       }
-      // The wall is 0.2 m thick, so the long side is its length.
+      // Axis-aligned because the bearing was pinned to 0°, so the long side of the bounding box *is* the length.
+      // This equality is exactly what a diagonal wall breaks — see the note on the typed bearing above.
       length = Math.max(maxX - minX, maxZ - minZ);
     });
     return { length, guid: last.guid };

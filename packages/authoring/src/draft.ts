@@ -260,5 +260,134 @@ export function draftCommands(deps: DraftDeps): AnyCommandDescriptor[] {
     invert: (_args, result) => deletion((result as { created?: readonly string[] })?.created ?? [], stamp),
   };
 
-  return [wall, slab, column, deleteElements];
+  /**
+   * The three transform verbs the gizmo drives.
+   *
+   * They exist as *commands* rather than as direct kernel calls so a gizmo drag goes through the same bus as a
+   * typed one. That is what puts it in the undo stack and the audit log — a gizmo that called the kernel directly
+   * would be the one edit `Ctrl+Z` could not reverse, and the one action the audit log had no record of.
+   *
+   * Each one's `invert` is the opposite transform, which is why they are invertible at all: `move_element` and
+   * `rotate_element` both declare `invertible: true` in the kernel, and the opposite of a translation is a
+   * translation. `deletion()` is not involved — nothing is created.
+   */
+  const move: AnyCommandDescriptor = {
+    id: "mv.edit.move",
+    title: "Move",
+    description: "Translate an element.",
+    verb: "MOVE",
+    aliases: ["M"],
+    group: "modify",
+    cap: "edit",
+    requiresOp: "move_element" as never,
+    args: [
+      { name: "guid", kind: "element", prompt: "Select an element to move" },
+      // IFC axes. `dy` is the plan y, which is the viewport's z — the gizmo converts at its own boundary and
+      // this is the other side of that contract.
+      { name: "dx", kind: "length", prompt: "Distance along x", optional: true, unit: "m", default: 0 },
+      { name: "dy", kind: "length", prompt: "Distance along y", optional: true, unit: "m", default: 0 },
+      { name: "dz", kind: "length", prompt: "Distance along z", optional: true, unit: "m", default: 0 },
+    ],
+    async run(args) {
+      const a = args as { guid?: string; dx?: number; dy?: number; dz?: number };
+      if (typeof a.guid !== "string" || a.guid === "") {
+        return err({ code: "invalid_param", message: "move needs an element" }) as never;
+      }
+      const dx = a.dx ?? 0;
+      const dy = a.dy ?? 0;
+      const dz = a.dz ?? 0;
+      // A zero move is refused rather than applied. It would still bump the model version and write an audit
+      // entry, so "nothing happened" would be recorded as an edit.
+      if (dx === 0 && dy === 0 && dz === 0) {
+        return err({ code: "invalid_param", message: "a move of zero is not an edit" }) as never;
+      }
+      return (await deps.apply("move_element", { guid: a.guid, dx, dy, dz })) as never;
+    },
+    invert: (args) => {
+      const a = args as { guid?: string; dx?: number; dy?: number; dz?: number };
+      if (typeof a.guid !== "string") return undefined;
+      const { seq, at } = stamp();
+      return {
+        commandId: "mv.edit.move",
+        args: { guid: a.guid, dx: -(a.dx ?? 0), dy: -(a.dy ?? 0), dz: -(a.dz ?? 0) },
+        origin: { via: "replay", sourceSeq: seq },
+        seq,
+        at,
+      };
+    },
+  };
+
+  const rotate: AnyCommandDescriptor = {
+    id: "mv.edit.rotate",
+    title: "Rotate",
+    description: "Rotate an element about its own vertical axis.",
+    verb: "ROTATE",
+    aliases: ["RO"],
+    group: "modify",
+    cap: "edit",
+    requiresOp: "rotate_element" as never,
+    args: [
+      { name: "guid", kind: "element", prompt: "Select an element to rotate" },
+      { name: "degrees", kind: "angle", prompt: "Rotation", unit: "deg" },
+    ],
+    async run(args) {
+      const a = args as { guid?: string; degrees?: number };
+      if (typeof a.guid !== "string" || a.guid === "") {
+        return err({ code: "invalid_param", message: "rotate needs an element" }) as never;
+      }
+      if (typeof a.degrees !== "number" || !Number.isFinite(a.degrees) || a.degrees === 0) {
+        return err({ code: "invalid_param", message: "rotate needs a non-zero angle" }) as never;
+      }
+      return (await deps.apply("rotate_element", { guid: a.guid, degrees: a.degrees })) as never;
+    },
+    invert: (args) => {
+      const a = args as { guid?: string; degrees?: number };
+      if (typeof a.guid !== "string") return undefined;
+      const { seq, at } = stamp();
+      return {
+        commandId: "mv.edit.rotate",
+        args: { guid: a.guid, degrees: -(a.degrees ?? 0) },
+        origin: { via: "replay", sourceSeq: seq },
+        seq,
+        at,
+      };
+    },
+  };
+
+  const height: AnyCommandDescriptor = {
+    id: "mv.edit.height",
+    title: "Push/pull",
+    description: "Change how far an element's profile is extruded.",
+    verb: "PUSHPULL",
+    aliases: ["PP"],
+    group: "modify",
+    cap: "edit",
+    requiresOp: "set_extrusion_depth" as never,
+    args: [
+      { name: "guid", kind: "element", prompt: "Select an element" },
+      { name: "depth", kind: "length", prompt: "New depth", unit: "m" },
+    ],
+    async run(args) {
+      const a = args as { guid?: string; depth?: number };
+      if (typeof a.guid !== "string" || a.guid === "") {
+        return err({ code: "invalid_param", message: "push/pull needs an element" }) as never;
+      }
+      if (typeof a.depth !== "number" || !Number.isFinite(a.depth) || a.depth <= 0) {
+        // The kernel declares `min: 0`, which permits zero. A zero-depth solid renders as nothing while the
+        // operation succeeds — the element stays in the file and in every schedule, invisibly. Refused here.
+        return err({ code: "invalid_param", message: "depth must be greater than zero" }) as never;
+      }
+      return (await deps.apply("set_extrusion_depth", { guid: a.guid, depth: a.depth })) as never;
+    },
+    /**
+     * Not invertible, deliberately.
+     *
+     * The inverse of "set the depth to 4" is "set it to whatever it was", and this descriptor is not told the
+     * previous value — `run` receives the target depth, not the delta. `LocalKernel` reports
+     * `transactions: "snapshot"`, so undo is a rollback the registry performs; claiming an inverse that would
+     * need information this function does not have is how undo silently sets a wrong height.
+     */
+  };
+
+  return [wall, slab, column, deleteElements, move, rotate, height];
 }

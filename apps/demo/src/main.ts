@@ -273,9 +273,27 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
   dl.innerHTML = "";
   if (!hit) {
     placeholder(dl, "Click an element");
+    // Nothing selected, so no handles. Leaving them behind would offer a transform of whatever was selected last.
+    draft?.select(null);
     return;
   }
   const element = elementAt(hit.expressId);
+
+  /**
+   * The transform handles follow the selection.
+   *
+   * The box comes from the element's own geometry rather than from the model bounds, or every element would get
+   * handles the size of the building. Computed here because `SceneElement.object` is the mesh and its bounding box
+   * is not cached.
+   */
+  if (element !== undefined) {
+    element.object.geometry.computeBoundingBox();
+    const local = element.object.geometry.boundingBox;
+    draft?.select(local === null ? null : { guid: hit.guid, box: local.clone().applyMatrix4(element.object.matrixWorld) });
+  } else {
+    draft?.select(null);
+  }
+
   row(dl, "Class", element === undefined ? "?" : pascalIfc(element.ifcType));
   row(dl, "expressID", `#${hit.expressId}`);
   // Both ids, deliberately: expressID is what the parse layer and the drawing generator speak, GlobalId is
@@ -284,6 +302,18 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
 }
 
 viewport.renderer.domElement.addEventListener("click", (event) => {
+  // Not while a gizmo handle is being dragged: a drag that also reselected would swap the element mid-transform
+  // and the handles would jump to something the user was not editing.
+  if (draft?.gizmo.dragging === true) return;
+  /**
+   * And not while a draw tool is armed.
+   *
+   * `stopPropagation` on `pointerdown` does not stop the `click` that follows it, so every point placed while
+   * drafting was *also* selecting whatever was underneath — which attached transform handles mid-command, and the
+   * next click landed on a handle instead of placing a point. The wall came out at the cursor distance rather than
+   * the typed one, with nothing to suggest why.
+   */
+  if (draft !== null && draft.session.state.armed !== null) return;
   applySelection(viewport.pick(event));
 });
 
@@ -533,6 +563,36 @@ async function reloadFromKernel(): Promise<void> {
   // The draft tool's snap candidates come from this geometry. Left stale, the next point would snap to where the
   // previous wall used to be — a wall in the wrong place, with no error anywhere.
   draft?.refreshSnaps();
+  reattachGizmo();
+}
+
+/**
+ * Put the transform handles back on the selected element after the model was rebuilt.
+ *
+ * Necessary because `showModel` replaces every mesh: the `SceneElement` the gizmo measured no longer exists, so
+ * the handles keep sitting at the coordinates the element *used to* occupy. Found by dragging a column twice in a
+ * browser — the first drag worked, the second silently did nothing, because the second press landed where the
+ * element now was and the handles were still two metres away. Nothing errored; the status line still showed the
+ * *previous* commit, which made it look like the drag had worked.
+ *
+ * Re-found by GlobalId rather than by expressID, because a re-tessellation does not promise to keep expressIDs
+ * stable and the GlobalId is the only identity that survives a round trip through the file.
+ */
+function reattachGizmo(): void {
+  if (draft === null) return;
+  if (selectedGuid === null) {
+    draft.select(null);
+    return;
+  }
+  const element = built.elements.find((e) => e.guid === selectedGuid);
+  if (element === undefined) {
+    // Deleted, or its id no longer resolves. Handles on a vanished element would offer edits that refuse.
+    draft.select(null);
+    return;
+  }
+  element.object.geometry.computeBoundingBox();
+  const local = element.object.geometry.boundingBox;
+  draft.select(local === null ? null : { guid: selectedGuid, box: local.clone().applyMatrix4(element.object.matrixWorld) });
 }
 
 /**
@@ -908,6 +968,31 @@ renderTopics();
 // announces that plainly rather than doing nothing: a button that appears to work and does not is worse than one
 // that says it is not built.
 
+/**
+ * Point the user at the gizmo handle that does what they just asked for.
+ *
+ * `announce` rather than `#status`, because the ribbon's live region is what a screen-reader user hears — and a
+ * hint that only appears in a footer is a hint half the audience never receives.
+ */
+function explainGizmo(which: "move" | "rotate" | "push/pull"): void {
+  if (draft === null) {
+    ribbon.announce("The transform handles need the kernel to finish starting");
+    return;
+  }
+  if (selectedGuid === null) {
+    ribbon.announce("Select an element first — the handles appear on it");
+    return;
+  }
+  const where =
+    which === "move"
+      ? "drag the blue plate at the base"
+      : which === "rotate"
+        ? "drag the amber ring"
+        : "drag the green cone above the top corner";
+  ribbon.announce(`${which}: ${where}`);
+  el("#status").textContent = `${which} — ${where}`;
+}
+
 const RIBBON_ACTIONS: Record<string, () => void> = {
   "measure-distance-m": () => ribbon.announce("Measure is not wired up in this demo yet"),
   "show-all-h": () => applySelection(null),
@@ -922,6 +1007,19 @@ const RIBBON_ACTIONS: Record<string, () => void> = {
    * drawn at the active level's elevation. It is not the full storey-plane overlay the title implies, and saying
    * so in the announcement is better than a button that half-does what it says without mentioning it.
    */
+  /**
+   * The four transform verbs all point at the same gizmo, and say so.
+   *
+   * They are not separate modes: the handles for move, rotate and push/pull are on screen together the moment
+   * something is selected, which is how a direct-manipulation gizmo works. So the honest thing for these buttons
+   * to do is *tell the user where the handles are* rather than arm a mode that does not exist. Announcing beats
+   * both silence and a fake mode — the button reads "drag the gizmo", and now there is one to drag.
+   */
+  "edit-in-place-drag-the-gizmo-to-move-the-selected-element": () => explainGizmo("move"),
+  "move-selected-element-e-n-z-metres": () => explainGizmo("move"),
+  "rotate-selected-element-degrees-about-z": () => explainGizmo("rotate"),
+  "push-pull-drag-the-top-handle-to-make-the-selected-element-taller-or-thicker": () => explainGizmo("push/pull"),
+
   "toggle-storey-levels-overlay": () => {
     if (draft === null) {
       ribbon.announce("The grid needs the kernel to finish starting");
@@ -1132,6 +1230,13 @@ declare global {
        */
       readonly toolCount: number;
       /**
+       * The draft controller, for tests that need to drive the authoring session directly.
+       *
+       * Exposed because the interesting bugs in this area are in the *host* wiring, and separating host from
+       * session is impossible from outside without a handle on both.
+       */
+      readonly draft: DraftController | null;
+      /**
        * The markup topics, and the camera distance.
        *
        * Both were exposed on the object and **missing from this declaration**, which never failed because
@@ -1197,6 +1302,9 @@ window.__massingviewer = {
   kernelId: kernel.id,
   get toolCount() {
     return TOOLS.length;
+  },
+  get draft() {
+    return draft;
   },
   renderNow() {
     viewport.renderer.render(viewport.scene, viewport.camera);

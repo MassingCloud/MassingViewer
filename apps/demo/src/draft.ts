@@ -8,7 +8,15 @@ import {
   type HoverFeedback,
 } from "@massing/authoring";
 import { dynKeystroke, type SnapCandidate } from "@massing/geometry-math";
-import { createGrid, createPreview, screenToGround, type GridController } from "@massing/viewport";
+import {
+  createGizmo,
+  createGrid,
+  createPreview,
+  screenToGround,
+  type GizmoController,
+  type GridController,
+} from "@massing/viewport";
+import type * as THREE from "three";
 import type { KernelProvider } from "@massing/kernel-api";
 import type { Viewport } from "@massing/viewport";
 
@@ -56,6 +64,15 @@ export interface DraftController {
   armByToolId(toolId: string): boolean;
   disarm(): void;
   readonly grid: GridController;
+  readonly gizmo: GizmoController;
+  /**
+   * Put the transform handles on a selected element, or take them off.
+   *
+   * Takes the GlobalId as well as the box because every transform operation is addressed by GlobalId. An element
+   * the tessellator could not resolve has no id to send, so it gets no handles — offering three edits that cannot
+   * be dispatched, and only finding out after the drag, is worse than offering none.
+   */
+  select(target: { readonly guid: string | null; readonly box: THREE.Box3 } | null): void;
   readonly session: AuthoringSession;
   readonly registry: Registry;
   /**
@@ -94,6 +111,51 @@ export function wireDraft(deps: DraftDeps): DraftController {
   const preview = createPreview(deps.viewport.scene);
 
   const registry = createRegistry();
+
+  /** The element the handles are on, so a commit knows what it is transforming. */
+  let selected: string | null = null;
+
+  const gizmo = createGizmo(deps.viewport.scene, deps.viewport.camera, deps.canvas, {
+    // A quarter metre and fifteen degrees. Matching the draft tools' feel rather than inventing a second set of
+    // increments, so a dragged wall lands on the same lattice as a drawn one.
+    translateSnap: 0.25,
+    rotateSnap: 15,
+    onCommit: (commit) => {
+      const guid = selected;
+      if (guid === null) return;
+      void (async () => {
+        /**
+         * Dispatched through the registry, never straight at the kernel.
+         *
+         * That is what puts a gizmo drag in the undo stack and the audit log alongside a typed command. A gizmo
+         * that called the kernel directly would be the one edit `Ctrl+Z` could not reverse and the one action the
+         * audit log had no record of — and `origin: { via: "ui", surface: "gizmo" }` is already in the type for
+         * exactly this.
+         */
+        const args =
+          commit.kind === "move"
+            ? { commandId: "mv.edit.move", args: { guid, dx: commit.dx, dy: commit.dy, dz: commit.dz } }
+            : commit.kind === "rotate"
+              ? { commandId: "mv.edit.rotate", args: { guid, degrees: commit.degrees } }
+              : { commandId: "mv.edit.height", args: { guid, depth: commit.depth } };
+
+        const result = await registry.dispatch(
+          {
+            ...args,
+            origin: { via: "ui", surface: "gizmo" },
+            seq: registry.nextSeq(),
+            at: registry.now(),
+          } as never,
+          context(),
+        );
+        deps.status(
+          result.ok ? `${commit.kind} committed` : `${result.error.code}: ${result.error.message}`,
+          result.ok ? "ok" : "warn",
+        );
+      })();
+    },
+  });
+
   for (const command of draftCommands({
     /**
      * The kernel round trip, and then a reload.
@@ -383,6 +445,19 @@ export function wireDraft(deps: DraftDeps): DraftController {
         deps.status(armed.reason, "warn");
         return true;
       }
+      /**
+       * Arming a draw tool takes the transform handles away.
+       *
+       * They compete for the same clicks, and the gizmo wins: both listen on the canvas in the capture phase and
+       * the gizmo is registered first, so a handle under the cursor swallows the press before the draft session
+       * sees it. That is how a wall typed as `12'6` came out 2.835 m long — the *first* draft click had also
+       * selected an element, its handles appeared, and the second click landed on one.
+       *
+       * Drafting and transforming are different intents; the tool that was just armed is the one the user meant.
+       */
+      selected = null;
+      gizmo.detach();
+
       // The grid comes on with a draw tool. An invisible grid you can still snap to is a snap nobody aimed at,
       // and M6's criterion is "snap to a grid intersection" — the intersection has to be visible to be aimed at.
       grid.visible(true);
@@ -401,7 +476,18 @@ export function wireDraft(deps: DraftDeps): DraftController {
       renderHud();
     },
 
+    select(target) {
+      if (target === null || target.guid === null) {
+        selected = null;
+        gizmo.detach();
+        return;
+      }
+      selected = target.guid;
+      gizmo.attach(target.box);
+    },
+
     grid,
+    gizmo,
     session,
     registry,
     refreshSnaps: rebuildSnaps,
@@ -415,6 +501,7 @@ export function wireDraft(deps: DraftDeps): DraftController {
       window.removeEventListener("keydown", onKey);
       preview.dispose();
       grid.dispose();
+      gizmo.dispose();
     },
   };
 }

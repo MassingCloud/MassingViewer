@@ -90,10 +90,15 @@ regression (2).
   double-clicked zero-length wall — states the measurement and **leaves the tool armed with your first point
   intact**, because losing work to a validation message is how people stop trusting a tool.
 
-**What is not built.** There is no transform gizmo you can drag, no push/pull handle, and no property inspector.
-The ribbon has a button reading *"Edit in place — drag the gizmo to move the selected element"* and there is no
-gizmo behind it; `move_element`, `rotate_element` and `set_extrusion_depth` are implemented in the kernel and
-reachable only through the API. Levels toggles the construction grid rather than drawing storey planes.
+- **Edits by dragging.** Select an element and three handles appear: a plate at the base to move it in plan, a
+  ring to rotate it, and a cone above the top corner to push/pull its height. Every drag resolves against a plane
+  in world space, so the handle stays under the cursor at any zoom, and every drag dispatches a **command** — so a
+  gizmo edit lands in the undo stack and the audit log exactly like a typed one. A drag that goes nowhere writes
+  nothing.
+
+**What is not built.** No property inspector — the Selection panel shows an element's class and both ids, not its
+psets. Levels toggles the construction grid rather than drawing storey planes. Doors and windows are still not cut
+into plans (see [docs/testing.md](docs/testing.md)), and the memory-leak gate is still absent.
 
 Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
 [docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and
@@ -187,7 +192,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 `RemoteKernel` passes the suite against a behavioural stub. The recipe ledger's `remote` column stays at 0, because filling it needs a run against a real massing server — see [docs/kernels/authoring.md](docs/kernels/authoring.md) |
 | M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
 | M5 | 2D drawings + markup — **the full loop** | 🔨 SVG, DXF, PDF, BCF and Tier-1/2 goldens done. Tier-3 rasterisation absent; **door and window openings are not cut into plans** |
-| M6 | Authoring tools, gizmos, inspector | 🔨 **drafting works.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E. Still missing: the transform gizmo, the push/pull handle and the property inspector |
+| M6 | Authoring tools, gizmos, inspector | 🔨 **drafting and transforming work.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E — plus a move/rotate/push-pull gizmo. Still missing: the property inspector |
 | M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
 | M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |
 | M9 | massing consumes `@massing/*` | 🔨 `packages/embed` is the facade; massing has not adopted it |
