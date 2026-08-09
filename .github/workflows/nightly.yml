@@ -14,6 +14,24 @@ on:
 permissions:
   contents: read
 
+# ## Outstanding, and named here rather than left implicit
+#
+# Three jobs the plan asks for and this workflow does not yet run. Written down because a nightly that runs one job
+# reads, at a glance, like a nightly that runs everything — and `docs/testing.md` points here for the gap:
+#
+#   - **Tier-3 drawing rasterisation.** `resvg` → PNG → SSIM ≥ 0.995 against a baseline, title block masked, resvg
+#     version pinned. Tiers 1 and 2 (semantic digests and structural assertions) run per-PR in
+#     `fixtures/golden.test.ts`; this is the one that catches hatch patterns and line weights, which a digest cannot
+#     express. `resvg` is not a dependency yet.
+#   - **3D viewport visual regression.** Silhouette occupancy grid plus luminance histogram in a digest-pinned
+#     SwiftShader container, keyed by renderer signature. Deliberately not SSIM per-PR — see risk #11.
+#   - **Performance trend.** p95 frame time with a 20% tolerance band and committed trend JSON, plus drawing
+#     generation budgets against a generated large model. The large fixture belongs here rather than committed:
+#     a 240 MB IFC cannot go in a public repository and its golden digest would be unreadable.
+#
+# Also outstanding: a docker-composed massing backend to run `@massing/kernel-remote`'s conformance suite against a
+# real service rather than the in-repo stub. See docs/kernels/authoring.md.
+
 jobs:
   property-explore:
     name: Property tests, random seed

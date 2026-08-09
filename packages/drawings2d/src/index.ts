@@ -1,3 +1,4 @@
+export { digestDrawing, formatDigest, type Digest, type DigestOptions } from "./digest.js";
 // @massing/drawings2d — a plan is a live view of the model, not an export of it.
 //
 // One decision carries the package: entity geometry is in MODEL space, in metres, and paper is a render-time

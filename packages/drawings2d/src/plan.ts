@@ -145,7 +145,22 @@ export function generatePlan(
   const belowDepth = view.belowDepth ?? 3;
 
   const entities: DrawingEntity[] = [];
-  const incomplete: { guid: Guid | null; ifcClass: string; reason: string }[] = [];
+  /**
+   * What did not make it into the drawing — seeded with what never made it into the *input*.
+   *
+   * Losses upstream of here are still losses in the drawing, and until the golden suite looked, they were
+   * invisible: a plan built from a model whose tessellator had dropped three elements reported `incomplete: []`
+   * and full coverage. `DrawingProvenance.incomplete` exists precisely so a plan cannot be quietly short of a
+   * wall, and it was only ever reporting the last stage of a two-stage pipeline.
+   *
+   * Prefixed so the caller's reason survives verbatim: "the tessellator: no shape representation" tells a reader
+   * which stage lost it, which is the first thing anyone needs to know.
+   */
+  const incomplete: { guid: Guid | null; ifcClass: string; reason: string }[] = (input.skipped ?? []).map((s) => ({
+    guid: s.guid ?? null,
+    ifcClass: s.ifcClass,
+    reason: `before generation: ${s.reason}`,
+  }));
   let n = 0;
 
   for (const mesh of input.meshes) {

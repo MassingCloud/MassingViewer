@@ -34,7 +34,15 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "sample.ifc");
+/**
+ * Which fixture to emit. `node build-sample.mjs broken` writes `broken.ifc`.
+ *
+ * One script rather than two because every helper below — the GlobalId counter, the profile maths, the placement
+ * graph — is shared, and a second copy would drift. The broken fixture is the *same building* plus three
+ * deliberately unsectionable elements, which is what makes a digest diff between the two readable.
+ */
+const MODE = process.argv[2] === "broken" ? "broken" : "sample";
+const OUT = join(dirname(fileURLToPath(import.meta.url)), `${MODE}.ifc`);
 
 // ---------------------------------------------------------------------------------------------------
 // GlobalId generation
@@ -255,6 +263,64 @@ opening(north, "Window-01", 2.0, 6, 3.5, 6, 0.9, 2.1);
   expected.column = { guid: g };
 }
 
+/**
+ * The broken fixture's whole reason to exist: elements a sectioner cannot handle.
+ *
+ * `DrawingProvenance.incomplete` is the Semantic Drawing Model's honesty feature — the field that makes a plan say
+ * "I could not section this wall" instead of rendering perfectly with a wall missing, which is what massing's
+ * plans do today. A feature with no failing input has never actually been exercised, so this supplies three
+ * distinct failures rather than one:
+ *
+ * 1. **A degenerate profile** — two points, so the extrusion has no area. The commonest real-world corruption.
+ * 2. **An element with no shape representation at all** — valid IFC, and a real occurrence in models exported
+ *    from tools that write placeholders.
+ * 3. **A zero-height extrusion** — a solid with no vertical extent.
+ *
+ * Each is authored as valid STEP. A file that failed to *parse* would test the parser, not the sectioner.
+ *
+ * **Measured outcome, which is not what was expected for all three.** 1 and 2 are dropped by the tessellator and
+ * appear in `DrawingProvenance.incomplete`; that is the intended path and the golden digests show it. 3 tessellates
+ * successfully into a flat mesh and is classified `below`, so it does *not* produce an incomplete entry. Written
+ * down rather than quietly removed: a degenerate-but-drawable element is its own case, and a reader who assumed all
+ * three fail would be looking for a bug that is not there.
+ */
+if (MODE === "broken") {
+  // 1. Degenerate: a two-point profile cannot bound an area.
+  {
+    const solid = extrudedSolid([[1, 1], [2, 2]], H);
+    const g = guid(gc++);
+    const w = e(
+      "IFCWALL",
+      `${S(g)},${OWNER},'Wall-Degenerate',$,$,${localPlacement(0, 0, 0)},${productShape(solid)},$,.SOLIDWALL.`,
+    );
+    contained.push(w);
+    expected.broken = [...(expected.broken ?? []), { name: "Wall-Degenerate", guid: g, why: "profile has 2 points" }];
+  }
+
+  // 2. No representation. `$` where the shape belongs — legal, and it happens.
+  {
+    const g = guid(gc++);
+    const w = e(
+      "IFCWALL",
+      `${S(g)},${OWNER},'Wall-NoShape',$,$,${localPlacement(0, 0, 0)},$,$,.SOLIDWALL.`,
+    );
+    contained.push(w);
+    expected.broken = [...(expected.broken ?? []), { name: "Wall-NoShape", guid: g, why: "no shape representation" }];
+  }
+
+  // 3. Zero height: a cut plane has nothing to meet.
+  {
+    const solid = extrudedSolid([[5, 1], [6, 1], [6, 2], [5, 2]], 0);
+    const g = guid(gc++);
+    const s2 = e(
+      "IFCSLAB",
+      `${S(g)},${OWNER},'Slab-ZeroHeight',$,$,${localPlacement(0, 0, 0)},${productShape(solid)},$,.FLOOR.`,
+    );
+    contained.push(s2);
+    expected.broken = [...(expected.broken ?? []), { name: "Slab-ZeroHeight", guid: g, why: "zero extrusion depth" }];
+  }
+}
+
 // --- aggregation and containment --------------------------------------------------------------------
 
 e("IFCRELAGGREGATES", `${S(guid(gc++))},${OWNER},$,$,${project},${L([site])}`);
@@ -276,7 +342,7 @@ const STAMP = "2026-08-06T00:00:00";
 const header = `ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('ViewDefinition [CoordinationView]'),'2;1');
-FILE_NAME('sample.ifc','${STAMP}',('MassingViewer'),('MassingCloud'),'fixtures/build-sample.mjs','MassingViewer','');
+FILE_NAME('${MODE}.ifc','${STAMP}',('MassingViewer'),('MassingCloud'),'fixtures/build-sample.mjs','MassingViewer','');
 FILE_SCHEMA(('IFC4'));
 ENDSEC;
 DATA;`;
@@ -293,3 +359,6 @@ for (const w of expected.walls) console.log(`  ${w.name.padEnd(12)} ${w.guid}`);
 for (const o of expected.openings) console.log(`  ${o.name.padEnd(12)} ${o.guid}  sill=${o.sill} head=${o.head}`);
 console.log(`  Slab-Ground  ${expected.slab.guid}`);
 console.log(`  Column-01    ${expected.column.guid}`);
+for (const b of expected.broken ?? []) {
+  console.log(`  ${b.name.padEnd(16)} ${b.guid}  UNSECTIONABLE: ${b.why}`);
+}

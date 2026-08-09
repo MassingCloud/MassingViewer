@@ -98,6 +98,46 @@ no browser) to PNG, then SSIM against a baseline at 0.995, with the title block 
 version pinned. This catches what a digest cannot express — hatch pattern changes, line-weight errors —
 without gating every PR on pixel luck.
 
+### What is implemented
+
+Tiers 1 and 2 are live in `fixtures/golden.test.ts`, over **2 fixtures × 8 views = 16 committed digests** under
+`fixtures/golden/`. `digestDrawing` and `formatDigest` are in `packages/drawings2d/src/digest.ts`.
+
+**Two fixtures, not the six the plan names, and the difference is deliberate.** The plan's six (2 MB house →
+240 MB tower, one deliberately broken) are specified for the M0 *bake-off harness* — a fidelity and performance
+comparison between two candidate 2D engines. A 240 MB IFC is a perf fixture: it cannot be committed to a public
+repository, and its golden digest would be tens of megabytes of text no reviewer will ever read, which destroys the
+one property that makes this suite work. Scale belongs in a perf job against a generated model — and perf.yml does
+not exist yet either; the gap is recorded in `.github/workflows/nightly.yml`. What a *golden*
+suite needs is semantic coverage, and the eight views supply it: each one is chosen to fail for a reason none of
+the others can.
+
+`fixtures/broken.ifc` exists solely to exercise `DrawingProvenance.incomplete`. A field with no failing input has
+never actually been tested — and it found a real one.
+
+**Tier 3 is not implemented.** `resvg` is not a dependency and there is no nightly rasterisation job. It is listed
+in `.github/workflows/nightly.yml` as outstanding rather than described here as if it ran.
+
+### Two bugs the suite found on its first run
+
+1. **`incomplete[]` was blind to the stage that loses most elements.** `DrawingProvenance.incomplete` can only
+   report elements the generator was *handed*. The tessellator drops what it cannot build — and already records
+   each one with a reason — but there was no channel to pass them on, so a plan built from a model three elements
+   short reported `incomplete: []` and full coverage. That is precisely the failure the field was added to prevent,
+   relocated one stage upstream where nothing was looking. `DrawingInput.skipped` is the channel; `generatePlan`
+   seeds `incomplete` from it, prefixed `before generation:` so a reader knows which stage lost it.
+2. **Doors and windows are not cut into plans.** `apps/demo/src/tessellate.ts` contains no handling of
+   `IFCRELVOIDSELEMENT` at all, so `IfcOpeningElement` voids are never subtracted and a plan shows an unbroken wall
+   where the door is. `build-sample.mjs` authors both as real voids and states the expectation — six wall loops at a
+   1.2 m cut — which the pipeline does not meet. This is asserted at the *current* count with an explanation, so
+   the defect is recorded rather than encoded as correct; the test fails when voids land, which is the signal.
+
+### Known wart
+
+The IFC → mesh tessellator lives in `apps/demo/src/tessellate.ts`. It is not app code, and both the golden suite
+and any future consumer need it, so `fixtures/golden.test.ts` imports it by relative path rather than growing a
+second copy. Its home is `@massing/ifc`. Unscheduled.
+
 ### Updating a golden safely
 
 1. Run the drawing bake-off harness and read the **diff**, not the summary.

@@ -6,7 +6,8 @@ import {
   FIRE_SAFETY,
   PAPER_SIZES,
   type Drawing,
-  type ElementMesh,
+  type DrawingInput,
+
   fitToPaper,
   generatePlan,
   dxfLimitations,
@@ -141,6 +142,9 @@ const parseMs = performance.now() - t0;
 // of the model — regenerating it after an edit must not require re-reading the file.
 let sourceMeshes = meshes;
 let sourceGuids = guids;
+// The tessellator's losses, held for the same reason: a plan generated after an edit must still be able to say
+// what never reached it.
+let sourceSkipped = skipped;
 
 el("#viewport").insertAdjacentHTML(
   "beforeend",
@@ -308,6 +312,7 @@ async function loadIfc(text: string, name: string): Promise<void> {
   built = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
   sourceMeshes = next.meshes;
   sourceGuids = next.guids;
+  sourceSkipped = next.skipped;
   viewport.fit();
 
   // The kernel must be reopened on the new bytes *before* anything can be authored against them. Leaving it on
@@ -493,6 +498,9 @@ async function authorWall(): Promise<void> {
     built = rebuilt;
     sourceMeshes = next.meshes;
     sourceGuids = next.guids;
+    // Reassigned with the meshes, or the plan reports the *previous* model's losses — stale provenance is
+    // worse than none, because it looks like an answer.
+    sourceSkipped = next.skipped;
     // A plan is a *view*: if one is open it must follow the edit, not go stale until someone presses the button.
     if (drawing !== null) generate();
     // An edit is exactly when an anchor can break, so the markup list is re-resolved rather than left stale.
@@ -535,6 +543,9 @@ async function deleteSelected(): Promise<void> {
     built = viewport.showModel(next.meshes, (id) => toGuid(next.guids.get(id)), MODEL);
     sourceMeshes = next.meshes;
     sourceGuids = next.guids;
+    // Reassigned with the meshes, or the plan reports the *previous* model's losses — stale provenance is
+    // worse than none, because it looks like an answer.
+    sourceSkipped = next.skipped;
     applySelection(null);
     if (drawing !== null) generate();
     // The moment an anchor breaks. Re-resolving here is what turns a deleted element into a visibly orphaned
@@ -564,7 +575,7 @@ let drawing: Drawing | null = null;
 let planTheme = ARCHITECTURAL;
 
 /** The tessellated model as drawing input, carrying the identity each line must keep. */
-function planInput(): { name: string; meshes: ElementMesh[] } {
+function planInput(): DrawingInput {
   return {
     name: "L1 Plan",
     meshes: sourceMeshes.map((m) => ({
@@ -572,6 +583,14 @@ function planInput(): { name: string; meshes: ElementMesh[] } {
       ifcClass: pascalIfc(m.ifcType ?? "IFCPRODUCT"),
       positions: m.positions,
       indices: m.indices,
+    })),
+    // What the tessellator could not build. Passed through so the plan's `incomplete[]` covers the whole pipeline
+    // rather than only the sectioning stage — the golden suite found this reporting an empty list for a model
+    // three elements short, which is precisely what the field was added to make impossible.
+    skipped: sourceSkipped.map((s) => ({
+      guid: toGuid(sourceGuids.get(s.expressId)),
+      ifcClass: pascalIfc(s.type),
+      reason: s.reason,
     })),
   };
 }

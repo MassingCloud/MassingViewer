@@ -1,0 +1,5 @@
+# plan "broken"
+bounds empty
+guidCoverage 1.000
+incomplete IfcWall: before generation: no IfcExtrudedAreaSolid over IfcArbitraryClosedProfileDef found
+incomplete IfcWall: before generation: no IfcExtrudedAreaSolid over IfcArbitraryClosedProfileDef found

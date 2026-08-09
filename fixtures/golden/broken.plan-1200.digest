@@ -1,0 +1,20 @@
+# plan "broken"
+bounds -80,-80 .. 3280,2480
+guidCoverage 1.000
+incomplete IfcWall: before generation: no IfcExtrudedAreaSolid over IfcArbitraryClosedProfileDef found
+incomplete IfcWall: before generation: no IfcExtrudedAreaSolid over IfcArbitraryClosedProfileDef found
+layer A-FLOR (2)
+  below IfcSlab 0O7BozxUdgUkAEZ_ax5xD5 polyline*[-80,-80 3280,-80 3280,2480 -80,2480]
+  below IfcSlab Ksm3_Vc5OEnY20H3qp$QbM polyline*[2000,400 2400,400 2400,800 2000,800]
+layer A-WALL (8)
+  cut IfcWall 2gsf7tD5Ae_XjaY7urBn5V polyline*[-40,2400 -40,960 -40,0 8,0 40,0 40,1440 40,2400 -8,2400 -40,2400]
+  cut IfcWall NzjmaL0SJr5JatlqcJWjvy polyline*[3160,2400 3160,960 3160,0 3208,0 3240,0 3240,1440 3240,2400 3192,2400 3160,2400]
+  cut IfcWall OwCSTfxILZZaOeUwK4fcAk polyline*[3200,40 1280,40 0,40 0,-8 0,-40 1920,-40 3200,-40 3200,8 3200,40]
+  cut IfcWall j0LntYKgSuOsiBo9gxt0PP polyline*[3200,2440 1280,2440 0,2440 0,2392 0,2360 1920,2360 3200,2360 3200,2408 3200,2440]
+  poche IfcWall 2gsf7tD5Ae_XjaY7urBn5V region[outer(-40,2400 -40,960 -40,0 8,0 40,0 40,1440 40,2400 -8,2400 -40,2400)]
+  poche IfcWall NzjmaL0SJr5JatlqcJWjvy region[outer(3160,2400 3160,960 3160,0 3208,0 3240,0 3240,1440 3240,2400 3192,2400 3160,2400)]
+  poche IfcWall OwCSTfxILZZaOeUwK4fcAk region[outer(3200,40 1280,40 0,40 0,-8 0,-40 1920,-40 3200,-40 3200,8 3200,40)]
+  poche IfcWall j0LntYKgSuOsiBo9gxt0PP region[outer(3200,2440 1280,2440 0,2440 0,2392 0,2360 1920,2360 3200,2360 3200,2408 3200,2440)]
+layer S-COLS (2)
+  cut IfcColumn LpNTCOzcezluqNibNVAaAY polyline*[1660,1140 1588,1140 1540,1140 1540,1212 1540,1260 1612,1260 1660,1260 1660,1188 1660,1140]
+  poche IfcColumn LpNTCOzcezluqNibNVAaAY region[outer(1660,1140 1588,1140 1540,1140 1540,1212 1540,1260 1612,1260 1660,1260 1660,1188 1660,1140)]

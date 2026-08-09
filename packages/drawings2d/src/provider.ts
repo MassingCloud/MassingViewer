@@ -60,4 +60,18 @@ export interface DrawingInput {
   readonly meshes: readonly ElementMesh[];
   /** Storey elevations in metres, so a plan can name the level it cut and place grid bubbles. */
   readonly storeys?: readonly { readonly name: string; readonly elevation: number; readonly guid?: Guid }[];
+  /**
+   * Elements lost **before** this input was built — by the tessellator, the loader, or the kernel.
+   *
+   * Added because the golden suite proved `DrawingProvenance.incomplete` was blind exactly where it mattered. Its
+   * doc comment says a plan silently missing a wall *"renders perfectly… and the person who finds out is on
+   * site"*, and a generator can only report the elements it was *handed* and failed on. An element the tessellator
+   * dropped never reaches `meshes`, so the drawing reported `incomplete: []` and full coverage while three
+   * elements were missing — the precise failure the field exists to prevent, relocated one stage upstream where
+   * nothing was looking.
+   *
+   * `tessellate()` already tracks these with reasons; there was simply no channel for them. This is the channel,
+   * and a provider must merge them into its provenance rather than treat them as somebody else's problem.
+   */
+  readonly skipped?: readonly { readonly guid?: Guid | null; readonly ifcClass: string; readonly reason: string }[];
 }
