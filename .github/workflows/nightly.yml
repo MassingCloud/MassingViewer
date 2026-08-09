@@ -26,10 +26,12 @@ permissions:
 #   - **p95 frame time.** The `perf` job below measures *drawing generation*, which is a pure function and belongs
 #     in Node. Frame time is a browser measurement and needs a rendering loop instrumented over many frames; the
 #     visual job renders single frames and cannot report it.
-#   - **The memory-leak gate.** Mount, load, author 50, unmount, force GC, then assert `renderer.info.memory` back
-#     to baseline, `THREE.Cache` empty, JS heap within 5%, **zero pending animation-frame callbacks**, listener
-#     counts at baseline. The plan calls this the most-neglected gate for a long-lived three.js app and it does not
-#     exist. `raf.ts` exists precisely because an animation loop with no way to stop outlives what it was drawing.
+#   - **The long-task gate.** Nothing over 50 ms during the golden path, which is what keeps the Worker boundary real
+#     rather than nominal. The perf job below measures drawing generation in Node, where there is no main thread to
+#     block, so this needs a browser trace.
+#
+# The **memory-leak gate is done** and runs per-PR rather than here: `e2e/memory.spec.ts` takes about five seconds
+# and is exactly deterministic, so deferring it to a nightly would only delay the signal. See docs/testing.md.
 #   - **A docker-composed massing backend** for `@massing/kernel-remote`'s conformance suite, so it runs against a
 #     real service rather than the in-repo stub. See docs/kernels/authoring.md.
 #

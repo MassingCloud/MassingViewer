@@ -75,9 +75,11 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**1,071 unit tests, 34 E2E tests each on Chromium, Firefox, WebKit and iPad, and 11 repo gates** are green —
+**1,167 unit tests, 62 E2E tests each on Chromium, Firefox, WebKit and iPad, and 11 repo gates** are green —
 plus dedicated Playwright projects for the React shell (9), WCAG 2.2 AA via `axe-core` (4) and viewport visual
-regression (2).
+regression (2). The E2E suite includes a **memory-leak gate**: twenty model replacements must leave *exactly* the
+same number of GPU buffers as one, because three.js does not free them when an object leaves the scene graph and
+the symptom of getting that wrong is a tab that gets slow and then dies.
 
 - **Exports SVG and DXF from one drawing.** Both are pure functions of `(Drawing, Theme, Paper)`, so a DXF a
   consultant opens measures the same as the SVG a reviewer approved — and `dxfLimitations()` states what R12
@@ -106,8 +108,8 @@ regression (2).
   `[object Object]` in a property panel is worse than nothing. An element with no property sets says so, which is
   a different statement from one the kernel could not answer for, and both beat silence.
 
-**What is not built.** Levels toggles the construction grid rather than drawing storey planes; the memory-leak
-gate and Tier-3 drawing rasterisation are both absent (see [docs/testing.md](docs/testing.md)); and openings are
+**What is not built.** Levels toggles the construction grid rather than drawing storey planes; Tier-3 drawing
+rasterisation and the long-task gate are absent (see [docs/testing.md](docs/testing.md)); and openings are
 subtracted only from rectangular profiles — anything else is drawn solid **and reported**, never silently.
 
 Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see

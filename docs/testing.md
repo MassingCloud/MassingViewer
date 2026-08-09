@@ -292,10 +292,33 @@ above. That is not a defect to optimise away; it is the argument for the boundar
 `LocalKernel` is Worker-only by construction, and drawing generation belongs on the same side of it. The case is
 there to keep the number visible.
 
-**Not implemented:** frame time (a browser measurement, and the visual job renders single frames), the long-task
-gate, and the memory-leak gate. All three are named in `.github/workflows/nightly.yml`. The memory one is the
-expensive omission — the plan calls it the most-neglected gate for an app of this shape, and it is the only item on
-this page whose absence has no partial substitute.
+### The memory-leak gate
+
+Implemented, in `e2e/memory.spec.ts`, and it runs **per-PR** on every browser project rather than nightly — it takes
+about five seconds and it is exactly deterministic, so there is no reason to defer it.
+
+Two departures from the plan's recipe, both deliberate:
+
+- **`showModel` is driven directly instead of authoring fifty walls.** It is the same call every authoring round
+  trip makes, and fifty round trips would spend a minute of wall clock to exercise one line of disposal. The thing
+  under test is `disposeScene`, not the kernel. A separate test *does* go through the real authoring path four
+  times, to prove the round trip actually reaches that line.
+- **GPU resource counts rather than JS heap.** `renderer.info.memory` is exact and available everywhere;
+  `performance.memory` is Chromium-only, quantised, and needs `--expose-gc` to mean anything. A gate that works in
+  one browser behind a launch flag is a gate that gets dropped. And GPU buffers are the leak that actually threatens
+  this app, because three does **not** free them when an object leaves the scene graph.
+
+What it checks: geometry and texture counts are **exactly** equal after 20 re-shows as after one (a tolerance would
+let a one-buffer-per-edit leak pass for as long as the tolerance lasted, which is the only kind that reaches
+production); shader programs are not recompiled per model; `THREE.Cache` is empty, so the first `TextureLoader`
+added without a clear is noticed; `dispose()` leaves zero geometry, zero textures and no canvas in the DOM; and
+`dispose()` is idempotent, because React strict mode unmounts twice.
+
+Sabotage-tested by deleting `disposeScene(current)` from `showModel`, which failed with
+*"geometry count grew over 20 re-shows: 23 → 34"*.
+
+**Still not implemented:** frame time (a browser measurement, and the visual job renders single frames) and the
+long-task gate. Both are named in `.github/workflows/nightly.yml`.
 
 ## 7. Accessibility
 

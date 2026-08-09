@@ -46,6 +46,8 @@ import { TOOLS } from "@massing/ui-model";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
 import type * as THREE from "three";
+// `Cache` is a runtime value, not a type — imported separately so the type-only import above stays type-only.
+import { Cache as THREE_CACHE } from "three";
 import { tessellate } from "./tessellate";
 import { wireDraft, type DraftController } from "./draft";
 
@@ -1355,6 +1357,21 @@ declare global {
        */
       readonly draft: DraftController | null;
       /**
+       * Leak probe: re-show the current model `cycles` times and report GPU resource counts.
+       *
+       * Exists for the same reason `sampleFramebuffer` and `renderSignature` do — the thing being measured is
+       * invisible from outside. `docs/testing.md` calls the memory-leak gate the highest-value and most-neglected
+       * check for a long-lived three.js app, and it cannot be written without a way to drive mount/unmount and read
+       * `renderer.info.memory` from a test.
+       */
+      remount(cycles: number): {
+        geometries: number;
+        textures: number;
+        programs: number;
+        cacheSize: number;
+        sceneChildren: number;
+      };
+      /**
        * The markup topics, and the camera distance.
        *
        * Both were exposed on the object and **missing from this declaration**, which never failed because
@@ -1426,6 +1443,36 @@ window.__massingviewer = {
   },
   renderNow() {
     viewport.renderer.render(viewport.scene, viewport.camera);
+  },
+
+  /**
+   * Re-show the same model `cycles` times, then report what the GPU is still holding.
+   *
+   * This is the leak that actually threatens this app. Every authoring round trip calls `showModel` again, and
+   * `showModel` is the one place that must dispose the scene it replaces — three does **not** free GPU buffers
+   * when an object leaves the scene graph, so a missing `disposeScene` grows `renderer.info.memory.geometries`
+   * on every edit until the tab dies. There is no error and nothing on screen: it is slow, then it is gone.
+   *
+   * Driving `showModel` directly rather than authoring fifty walls: it is the same call the round trip makes, and
+   * fifty round trips would take a minute of wall clock to test one line of disposal.
+   */
+  remount(cycles: number) {
+    for (let i = 0; i < cycles; i++) {
+      built = viewport.showModel(sourceMeshes, (id) => toGuid(sourceGuids.get(id)), MODEL);
+    }
+    // Rendered once, so any buffer a re-show created is actually uploaded and therefore counted. Without a frame
+    // the numbers describe what has been *asked for*, not what is held.
+    viewport.renderer.render(viewport.scene, viewport.camera);
+    const info = viewport.renderer.info;
+    return {
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+      programs: info.programs?.length ?? 0,
+      // `THREE.Cache` is a module-level map that `TextureLoader` and friends populate and nothing clears. It is
+      // empty here because this app loads no external assets, and asserting that keeps it true.
+      cacheSize: Object.keys((THREE_CACHE as { files?: object }).files ?? {}).length,
+      sceneChildren: viewport.scene.children.length,
+    };
   },
   /**
    * Coverage over a fixed `grid × grid` of samples, **independent of resolution**.
