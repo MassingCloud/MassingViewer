@@ -13,11 +13,22 @@ const sample = readFileSync(FIXTURE, "utf8");
 const WALL_SOUTH = { id: 35, guid: "OwCSTfxILZZaOeUwK4fcAk" };
 const SLAB_GROUND = 119;
 
+/**
+ * How many entities the fixture actually declares, counted from the file.
+ *
+ * Derived rather than written as a literal, and that is a lesson learned three times over in this repository. It
+ * used to read `toBe(136)`; adding a property set to the fixture made it 143, and three tests then failed
+ * reporting that **the parser had stopped finding entities** when the parser was perfectly correct and the file
+ * had simply grown. A literal tests the number someone typed last time; this tests the property that matters —
+ * the table finds every entity the file declares.
+ */
+const DECLARED = (sample.match(/^#\d+=/gm) ?? []).length;
+
 describe("EntityTable — parsing the real fixture", () => {
   it("finds every entity and reports the schema", () => {
     const t = EntityTable.parse(sample);
     expect(t.schema).toBe("IFC4");
-    expect(t.size).toBe(136);
+    expect(t.size).toBe(DECLARED);
     // File order, not sorted order — the emit path depends on it.
     expect(t.ids().slice(0, 3)).toEqual([1, 2, 3]);
   });
@@ -107,20 +118,21 @@ describe("EntityTable — byte preservation", () => {
     expect(reparsed.params(WALL_SOUTH.id)[2]).toEqual({ k: "str", v: "Wall-South-Renamed" });
     // The GlobalId is untouched by an unrelated edit. This is the invariant everything downstream rests on.
     expect(reparsed.guidOf(WALL_SOUTH.id)).toBe(WALL_SOUTH.guid);
-    expect(reparsed.size).toBe(136);
+    expect(reparsed.size).toBe(DECLARED);
   });
 
   it("appends before the DATA section's ENDSEC, keeping the file valid", () => {
     const t = EntityTable.parse(sample);
     const id = t.add("IfcPropertySingleValue", [str("Added"), { k: "unset" }, integer(7), { k: "unset" }]);
-    expect(id).toBe(137);
+    // The next free id, whatever the fixture's size is — an append must not reuse or skip.
+    expect(id).toBe(DECLARED + 1);
 
     const out = t.emit();
     expect(out.indexOf(`#${id}=`)).toBeLessThan(out.lastIndexOf("ENDSEC;"));
     expect(out.endsWith("END-ISO-10303-21;\n")).toBe(true);
 
     const reparsed = EntityTable.parse(out);
-    expect(reparsed.size).toBe(137);
+    expect(reparsed.size).toBe(DECLARED + 1);
     expect(reparsed.typeOf(id)).toBe("IFCPROPERTYSINGLEVALUE");
     expect(reparsed.byType("IFCPROPERTYSINGLEVALUE")).toContain(id);
   });

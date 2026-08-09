@@ -321,6 +321,35 @@ if (MODE === "broken") {
   }
 }
 
+/**
+ * A property set on the south wall — the one thing the property inspector needs and the fixture did not have.
+ *
+ * Without it, the inspector's whole pset-rendering path was code no test exercised: the panel showed a name and
+ * nothing else, and would have shown nothing else on any real model too, undetectably.
+ *
+ * `Pset_WallCommon` with the properties an architect actually reads, plus a deliberately non-string value
+ * (`LoadBearing` is a boolean and `ThermalTransmittance` a real) so the inspector's value formatting is exercised
+ * rather than assumed — a raw `[object Object]` or a bare `true` in the panel is the failure this catches.
+ *
+ * Emitted **here**, after every element, so the elements' GlobalIds do not shift. The ids are allocated from a
+ * counter, so inserting entities earlier would rebase every golden digest downstream for no reason.
+ */
+{
+  const single = (name, value) =>
+    e("IFCPROPERTYSINGLEVALUE", `${S(name)},$,${value},$`);
+
+  const props = [
+    single("Reference", S("EW-01")),
+    single("LoadBearing", ".T."),
+    single("IsExternal", ".T."),
+    single("ThermalTransmittance", `IFCTHERMALTRANSMITTANCEMEASURE(${N(0.28)})`),
+    single("FireRating", S("EI60")),
+  ];
+  const pset = e("IFCPROPERTYSET", `${S(guid(gc++))},${OWNER},'Pset_WallCommon',$,${L(props)}`);
+  e("IFCRELDEFINESBYPROPERTIES", `${S(guid(gc++))},${OWNER},$,$,${L([south])},${pset}`);
+  expected.pset = { on: "Wall-South", name: "Pset_WallCommon", count: props.length };
+}
+
 // --- aggregation and containment --------------------------------------------------------------------
 
 e("IFCRELAGGREGATES", `${S(guid(gc++))},${OWNER},$,$,${project},${L([site])}`);
@@ -359,6 +388,9 @@ for (const w of expected.walls) console.log(`  ${w.name.padEnd(12)} ${w.guid}`);
 for (const o of expected.openings) console.log(`  ${o.name.padEnd(12)} ${o.guid}  sill=${o.sill} head=${o.head}`);
 console.log(`  Slab-Ground  ${expected.slab.guid}`);
 console.log(`  Column-01    ${expected.column.guid}`);
+if (expected.pset) {
+  console.log(`  ${expected.pset.name} on ${expected.pset.on}: ${expected.pset.count} properties`);
+}
 for (const b of expected.broken ?? []) {
   console.log(`  ${b.name.padEnd(16)} ${b.guid}  UNSECTIONABLE: ${b.why}`);
 }

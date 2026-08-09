@@ -134,6 +134,26 @@ describe("attach and detach", () => {
     gizmo.dispose();
   });
 
+  it("caps the move plate, so a selected element does not make its neighbours unselectable", () => {
+    /**
+     * The plate is a handle, not a mat.
+     *
+     * Scaled to the element it covered the whole footprint — 4.3 m across for an 8 m wall — and being
+     * `depthTest: false` it covered everything behind it too. Clicking a column standing in front of a selected
+     * wall started a drag of the *wall*. Found in an E2E test that selected two elements in a row and got the
+     * first one twice.
+     */
+    const { gizmo, scene } = harness();
+    // An 8 m wall: `reach` would be 4.3.
+    gizmo.attach(new THREE.Box3(new THREE.Vector3(0, 0, -0.1), new THREE.Vector3(8, 3, 0.1)));
+    const move = scene.getObjectByName("mv-gizmo")!.children.find((c) => c.userData.role === "move")!;
+    expect(move.scale.x).toBeLessThanOrEqual(1);
+    // And the ring still tracks the element, because a thin outline blocks almost nothing.
+    const ring = scene.getObjectByName("mv-gizmo")!.children.find((c) => c.userData.role === "rotate")!;
+    expect(ring.scale.x).toBeGreaterThan(1);
+    gizmo.dispose();
+  });
+
   it("detaching hides the handles and forgets the box", () => {
     const { gizmo } = harness();
     gizmo.attach(cube());

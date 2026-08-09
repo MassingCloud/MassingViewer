@@ -144,8 +144,17 @@ export function createGizmo(
     // floor becomes a few pixels on a 200 mm-thick wall, which is unusable at exactly the moment it matters.
     const reach = Math.max(0.6, Math.max(size.x, size.z) * 0.5 + 0.3);
 
+    /**
+     * The move plate is a **handle, not a mat**: capped, not scaled to the element.
+     *
+     * Sized to the element it covered the element's whole footprint — 4.3 m across for an 8 m wall — and because
+     * it is `depthTest: false` it then covered everything *behind* it too. Clicking a column standing in front of
+     * a selected wall started a drag of the wall instead of selecting the column, so a selected element could
+     * make its neighbours unselectable. Capping it keeps a grabbable target without claiming the scene.
+     */
+    const plate = Math.min(1, reach);
     moveHandle.position.set(centre.x, box.min.y + 0.02, centre.z);
-    moveHandle.scale.set(reach, 1, reach);
+    moveHandle.scale.set(plate, 1, plate);
 
     rotateHandle.position.set(centre.x, box.min.y + 0.05, centre.z);
     rotateHandle.scale.setScalar(reach);

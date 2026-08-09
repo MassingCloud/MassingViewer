@@ -327,3 +327,81 @@ test("with nothing selected, a transform verb says to select something first", a
   // the audience.
   await expect(page.locator("#ribbon .mv-ribbon-live")).toContainText("Select an element first");
 });
+
+// ---------------------------------------------------------------------------------------------------
+// The property inspector
+// ---------------------------------------------------------------------------------------------------
+
+/** Read the Selection panel as term → value pairs, which is what a `<dl>` actually means. */
+async function selectionRows(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => {
+    const dl = document.querySelector("#sel")!;
+    const out: Record<string, string> = {};
+    const children = [...dl.children];
+    for (let i = 0; i < children.length; i += 2) {
+      const term = children[i]?.textContent ?? "";
+      out[term] = children[i + 1]?.textContent ?? "";
+    }
+    return out;
+  });
+}
+
+test("the inspector shows an element's property set, read from the kernel", async ({ page }) => {
+  /**
+   * Wall-South carries `Pset_WallCommon` in the fixture, and it is there *because of this*.
+   *
+   * The pset-rendering path was code no test exercised: the fixture had no property sets, so the panel showed a
+   * name and nothing else — and would have shown nothing else on a real model too, undetectably.
+   */
+  await ready(page);
+  const guid = await selectFirst(page, "IFCWALL");
+  expect(guid, "the fixture's first wall should be the one carrying the pset").toBe("OwCSTfxILZZaOeUwK4fcAk");
+
+  // Asynchronous: the kernel is in a Worker, so the panel fills in a moment after the click.
+  await expect(page.locator("#sel")).toContainText("Pset_WallCommon", { timeout: 20_000 });
+  const rows = await selectionRows(page);
+
+  expect(rows["Name"]).toBe("Wall-South");
+  expect(rows["Pset_WallCommon"]).toContain("5 propert");
+  expect(rows["· Reference"]).toBe("EW-01");
+  expect(rows["· FireRating"]).toBe("EI60");
+
+  /**
+   * The two non-string values, which is why the fixture carries them.
+   *
+   * A boolean rendered as `true` and a wrapped measure rendered as `[object Object]` are both things a formatter
+   * gets wrong silently, and a pset of nothing but strings would never reveal either.
+   */
+  expect(rows["· LoadBearing"]).toBe("yes");
+  expect(rows["· ThermalTransmittance"]).toBe("0.28");
+});
+
+test("an element with no properties says so, rather than looking unloaded", async ({ page }) => {
+  await ready(page);
+  /**
+   * The column has a name and no property sets, and the panel says so.
+   *
+   * Two different absences, deliberately worded differently: "no property sets" means the kernel answered and the
+   * element has none, while "none recorded" means the element was *absent from the reply* — `properties()` omits
+   * an element it could not answer for, precisely so a caller can tell those apart. Both beat silence, which reads
+   * as "still loading" because that is the reading that suggests data might yet arrive.
+   */
+  await selectFirst(page, "IFCCOLUMN");
+  await expect(page.locator("#sel")).toContainText("no property sets", { timeout: 20_000 });
+});
+
+test("clicking quickly between elements does not leave the wrong properties on screen", async ({ page }) => {
+  /**
+   * The race the `pending` guard exists for.
+   *
+   * Each selection starts a Worker round trip. Without the guard, a slow earlier reply overwrites a faster later
+   * one and the panel shows the properties of an element the user is no longer looking at — with nothing on screen
+   * to suggest it.
+   */
+  await ready(page);
+  await selectFirst(page, "IFCWALL");
+  await selectFirst(page, "IFCCOLUMN");
+  await expect(page.locator("#sel")).toContainText("no property sets", { timeout: 20_000 });
+  // The wall's pset must not have leaked onto the column.
+  await expect(page.locator("#sel")).not.toContainText("Pset_WallCommon");
+});

@@ -92,7 +92,9 @@ describe("opening models", () => {
     const opened = k.open(MODEL, SAMPLE);
     expect(opened.ok).toBe(true);
     if (!opened.ok) return;
-    expect(opened.value.elements).toBe(136);
+    // Counted from the file rather than hardcoded: a literal here failed as "the kernel stopped finding
+    // elements" when the fixture grew a property set, which is the opposite of what had happened.
+    expect(opened.value.elements).toBe((SAMPLE.match(/^#\d+=/gm) ?? []).length);
     // Inventing a representation context when the file already has one produces elements attached to a
     // different context — valid, and invisible in the same viewer that shows the rest of the model.
     expect(opened.value.created).toEqual([]);

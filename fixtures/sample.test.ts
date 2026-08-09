@@ -153,3 +153,39 @@ describe("sample.ifc — the cases it exists to exercise", () => {
     expect(EXPECTED.wallThickness).toBeGreaterThan(1e-4 * 100);
   });
 });
+
+describe("the property set", () => {
+  /**
+   * `Pset_WallCommon` on Wall-South, and the reason it is in the fixture at all.
+   *
+   * The property inspector's whole pset-rendering path was code no test exercised: the fixture had no property
+   * sets, so the panel showed a name and nothing else — and would have shown nothing else on a real model too,
+   * undetectably. Asserting the entities here is what makes the inspector's output anchored to something knowable
+   * rather than to whatever the panel happened to render.
+   */
+  it("is attached to the south wall by an IfcRelDefinesByProperties", () => {
+    expect(ifc).toContain("IFCPROPERTYSET");
+    expect(ifc).toContain("'Pset_WallCommon'");
+    expect(ifc).toContain("IFCRELDEFINESBYPROPERTIES");
+  });
+
+  it("carries the five properties, including a non-string value", () => {
+    // A boolean and a typed real, deliberately: a pset of nothing but strings would let a formatter that renders
+    // `[object Object]` or a bare `true` pass unnoticed.
+    for (const name of ["Reference", "LoadBearing", "IsExternal", "ThermalTransmittance", "FireRating"]) {
+      expect(ifc, `${name} missing from the pset`).toContain(`'${name}'`);
+    }
+    expect(ifc).toContain("IFCTHERMALTRANSMITTANCEMEASURE(0.28)");
+    expect(ifc.match(/IFCPROPERTYSINGLEVALUE/g)).toHaveLength(5);
+  });
+
+  it("does not shift the elements' GlobalIds", () => {
+    // Emitted after every element, on purpose: the ids come from a counter, so inserting entities earlier would
+    // rebase every committed golden digest for no reason. These four are the values the goldens were blessed with.
+    // Every element's committed GlobalId, unchanged. If one of these fails, the goldens under fixtures/golden/
+    // have silently rebased and every digest needs re-reading rather than re-blessing.
+    for (const element of EXPECTED.elements) {
+      expect(ifc, `${element.name} shifted`).toContain(element.guid);
+    }
+  });
+});

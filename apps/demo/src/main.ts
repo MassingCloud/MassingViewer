@@ -299,6 +299,90 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
   // Both ids, deliberately: expressID is what the parse layer and the drawing generator speak, GlobalId is
   // the only one safe to persist. Showing both is how the distinction stays visible.
   row(dl, "GlobalId", hit.guid ?? "— unresolved", hit.guid ? "mono" : "warn");
+
+  // The property inspector, asked for asynchronously — the kernel runs in a Worker.
+  void inspect(hit.guid);
+}
+
+/**
+ * The property inspector: property sets and material layers, read from the kernel.
+ *
+ * ## Why it is a separate async pass rather than part of `applySelection`
+ *
+ * `properties()` crosses a Worker boundary, so it cannot be part of a synchronous selection handler without making
+ * selection feel slow. The panel therefore fills in a moment later, and `pending` guards the case that matters:
+ * clicking quickly through several elements starts several requests, and without the guard a slow earlier reply
+ * would overwrite a faster later one — the panel would show the properties of an element the user is no longer
+ * looking at, with nothing on screen to suggest it.
+ *
+ * ## Batched, even for one element
+ *
+ * `properties` takes an array and returns a Map because the interface calls per-element round-trips "the usual
+ * perf mistake". Calling it with one ref keeps this on the same path a multi-selection will use.
+ */
+let pending: string | null = null;
+
+async function inspect(guid: string | null): Promise<void> {
+  pending = guid;
+  if (guid === null || !kernelReady) return;
+
+  const answered = await kernel.properties([{ modelId: MODEL, guid: guid as Guid }]);
+  // The selection moved on while the Worker was answering. Dropping this reply is the whole point of `pending`.
+  if (pending !== guid) return;
+  if (!answered.ok) {
+    row(el("#sel"), "Properties", answered.error.message, "warn");
+    return;
+  }
+
+  const props = answered.value.get(guid as Guid);
+  if (props === undefined) {
+    // Absent, not empty — `properties` deliberately omits an element it could not answer for, so a caller can
+    // tell "no properties" from "not found". Saying which is the honest thing to render.
+    row(el("#sel"), "Properties", "none recorded", "muted");
+    return;
+  }
+
+  const dl = el("#sel");
+  if (props.name !== undefined && props.name !== "") row(dl, "Name", props.name);
+  if (props.predefinedType !== undefined && props.predefinedType !== "") {
+    row(dl, "Type", props.predefinedType);
+  }
+
+  const sets = Object.entries(props.psets).filter(([, values]) => Object.keys(values).length > 0);
+  if (sets.length === 0 && (props.materials ?? []).length === 0) {
+    // Said out loud. An element with a name and no property sets otherwise rendered the name and then silence,
+    // which is indistinguishable from a panel still waiting on the Worker — and "still loading" is the reading a
+    // user will take, because it is the one that suggests the data might arrive.
+    row(dl, "Properties", "no property sets", "muted");
+    return;
+  }
+
+  for (const [setName, values] of sets) {
+    const entries = Object.entries(values);
+    // The Pset name as its own row, so a reader can see which standard set a value came from — `Pset_WallCommon`
+    // is a different claim from a vendor's own set, and flattening them would lose that.
+    row(dl, setName, `${entries.length} propert${entries.length === 1 ? "y" : "ies"}`, "muted");
+    for (const [key, value] of entries) {
+      row(dl, `· ${key}`, formatPropertyValue(value));
+    }
+  }
+
+  for (const layer of props.materials ?? []) {
+    // Thickness through `formatLength`, so the inspector follows the unit toggle like every other measurement.
+    row(dl, "Layer", `${layer.name} — ${formatLength(layer.thickness, units)}`);
+  }
+}
+
+/** A property value as one line. IFC values are heterogeneous and a raw `[object Object]` is worse than nothing. */
+function formatPropertyValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "number") return String(+value.toFixed(6));
+  if (typeof value === "string") return value;
+  // An object or array: JSON, truncated. Rendering the shape is more useful than hiding it, and truncating keeps
+  // one deeply-nested value from pushing the rest of the panel off screen.
+  const text = JSON.stringify(value);
+  return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
 
 viewport.renderer.domElement.addEventListener("click", (event) => {

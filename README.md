@@ -96,9 +96,13 @@ regression (2).
   gizmo edit lands in the undo stack and the audit log exactly like a typed one. A drag that goes nowhere writes
   nothing.
 
-**What is not built.** No property inspector — the Selection panel shows an element's class and both ids, not its
-psets. Levels toggles the construction grid rather than drawing storey planes. Doors and windows are still not cut
-into plans (see [docs/testing.md](docs/testing.md)), and the memory-leak gate is still absent.
+- **Reads an element's properties.** Select something and the panel fills in from the kernel: its name, its
+  property sets, and its material layers — with booleans as yes/no and typed measures unwrapped, because
+  `[object Object]` in a property panel is worse than nothing. An element with no property sets says so, which is
+  a different statement from one the kernel could not answer for, and both beat silence.
+
+**What is not built.** Levels toggles the construction grid rather than drawing storey planes. Doors and windows
+are still not cut into plans (see [docs/testing.md](docs/testing.md)), and the memory-leak gate is still absent.
 
 Also not built: Tier-3 drawing rasterisation, a frame-time gate, and the memory-leak gate (see
 [docs/testing.md](docs/testing.md)); door and window openings are not cut into plans (see the same page); and
@@ -192,7 +196,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M3 | `kernel-api` + conformance suite + `RemoteKernel` | 🔨 `RemoteKernel` passes the suite against a behavioural stub. The recipe ledger's `remote` column stays at 0, because filling it needs a run against a real massing server — see [docs/kernels/authoring.md](docs/kernels/authoring.md) |
 | M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
 | M5 | 2D drawings + markup — **the full loop** | 🔨 SVG, DXF, PDF, BCF and Tier-1/2 goldens done. Tier-3 rasterisation absent; **door and window openings are not cut into plans** |
-| M6 | Authoring tools, gizmos, inspector | 🔨 **drafting and transforming work.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E — plus a move/rotate/push-pull gizmo. Still missing: the property inspector |
+| M6 | Authoring tools, gizmos, inspector | ✅ **done.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E — plus a move/rotate/push-pull gizmo and a property inspector. Storey planes and a guide underlay remain, and are M10 |
 | M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
 | M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |
 | M9 | massing consumes `@massing/*` | 🔨 `packages/embed` is the facade; massing has not adopted it |
