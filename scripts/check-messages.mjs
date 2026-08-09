@@ -139,11 +139,26 @@ for (const key of keys) {
 // --- reporting ------------------------------------------------------------------------------------
 // Translation coverage is printed, never gated. A gate on completeness would mean either blocking a release on a
 // language's last string or committing machine output to turn the number green — and the second is worse than the
-// gap, because it reads as reviewed and nobody looks again. docs/i18n.md carries the same number in prose.
+// gap, because it reads as reviewed and nobody looks again. docs/i18n.md carries the same numbers in prose.
+
+/**
+ * Locales a native-speaker has actually reviewed.
+ *
+ * Exists because **coverage and correctness are different facts, and a bare 100% conflates them.** German reached
+ * complete written by a developer; printing `de: 99/99 (100%) translated` and stopping there would retire the one
+ * signal that used to say "somebody still needs to look at this" — the argument `de.ts` itself makes about why a
+ * gap can be better than a filled-in catalogue.
+ *
+ * A locale joins this set in the same commit as a reviewer's corrections, which makes the claim traceable to a
+ * diff rather than to a memory. English is here because it is the source, not because it was reviewed.
+ */
+const REVIEWED = new Set(["en"]);
+
 for (const [locale, catalogue] of Object.entries(LOCALES)) {
   if (locale === "en") continue;
   const done = keys.filter((k) => Object.hasOwn(catalogue, k)).length;
-  notes.push(`${locale}: ${done}/${keys.length} (${Math.round((100 * done) / keys.length)}%) translated`);
+  const status = REVIEWED.has(locale) ? "native-reviewed" : "not native-reviewed";
+  notes.push(`${locale}: ${done}/${keys.length} (${Math.round((100 * done) / keys.length)}%) translated, ${status}`);
 }
 
 if (problems.length > 0) {

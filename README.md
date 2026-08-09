@@ -204,7 +204,7 @@ resolveSnap({ x: 4.98, z: 0.01 }, candidates, 0.1);
 | M4 | `LocalKernel` — **author offline** | ✅ done, 15 of 96 operations, ratcheted |
 | M5 | 2D drawings + markup — **the full loop** | ✅ **done.** SVG, DXF, PDF and BCF export, plus all three golden tiers: semantic digests and structural assertions per PR, and nightly rasterisation against pinned `resvg`. Door and window openings are cut into plans; non-rectangular profiles are drawn solid and reported |
 | M6 | Authoring tools, gizmos, inspector | ✅ **done.** Wall/slab/column with snapping, a construction grid, a dynamic-input HUD and typed imperial dimensions — M6's own acceptance test passes in E2E — plus a move/rotate/push-pull gizmo and a property inspector. Storey planes and a guide underlay remain, and are M10 |
-| M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is 27% translated and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
+| M7 | React ribbon shell, accessibility, i18n | 🔨 ribbon, docking, palette, `axe-core` at serious+ and the i18n framework done. German is complete but **not native-speaker reviewed**, which the gate prints on every run, and no tool carries `aria-pressed` — see [docs/accessibility.md](docs/accessibility.md) and [docs/i18n.md](docs/i18n.md) |
 | M8 | Enterprise hardening → `1.0.0` | 🔨 sinks, telemetry, audit, migrations, flags, CSP and the unified service worker done. The memory-leak gate is absent and is the expensive omission |
 | M9 | massing consumes `@massing/*` | 🔨 `packages/embed` is the facade; massing has not adopted it |
 

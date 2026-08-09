@@ -361,7 +361,7 @@ describe("translation", () => {
     const levels = host.querySelector<HTMLElement>('button[data-tool="toggle-storey-levels-overlay"]')!;
     expect(levels.querySelector(".mv-ribbon-label")!.textContent).toBe("Ebenen");
     // The `title` is the tooltip and is a separate lookup, so it is a separate chance to have been missed.
-    expect(levels.title).toBe("Geschossebenen einblenden");
+    expect(levels.title).toBe("Geschossebenen ein- oder ausblenden");
   });
 
   it("translates the tablist's accessible name", () => {
@@ -378,11 +378,21 @@ describe("translation", () => {
   });
 
   it("falls back to English for a tool the catalogue has not reached", () => {
-    const { host } = mountWith(german());
+    /**
+     * Against a purpose-built partial catalogue, not against German's gaps.
+     *
+     * This test used to pick a tool German had not reached, and **completing the German catalogue broke it** — the
+     * lucky outcome. A test asserting that a *fallback occurred* would instead have started asserting nothing while
+     * still passing, because the fallback simply stops happening. What is under test is the renderer's behaviour
+     * when a key is absent, which no amount of translation work should be able to invalidate.
+     */
+    const { host } = mountWith(createTranslator({ locale: "bg", catalogue: { "tab.home": "Начало" } }));
     const move = host.querySelector<HTMLElement>('button[data-tool="move-selected-element-e-n-z-metres"]')!;
-    // Untranslated, and rendering its English label rather than the key. This is what makes shipping a partial
-    // catalogue safe rather than reckless.
+    // Rendering its English label rather than the key. This is what makes shipping a partial catalogue safe rather
+    // than reckless.
     expect(move.querySelector(".mv-ribbon-label")!.textContent).toBe("Move");
+    // And the tab that *is* translated still is, so the mount is genuinely using the partial catalogue.
+    expect([...host.querySelectorAll('[role="tab"]')].map((t) => t.textContent)).toContain("Начало");
   });
 
   it("keeps `data-tool` in English, because it is an identity and not a label", () => {

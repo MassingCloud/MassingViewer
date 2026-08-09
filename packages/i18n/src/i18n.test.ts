@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DE } from "./de.js";
 import { EN, type MessageKey } from "./en.js";
-import { createTranslator, EN_TRANSLATOR } from "./translate.js";
+import { createTranslator, EN_TRANSLATOR, type Catalogue } from "./translate.js";
 
 describe("lookup and fallback", () => {
   it("returns the locale's string when it has one", () => {
@@ -9,20 +9,43 @@ describe("lookup and fallback", () => {
     expect(t.t("tab.home")).toBe("Start");
   });
 
+  /**
+   * A deliberately partial catalogue, rather than leaning on German's gaps.
+   *
+   * These two tests used to assert fallback through `DE`, picking a key German had not reached yet. That worked
+   * and was a trap: **completing the German catalogue deleted the coverage silently.** Both tests went red when it
+   * reached 100%, which was the lucky outcome — a test that asserted a *fallback happened* would instead have
+   * quietly started asserting nothing while still passing.
+   *
+   * The behaviour under test belongs to `createTranslator`, not to any shipped locale's completeness, so the
+   * fixture is built here and cannot be invalidated by translation work.
+   */
+  const PARTIAL = { "tab.home": "Начало" } as Catalogue;
+
   it("falls back to English rather than to blank", () => {
-    const t = createTranslator({ locale: "de", catalogue: DE });
-    // Not translated yet. An untranslated label beats an empty ribbon, and it is what makes shipping a partial
-    // catalogue safe — which in turn is what makes a partial catalogue honest rather than a blocker.
-    expect(t.t("tool.move-selected-element-e-n-z-metres.label")).toBe(EN["tool.move-selected-element-e-n-z-metres.label"]);
+    const t = createTranslator({ locale: "bg", catalogue: PARTIAL });
+    // An untranslated label beats an empty ribbon, and it is what makes shipping a partial catalogue safe — which
+    // in turn is what makes a partial catalogue honest rather than a blocker.
+    expect(t.t("tool.move-selected-element-e-n-z-metres.label")).toBe(
+      EN["tool.move-selected-element-e-n-z-metres.label"],
+    );
   });
 
   it("records what it fell back on, as data", () => {
-    const t = createTranslator({ locale: "de", catalogue: DE });
+    const t = createTranslator({ locale: "bg", catalogue: PARTIAL });
     t.t("tab.home");
     t.t("tool.move-selected-element-e-n-z-metres.label");
     // The point of `missing()`: a test can assert how far a translation reaches. Noticing untranslated text by
     // reading the screen does not scale past one language.
     expect(t.missing()).toEqual(["tool.move-selected-element-e-n-z-metres.label"]);
+  });
+
+  it("reports nothing missing for German either, now that it is complete", () => {
+    const t = createTranslator({ locale: "de", catalogue: DE });
+    for (const key of Object.keys(EN) as MessageKey[]) t.t(key);
+    // The assertion the coverage percentage in `check-messages.mjs` prints, made here against the running
+    // translator rather than against a key count — so a key present but empty would still be caught.
+    expect(t.missing()).toEqual([]);
   });
 
   it("reports nothing missing for English", () => {
