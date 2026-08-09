@@ -9,6 +9,9 @@ The model never leaves your machine unless you tell it to.
 [![CI](https://github.com/MassingCloud/MassingViewer/actions/workflows/ci.yml/badge.svg)](https://github.com/MassingCloud/MassingViewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**[Try the demo](https://massingcloud.github.io/MassingViewer/demo/)** ·
+**[Read the docs](https://massingcloud.github.io/MassingViewer/)**
+
 </div>
 
 ---

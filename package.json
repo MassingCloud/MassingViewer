@@ -54,7 +54,9 @@
     "gate:messages": "node scripts/check-messages.mjs",
     "perf": "node scripts/perf-drawings.mjs",
     "gate:release": "node scripts/check-release-ready.mjs",
-    "tag:published": "node scripts/tag-published.mjs"
+    "tag:published": "node scripts/tag-published.mjs",
+    "site": "node scripts/build-site.mjs",
+    "site:docs": "node scripts/build-site.mjs --docs-only"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",
@@ -76,6 +78,7 @@
     "fast-check": "4.5.0",
     "globals": "17.7.0",
     "happy-dom": "20.8.9",
+    "marked": "18.0.9",
     "oxlint": "1.76.0",
     "pngjs": "7.0.0",
     "react": "19.2.8",

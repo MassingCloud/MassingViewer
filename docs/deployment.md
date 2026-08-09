@@ -52,6 +52,46 @@ Two consequences worth knowing before you do:
 - **`credentialless` is the gentler variant** and Safari does not support it. Safari and iPad are a stated
   differentiator here, so `require-corp` is the one to use.
 
+## The published site: documentation at the root, the demo at "/demo/"
+
+`scripts/build-site.mjs` renders every markdown file in the repository into a static site and copies the demo build
+in underneath it.
+
+```bash
+npm run build --workspace @massing/demo   # the demo first
+npm run site                             # docs + demo → site/
+npm run site:docs                        # docs only, for the link check
+```
+
+**The plan lists "docs site" under *Cut from v1*, and this reverses that deliberately.** It was the right call
+when there was nothing to publish. There are now twenty-five documents whose entire value is explaining *why* the
+code is the way it is, and they were readable only by browsing GitHub.
+
+Four properties, each of which is the reason for a decision rather than a feature:
+
+- **Built at deploy time from the repository's own markdown**, so the site cannot describe a commit other than the
+  one it was built from. This is why it is not a separate branch or repository: documentation that drifts from the
+  code it explains is worse than none, because it is still believed.
+- **The documentation is at the root and the demo is underneath.** The demo already builds for a subpath —
+  `base: "./"` plus a relative service-worker registration in `packages/pwa/src/plugin.ts`, both with comments
+  saying why — so it moves under a directory with no rebuild and its worker scope follows it. Putting the docs in a
+  subdirectory instead would have been the change that needed thinking about. And a visitor who lands on a bare CAD
+  canvas has no idea what they are looking at, which is the "first ten minutes" problem this project exists to fix.
+- **Every page fetches nothing.** Static HTML, one inline stylesheet, no script at all, and a stricter policy than
+  the app's: `default-src 'none'` with no `script-src`. The README's CI and licence badges are **stripped**, and the
+  build prints which ones — they are `img.shields.io` and `github.com` requests that would be logged for every
+  visitor, which contradicts `docs/privacy.md` and would be blocked by that policy anyway. Checked on the built
+  output in `.github/workflows/pages.yml` and again against the live origin by `scripts/smoke-deployed.mjs`.
+- **A dead link fails a pull request, not a deploy.** The build refuses to finish if a markdown link points at a
+  missing file, or at a heading that does not exist. That is a different claim from the doc-path gate: `gate:docs`
+  asserts every backticked *citation* resolves in the repository, this asserts every markdown *link* resolves in
+  the site. A link to `#repo-gates` that matches no heading passes the first and fails the second. It found one
+  genuine bug in its own first run — a link resolved against the repository root instead of the linking file's
+  directory — and three sabotage cases were used to confirm it fails for the right reasons.
+
+What it deliberately does not do: no search, no versioned docs, no syntax highlighting, and no client-side
+JavaScript of any kind. Each of those is a dependency in the browser, and none of them is worth the first one.
+
 ## Turning on cross-origin isolation
 
 One option:

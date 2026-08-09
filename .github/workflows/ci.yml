@@ -145,6 +145,16 @@ jobs:
         # unrelated PR, which is the shape of a gate people learn to route around.
         run: npm run gate:flags
 
+      - name: Documentation site (every markdown link and heading anchor resolves)
+        # `--docs-only`, so this needs no Vite build and runs in seconds. The full site — documentation plus the
+        # demo — is built in pages.yml on the way to deploying it.
+        #
+        # A different claim from gate:docs, which is why both exist: that one asserts every *backticked citation*
+        # resolves to a tracked path in the repository, this one asserts every *markdown link* resolves to a page
+        # or a heading in the published site. A link to `#repo-gates` that matches no heading passes the first and
+        # fails the second, and a visitor is the only other thing that would ever notice.
+        run: npm run site:docs
+
       - name: Messages (plural completeness, orphan keys, tool coverage)
         # Prints translation coverage per locale and does NOT gate on it. Gating completeness would mean either
         # blocking a release on a language's last string or committing machine output to turn the number green —

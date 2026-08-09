@@ -9,9 +9,9 @@ Generated from `package-lock.json` rather than from an installed `node_modules`,
 same on every platform and covers all 73 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-419 package(s) across 12 license(s).
+420 package(s) across 12 license(s).
 
-## MIT (323)
+## MIT (324)
 
 - `@babel/code-frame` 7.29.7
 - `@babel/compat-data` 7.29.7
@@ -253,6 +253,7 @@ installed on whichever host happened to run the generator.
 - `magic-string` 0.30.21
 - `magicast` 0.5.4
 - `make-dir` 4.0.0
+- `marked` 18.0.9
 - `merge2` 1.4.1
 - `meshoptimizer` 1.1.1
 - `micromatch` 4.0.8

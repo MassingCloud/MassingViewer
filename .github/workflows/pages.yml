@@ -1,11 +1,16 @@
 name: Pages
 
-# Deploys the demo, and then asserts the deployed page actually renders a building.
+# Deploys the documentation at `/` and the demo at `/demo/`, then asserts that both actually work.
 #
 # The post-deploy smoke test is the point of this workflow, not an extra. massing's Pages demo has been live
 # and broken for a long time — it fetches a model that does not exist, so it shows no geometry at all, and
 # nothing noticed because "deployed successfully" and "works" are different claims. A broken demo is the most
 # expensive kind of broken: it is the first thing a prospective user sees.
+#
+# The documentation is rendered from the repository's own markdown at deploy time by `scripts/build-site.mjs`, so
+# it cannot describe a commit other than the one it was built from. That is the whole reason not to keep the site
+# in a separate branch or repository: twenty-five documents whose value is that they explain *why* the code is the
+# way it is are worth nothing once they drift from it.
 
 on:
   push:
@@ -53,10 +58,32 @@ jobs:
           fi
           echo "no third-party origins in the built output"
 
+      - name: Build the documentation site
+        # Renders every markdown file in the repository and copies the demo build in under `/demo/`. Fails on a
+        # dead link or a dead heading anchor, which is the check that makes the published docs worth linking to —
+        # `gate:docs` asserts that backticked citations resolve in the repo, this asserts that markdown links
+        # resolve in the site, and they are different claims.
+        run: npm run site
+
+      - name: The documentation pages fetch nothing from anywhere
+        # A stricter statement than the demo's, and it can be: these pages are static HTML with one inline
+        # stylesheet, so the correct number of subresources is zero. `build-site.mjs` strips the README's CI
+        # badges for exactly this reason and prints what it dropped. Checked on the output rather than trusted,
+        # because the cost of being wrong is a third-party request logged for every visitor.
+        run: |
+          docs=$(find site -name '*.html' -not -path 'site/demo/*')
+          if grep -lE '<script|<link|@import|src=' $docs; then
+            echo "::error::a documentation page carries a subresource; it must be self-contained"
+            grep -ohE '<script[^>]*|<link[^>]*|@import[^;]*|src="[^"]*"' $docs | sort -u | head -20
+            exit 1
+          fi
+          echo "$(echo "$docs" | wc -l) documentation page(s), no subresources"
+
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          path: apps/demo/dist
+          # The whole site: documentation at the root, the demo underneath it.
+          path: site
 
   deploy:
     needs: build

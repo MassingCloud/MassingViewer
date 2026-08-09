@@ -4,7 +4,10 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/*.tsbuildinfo", "**/public/wasm/**"] },
+  // `site/` is the generated Pages artifact — rendered documentation plus a copy of the demo's build output. It is
+  // gitignored, but a flat config does not read .gitignore, so linting it produced 1,423 errors about `self` and
+  // `caches` being undefined in a service worker nobody wrote by hand.
+  { ignores: ["**/dist/**", "site/**", "**/node_modules/**", "**/*.tsbuildinfo", "**/public/wasm/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
