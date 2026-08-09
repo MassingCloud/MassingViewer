@@ -94,15 +94,15 @@ app.innerHTML = `
         <h2>Model</h2>
         <dl id="model"></dl>
         <h2>Kernel</h2>
-        <dl id="kernel"><dd class="muted">starting worker…</dd></dl>
+        <dl id="kernel"><dt>Status</dt><dd class="muted">starting worker…</dd></dl>
         <h2>Plan</h2>
-        <dl id="plan-info"><dd class="muted">Press Plan to cut one</dd></dl>
+        <dl id="plan-info"><dt>Status</dt><dd class="muted">Press Plan to cut one</dd></dl>
         <h2>Markup</h2>
-        <dl id="markup-info"><dd class="muted">Pick a tool, then click an element</dd></dl>
+        <dl id="markup-info"><dt>Status</dt><dd class="muted">Pick a tool, then click an element</dd></dl>
         <div id="tools"></div>
         <ul id="topics"></ul>
         <h2>Selection</h2>
-        <dl id="sel"><dd class="muted">Click an element</dd></dl>
+        <dl id="sel"><dt>Status</dt><dd class="muted">Click an element</dd></dl>
         <h2 id="skipped-h" hidden>Not rendered</h2>
         <ul id="skipped"></ul>
       </aside>
@@ -157,6 +157,20 @@ let units: UnitSystem = METRIC;
 
 function row(dl: HTMLElement, term: string, value: string, cls = "") {
   dl.insertAdjacentHTML("beforeend", `<dt>${term}</dt><dd class="${cls}">${value}</dd>`);
+}
+
+/**
+ * The empty state of a `<dl>` panel — and it needs a `<dt>`, which is the whole reason this is a function.
+ *
+ * These panels started life with a bare `<dd class="muted">Click an element</dd>`. That is a definition with
+ * nothing being defined: `axe-core` reports it as `serious` (`definition-list`), and to a screen reader the
+ * list announces a value whose term is missing. Five sites had it, which is what a copied inline string does.
+ *
+ * `Status` is the honest term. The heading above the list names the *panel*, not the row, so the row still needs
+ * its own label — and "Status: Click an element" is exactly what the row means.
+ */
+function placeholder(dl: HTMLElement, message: string) {
+  dl.innerHTML = `<dt>Status</dt><dd class="muted">${message}</dd>`;
 }
 
 // Read the extents off the box directly rather than via getSize(), so this file needs no THREE import and
@@ -223,7 +237,7 @@ function applySelection(hit: { expressId: number; guid: string | null } | null):
   const dl = el("#sel");
   dl.innerHTML = "";
   if (!hit) {
-    dl.innerHTML = `<dd class="muted">Click an element</dd>`;
+    placeholder(dl, "Click an element");
     return;
   }
   const element = elementAt(hit.expressId);

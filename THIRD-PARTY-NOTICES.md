@@ -9,7 +9,7 @@ Generated from `package-lock.json` rather than from an installed `node_modules`,
 same on every platform and covers all 61 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-401 package(s) across 12 license(s).
+403 package(s) across 12 license(s).
 
 ## MIT (320)
 
@@ -358,12 +358,14 @@ installed on whichever host happened to run the generator.
 - `playwright-core` 1.57.0
 - `typescript` 5.9.3
 
-## MPL-2.0 (16)
+## MPL-2.0 (18)
 
+- `@axe-core/playwright` 4.12.1
 - `@ifc-lite/data` 3.2.0
 - `@ifc-lite/drawing-2d` 1.20.0
 - `@ifc-lite/geometry` 3.6.0
 - `@ifc-lite/wasm` 4.3.0
+- `axe-core` 4.12.1
 - `lightningcss` 1.33.0
 - `lightningcss-android-arm64` 1.33.0 _(android/arm64)_
 - `lightningcss-darwin-arm64` 1.33.0 _(darwin/arm64)_

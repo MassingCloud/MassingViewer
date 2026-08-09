@@ -30,6 +30,14 @@ export interface ViewportOptions {
   /** Cap on device pixel ratio. Above ~2 the cost is real and the difference is not. */
   readonly maxPixelRatio?: number;
   readonly background?: number;
+  /**
+   * Accessible name for the canvas.
+   *
+   * Overridable because a host that knows *what* it is showing can say so — "Tower-A, level 3" is a far more
+   * useful announcement than the generic default, and only the host knows it. The default is never empty, so
+   * forgetting this leaves the canvas labelled rather than anonymous.
+   */
+  readonly label?: string;
 }
 
 export interface Viewport {
@@ -78,6 +86,26 @@ export function createViewport(options: ViewportOptions): Viewport {
   renderer.domElement.style.display = "block";
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
+
+  /**
+   * The canvas gets a name and a role, because "a screen reader cannot see inside WebGL" is not a reason to
+   * leave the element itself anonymous.
+   *
+   * `role="img"` with a label is the honest description: this is one graphic whose *contents* are unavailable to
+   * assistive technology. `role="application"` would be a lie in the other direction — it tells a screen reader
+   * to surrender its own key handling because the element implements a full keyboard interface, and this one
+   * does not. `docs/accessibility.md` states the limit and names the alternative rather than papering over it.
+   *
+   * `tabindex="0"` so the canvas is reachable: orbit and walk both bind keys, and a control you cannot focus is
+   * a control a keyboard user does not have. Set here rather than in the app, so every host gets it — this
+   * package is the only one that owns the canvas.
+   */
+  renderer.domElement.setAttribute("role", "img");
+  renderer.domElement.setAttribute(
+    "aria-label",
+    options.label ?? "3D model view. Drag to orbit, shift-drag to pan, scroll to zoom.",
+  );
+  renderer.domElement.tabIndex = 0;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 5000);

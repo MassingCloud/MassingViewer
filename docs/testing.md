@@ -194,17 +194,24 @@ Flows:
 
 ## 7. Accessibility
 
-`axe-core` on every route and every open panel, gated at `serious` and above.
+`axe-core` on every route and every open panel, gated at `serious` and above. Implemented in
+`e2e/a11y.spec.ts` as its own Playwright project (`npm run e2e -- --project=a11y`), Chromium-only by choice.
+`moderate` and `minor` findings print to the log and do not fail the build, for the same reason visual
+regression is nightly: one gate people trust beats ten they route around.
 
 Ribbon-specific, beyond what axe can see: keyboard traversal of every tool (roving tabindex, arrows within
 a group, Tab between groups), correct toolbar roles and pressed/expanded state, 3:1 focus contrast, focus
 returning to the invoking control on close, and live-region announcements for tool arm/disarm and for
-refusals.
+refusals. Covered in `packages/ribbon/src/ribbon.test.ts`, except pressed state — see the gaps table in
+`docs/accessibility.md`, which records what is enforced, what is implemented but not tool-checkable, and what
+is **not done**. That third list is the point of the page.
 
-**State the 3D-canvas limit honestly** in the accessibility docs rather than claiming parity — and name the
+**State the 3D-canvas limit honestly** in `docs/accessibility.md` rather than claiming parity — and name the
 alternative, because there is a real one: the CAD command grammar in
 `packages/geometry-math/src/cadCommands.ts` means `WALL 0,0 5,0` authors a wall with no pointing device at
-all. That is a genuine and underrated accessibility story, and it is worth saying out loud.
+all. That is a genuine and underrated accessibility story, and it is worth saying out loud — including that
+it is a parser with no UI wired yet, which is the difference between an accessibility story and an
+accessibility claim.
 
 ## Running things
 

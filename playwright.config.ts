@@ -16,9 +16,18 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "e2e",
-  // The shell spec belongs to the `shell` project alone: it needs a different baseURL, and running it against the
-  // demo's port would load the wrong app and fail for a reason that has nothing to do with the test.
-  testIgnore: /react-shell\.spec\.ts/,
+  // Both of these belong to one project each, so every other project is told to skip them.
+  //
+  // `react-shell` needs a different baseURL — running it against the demo's port would load the wrong app and
+  // fail for a reason that has nothing to do with the test.
+  //
+  // `a11y` is Chromium-only *by choice*, not by omission. axe evaluates the DOM, and the DOM is the same in every
+  // browser, so three extra legs would re-assert the same thing at four times the cost. The one class of rule
+  // that genuinely differs is contrast, which axe computes from rendered styles — and cross-browser
+  // antialiasing differences there produce disagreements about the renderer rather than about the markup. That
+  // is the definition of a flaky gate, and `docs/testing.md` is explicit that one gate people trust beats ten
+  // they route around. Layout and touch differences across browsers are covered by the other four projects.
+  testIgnore: [/react-shell\.spec\.ts/, /a11y\.spec\.ts/],
 
   // NOT parallel, and this is not a workaround for flakiness — it is recognising what the tests contend for.
   //
@@ -145,6 +154,32 @@ export default defineConfig({
     {
       name: "ipad",
       use: { ...devices["iPad Pro 11"] },
+    },
+    {
+      /**
+       * WCAG 2.2 AA, gated at `serious` and above. See `e2e/a11y.spec.ts` for what it scans and why the gate
+       * sits where it does, and `docs/accessibility.md` for what it honestly cannot cover.
+       *
+       * A separate project so the leg's name in CI says `a11y` rather than being buried inside `chromium`. When
+       * this fails, the failure is about markup, and a reader should not have to guess which of thirty-odd
+       * Chromium tests it was.
+       */
+      name: "a11y",
+      testIgnore: [],
+      testMatch: /a11y\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          args: [
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
+            "--enable-unsafe-swiftshader",
+            // Pinned so contrast is computed against a known rasterisation rather than the runner's default.
+            "--force-device-scale-factor=1",
+            "--force-color-profile=srgb",
+          ],
+        },
+      },
     },
     {
       /**

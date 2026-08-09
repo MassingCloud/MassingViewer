@@ -39,7 +39,8 @@ jobs:
         # that `apps/demo` (vanilla, the shape massing's shell is) and `apps/shell` (React) render the *same*
         # ribbon from the same package. That is the claim ADR-0009 rests on, and if it stops holding, M9 means
         # putting React into massing. A cross-host claim cannot be checked from inside one host.
-        project: [chromium, firefox, webkit, ipad, shell]
+        # `a11y` is the WCAG 2.2 AA gate, Chromium-only on purpose — see the note in playwright.config.ts.
+        project: [chromium, firefox, webkit, ipad, shell, a11y]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -60,6 +61,7 @@ jobs:
           case "${{ matrix.project }}" in
             ipad)  echo "name=webkit" >> "$GITHUB_OUTPUT" ;;
             shell) echo "name=chromium" >> "$GITHUB_OUTPUT" ;;
+            a11y)  echo "name=chromium" >> "$GITHUB_OUTPUT" ;;
             *)     echo "name=${{ matrix.project }}" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"

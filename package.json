@@ -2,7 +2,7 @@
   "name": "massingviewer",
   "version": "0.0.0",
   "private": true,
-  "description": "Standalone IFC-native 3D/2D CAD studio for the browser \u2014 view and author models, generate and mark up plans. Offline-capable local kernel, pluggable remote kernel.",
+  "description": "Standalone IFC-native 3D/2D CAD studio for the browser — view and author models, generate and mark up plans. Offline-capable local kernel, pluggable remote kernel.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -55,6 +55,7 @@
     "tag:published": "node scripts/tag-published.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@changesets/changelog-github": "0.7.0",
     "@changesets/cli": "2.31.1",
     "@eslint/js": "9.39.5",
