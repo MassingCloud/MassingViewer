@@ -82,7 +82,7 @@ the E2E offline test presume no server. A Reflex page cannot function without a 
 Any Reflex adoption is therefore **additive at the shell**, and the viewer must remain independently loadable —
 otherwise the offline claim has to be withdrawn, which is a product decision far larger than a framework choice.
 
-**Nothing already built is discarded.** 23 published packages, 1,193 tests and the M9 integration with massing stay
+**Nothing already built is discarded.** Every published package, the whole unit suite and the M9 integration with massing stay
 as they are. A Reflex shell consumes `@massing/embed`, which is the same facade massing consumes — one seam, two
 hosts, which is exactly what that facade was built for.
 

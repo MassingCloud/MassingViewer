@@ -1,0 +1,40 @@
+{
+  "name": "@massing/assets",
+  "version": "0.1.0",
+  "description": "The family library format: parse, group and search a discipline-packed IFC4 type catalogue. Format and queries only — content lives in massing-families under CC0.",
+  "license": "MIT",
+  "keywords": [
+    "ifc",
+    "bim",
+    "families",
+    "catalog",
+    "assets",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/assets"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

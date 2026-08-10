@@ -78,7 +78,7 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
-**1,187 unit tests, 62 E2E tests each on Chromium, Firefox, WebKit and iPad, and 12 repo gates** are green —
+**1,227 unit tests, 62 E2E tests each on Chromium, Firefox, WebKit and iPad, and 12 repo gates** are green —
 plus dedicated Playwright projects for the React shell (9), WCAG 2.2 AA via `axe-core` (4) and viewport visual
 regression (2). The E2E suite includes a **memory-leak gate**: twenty model replacements must leave *exactly* the
 same number of GPU buffers as one, because three.js does not free them when an object leaves the scene graph and

@@ -107,6 +107,16 @@ GitHub reporting `NOASSERTION`, which is a *detection* artefact of its two licen
 genuinely off limits — it is a derivative of `ibuilder/massing`. Blocking 2,769 types of public-domain content for
 a metadata artefact was the gate being wrong, not cautious.
 
+**Landed 2026-08-10: `packages/assets`** — the format, parser and queries, with 18 tests. It reads the real
+`snake_case` document shape (modelled on massing-families' own `_family_index()` rather than invented), maps it to
+one `camelCase` type, groups by discipline then category *preserving the library's own order*, searches label / key
+/ classification, and reports the families the library itself calls L200 proxies so a gallery cannot present them
+as finished geometry. It performs **no I/O** — the host owns the transport, which makes a cached offline pack and a
+live endpoint the same code path. Every entry carries its `license` through, defaulting from the library rather
+than blank, because that string follows the object into any model that imports it.
+
+Still to do for item 2: the Build-ribbon gallery UI, drag-to-place, and wiring to massing's endpoint.
+
 Acceptance: `DRAFT_ELEMENTS` becomes galleries by discipline; the `params[]` form renders as the gallery flyout
 *and* the prompt loop's keywords, one schema three renderings; drag-to-place from the gallery; every placed type
 carries `MF_Library.License` through into the model, as the library intends.
