@@ -104,6 +104,20 @@ jobs:
           cache: npm
       - run: npm ci
 
+      - name: Build the packages
+        # Two gates below are about *published output*, so they need output to exist.
+        #
+        # `gate:messages` reads `packages/i18n/dist/index.js` — deliberately, because it asserts what ships, not
+        # what is written — and without a build it does not fail gracefully, it throws ERR_MODULE_NOT_FOUND. That
+        # is how this job failed on the first push after a long local-only stretch: every developer machine had a
+        # `dist/` left behind by `npm run verify`, and a clean checkout does not.
+        #
+        # `gate:packaging` is the more interesting one. It skips its load pass on an unbuilt tree and *prints* the
+        # skipped count, which is honest — but it meant the line CI had been reporting was "0 load cleanly in Node,
+        # 23 not built". The pass that exists because all eighteen published packages once failed `import()` in
+        # Node had therefore never run here at all. With a build it reports 23.
+        run: npm run build
+
       - name: Architecture (layer DAG, restricted externals, no cycles)
         run: npm run gate:arch
 

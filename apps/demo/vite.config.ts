@@ -2,7 +2,25 @@ import { readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { defineConfig } from "vite";
-import { massingPwa } from "@massing/pwa/vite";
+/**
+ * Imported from **source**, by relative path, and that is not a style choice.
+ *
+ * `@massing/pwa/vite` resolves through the package's `exports` to `packages/pwa/dist/vite.js`. A config file's own
+ * imports are resolved by Node *before* Vite exists, so the `workspaceAliases()` below — which exists precisely to
+ * keep everything else off `dist/` — cannot cover this line. The bare specifier therefore made loading this config
+ * depend on `tsc --build` having already run.
+ *
+ * That broke **three workflows on a clean checkout at once**, and none of them locally: `pages.yml` (the demo
+ * build), all six legs of `e2e.yml` (the server could not start), and `ci.yml`'s gates job. Every one of them ran
+ * `npm ci` and then used this config; on a developer machine a previous `npm run verify` had always left `dist/`
+ * lying around. It is the exact failure `vitest.config.ts` documents for the same reason — *"CI fails and local
+ * passes… because a previous `tsc --build` had left `dist/` there"* — and it recurred here because that lesson was
+ * applied to module resolution inside the build and not to the config that configures it.
+ *
+ * A relative source import removes the ordering requirement rather than documenting it. Nothing needs to be built
+ * before the demo can be served, which is what `npm run dev` on a fresh clone already assumed.
+ */
+import { massingPwa } from "../../packages/pwa/src/vite.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
