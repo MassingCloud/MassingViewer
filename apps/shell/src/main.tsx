@@ -119,28 +119,51 @@ function Viewport3D(props: { readonly onSelect: (guid: Guid | null) => void }): 
     const node = container.current;
     if (node === null) return;
 
-    const viewport: Viewport = createViewport({ container: node });
-    viewport.showModel(MODEL_DATA.meshes, (expressId) => toGuid(MODEL_DATA.guids.get(expressId)), MODEL);
-    viewport.fit();
+    /**
+     * `createViewport` is async since ADR-0012 — `WebGPURenderer.init()` returns a promise — and an effect must
+     * return a *synchronous* cleanup. That combination has one specific hazard, and it is the reason this is not
+     * simply `void (async () => …)()`:
+     *
+     * **StrictMode mounts, unmounts and mounts again.** The unmount can happen while the renderer is still
+     * initialising, so cleanup runs before there is anything to clean up — and the viewport then arrives
+     * *afterwards*, unreferenced and undisposed. The comment below was already explicit that a leaked WebGL context
+     * is not merely wasteful: browsers cap live contexts and silently drop the oldest, so the **first** viewport
+     * goes black with nothing in the console to say why. Async construction makes that leak easy to introduce.
+     *
+     * So `cancelled` is checked after the await, and a viewport that arrives late disposes itself.
+     */
+    let cancelled = false;
+    let viewport: Viewport | null = null;
+    let off: (() => void) | null = null;
 
-    const off = viewport.onSelect((expressIds) => {
-      const first = expressIds[0];
-      live.current.onSelect(first === undefined ? null : toGuid(MODEL_DATA.guids.get(first)));
-    });
-
+    // Bound once and registered immediately, so a click during initialisation is a no-op rather than a crash.
     const onClick = (event: MouseEvent): void => {
+      if (viewport === null) return;
       const hit = viewport.pick(event);
       viewport.select(hit === null ? [] : [hit.expressId]);
     };
     node.addEventListener("click", onClick);
 
-    // Disposed on cleanup, and it has to be: StrictMode mounts twice in development, and a second WebGL context
-    // is not merely wasteful — browsers cap live contexts and silently drop the oldest, so the *first* viewport
-    // goes black with nothing in the console to say why.
+    void (async () => {
+      const created = await createViewport({ container: node });
+      if (cancelled) {
+        created.dispose();
+        return;
+      }
+      viewport = created;
+      created.showModel(MODEL_DATA.meshes, (expressId) => toGuid(MODEL_DATA.guids.get(expressId)), MODEL);
+      created.fit();
+      off = created.onSelect((expressIds) => {
+        const first = expressIds[0];
+        live.current.onSelect(first === undefined ? null : toGuid(MODEL_DATA.guids.get(first)));
+      });
+    })();
+
     return () => {
+      cancelled = true;
       node.removeEventListener("click", onClick);
-      off();
-      viewport.dispose();
+      off?.();
+      viewport?.dispose();
     };
   }, []);
 

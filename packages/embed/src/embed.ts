@@ -1,6 +1,6 @@
 import { asModelId, type Guid, type ModelId } from "@massing/core";
 import type { KernelProvider } from "@massing/kernel-api";
-import { createViewport, type SourceMesh, type Viewport } from "@massing/viewport";
+import { createViewport, type SourceMesh, type Viewport, type WebGpuProbe } from "@massing/viewport";
 import { createRibbon, type Ribbon } from "@massing/ribbon";
 import {
   builtinManifests,
@@ -70,6 +70,11 @@ import { createTopic, isLive, resolveAnchor, toBcfZip, type Topic } from "@massi
 export interface MassingViewerOptions {
   /** Where the 3D view goes. */
   readonly container: HTMLElement;
+  /**
+   * Forwarded to the viewport. Injectable so a host can force the WebGL path, and so tests can drive the
+   * advertised-but-unusable-adapter branch without hardware. See `packages/viewport/src/renderer.ts`.
+   */
+  readonly webGpuProbe?: WebGpuProbe;
   /**
    * How a model's bytes become meshes. **Optional**, and only needed for {@link MassingViewer.openIfc}.
    *
@@ -238,12 +243,17 @@ export interface MassingViewerOptionsWithTessellator extends MassingViewerOption
   readonly tessellate: Tessellator;
 }
 
-export function createMassingViewer(options: MassingViewerOptions): MassingViewer {
+/**
+ * **Async since 2026-08-10.** `createViewport` awaits `WebGPURenderer.init()` (ADR-0012), so this cannot be
+ * synchronous. Batched with federation (ADR-0013) deliberately: both break this same signature, and massing is
+ * mid-adoption, so it absorbs one change rather than two.
+ */
+export async function createMassingViewer(options: MassingViewerOptions): Promise<MassingViewer> {
   const modelId = options.modelId ?? asModelId("model");
   const status = options.onStatus ?? (() => {});
   const crash = createCrashHandler({ where: "massingviewer", sink: options.crashSink ?? NOOP_CRASH_SINK });
 
-  const viewport = createViewport({ container: options.container });
+  const viewport = await createViewport({ container: options.container, webGpuProbe: options.webGpuProbe });
 
   const topics: Topic[] = [];
 
@@ -432,6 +442,44 @@ export function createMassingViewer(options: MassingViewerOptions): MassingViewe
     return { ok: true, elements: built.elements.length };
   }
 
+  /**
+   * The IFC path, as a named function rather than a method.
+   *
+   * Both `openIfc` and the deprecated `open` need it, and routing one through `this.openIfc` stopped type-checking
+   * the moment `createMassingViewer` became async — the object literal's `this` widened to include the promise. A
+   * shared implementation was the better shape anyway: a delegate does not need dynamic dispatch.
+   */
+  async function openIfcImpl(
+    source: string | Uint8Array,
+    name = "model.ifc",
+  ): Promise<{ ok: true; elements: number } | { ok: false; why: string }> {
+    if (options.tessellate === undefined) {
+      // Refused here, with a sentence, rather than crashing on `undefined(...)` three frames down. A host that
+      // never intended to parse IFC in the browser has almost certainly called the wrong method.
+      return {
+        ok: false,
+        why:
+          `${name}: no tessellator was supplied, so this viewer cannot read IFC. Either pass \`tessellate\` to ` +
+          `createMassingViewer, or use showMeshes() if your pipeline converts IFC outside the browser.`,
+      };
+    }
+
+    const text = typeof source === "string" ? source : new TextDecoder().decode(source);
+    // Sniffed rather than trusted. A `.ifc` that is really an ifcZIP is routine — Revit and Archicad both export
+    // one — and handing a ZIP to an IFC parser produces "unexpected token PK", which is useless.
+    const head = new TextEncoder().encode(text.slice(0, 4096));
+    const sniffed = sniff(name, head, text.length);
+    const support = supportFor(sniffed.kind);
+    if (support.state !== "supported") {
+      return { ok: false, why: `${name}: ${sniffed.kind} — ${support.reason ?? "not supported"}` };
+    }
+
+    const parsed = options.tessellate(text);
+    if (parsed.meshes.length === 0) return { ok: false, why: `${name}: parsed, but no geometry` };
+
+    return applyModel(parsed.meshes, parsed.guids, { ifc: text }, name);
+  }
+
   const offSelect = viewport.onSelect((expressIds) => {
     const first = expressIds[0];
     selection = first === undefined ? null : guidOf(first);
@@ -476,33 +524,7 @@ export function createMassingViewer(options: MassingViewerOptions): MassingViewe
     },
     modelId,
 
-    async openIfc(source, name = "model.ifc") {
-      if (options.tessellate === undefined) {
-        // Refused here, with a sentence, rather than crashing on `undefined(...)` three frames down. A host that
-        // never intended to parse IFC in the browser has almost certainly called the wrong method.
-        return {
-          ok: false,
-          why:
-            `${name}: no tessellator was supplied, so this viewer cannot read IFC. Either pass \`tessellate\` to ` +
-            `createMassingViewer, or use showMeshes() if your pipeline converts IFC outside the browser.`,
-        };
-      }
-
-      const text = typeof source === "string" ? source : new TextDecoder().decode(source);
-      // Sniffed rather than trusted. A `.ifc` that is really an ifcZIP is routine — Revit and Archicad both
-      // export one — and handing a ZIP to an IFC parser produces "unexpected token PK", which is useless.
-      const head = new TextEncoder().encode(text.slice(0, 4096));
-      const sniffed = sniff(name, head, text.length);
-      const support = supportFor(sniffed.kind);
-      if (support.state !== "supported") {
-        return { ok: false, why: `${name}: ${sniffed.kind} — ${support.reason ?? "not supported"}` };
-      }
-
-      const parsed = options.tessellate(text);
-      if (parsed.meshes.length === 0) return { ok: false, why: `${name}: parsed, but no geometry` };
-
-      return applyModel(parsed.meshes, parsed.guids, { ifc: text }, name);
-    },
+    openIfc: openIfcImpl,
 
     async showMeshes(model) {
       if (model.meshes.length === 0) {
@@ -511,9 +533,15 @@ export function createMassingViewer(options: MassingViewerOptions): MassingViewe
       return applyModel(model.meshes, model.guids, model.kernel, "the supplied meshes");
     },
 
-    /** @deprecated Delegates to `openIfc` and does nothing else. */
+    /**
+     * @deprecated Delegates to `openIfc` and does nothing else.
+     *
+     * Calls the shared implementation rather than `this.openIfc`. Once `createMassingViewer` became async the
+     * object literal's `this` widened to `MassingViewer | PromiseLike<MassingViewer>` and `this.openIfc` stopped
+     * type-checking — a good prompt to stop routing a delegate through dynamic dispatch it never needed.
+     */
     async open(source, name) {
-      return this.openIfc(source, name);
+      return openIfcImpl(source, name);
     },
 
       session,

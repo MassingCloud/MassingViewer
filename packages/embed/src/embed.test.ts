@@ -21,7 +21,7 @@ import { SEAM, seamCoverage, seamSummary } from "./seam.js";
 // ===================================================================================================
 
 describe("the M9 seam ledger", () => {
-  it("names a facade member for everything it claims is covered", () => {
+  it("names a facade member for everything it claims is covered", async () => {
     // The assertion that makes the ledger trustworthy. Marking a capability `covered` without a `via` is how a
     // checklist drifts into optimism — and the whole reason this is code rather than a markdown table.
     for (const entry of SEAM.filter((e) => e.state === "covered")) {
@@ -29,7 +29,7 @@ describe("the M9 seam ledger", () => {
     }
   });
 
-  it("points every `via` at something the facade actually exposes", () => {
+  it("points every `via` at something the facade actually exposes", async () => {
     // A `via` naming a member that does not exist would be a claim nobody could check. These are the keys of
     // `MassingViewer` plus the option names a host passes in.
     const members = new Set([
@@ -59,7 +59,7 @@ describe("the M9 seam ledger", () => {
     }
   });
 
-  it("gives every gap and every boundary a reason", () => {
+  it("gives every gap and every boundary a reason", async () => {
     // A gap with no reason is a to-do nobody can schedule, and a boundary with no reason reads as an unfinished
     // gap — which is how "not covered" gets mistaken for "not working".
     for (const entry of SEAM.filter((e) => e.state !== "covered")) {
@@ -68,7 +68,7 @@ describe("the M9 seam ledger", () => {
     }
   });
 
-  it("reports the seam as ready, with every movable capability covered", () => {
+  it("reports the seam as ready, with every movable capability covered", async () => {
     // This test used to assert the opposite — `gaps.length > 0` and `ready === false` — and it failed the moment
     // the gaps were closed. Worth keeping the story: a test that asserts the *current* state of a ratchet breaks
     // when the ratchet moves, and it breaks in the direction of success, which is the confusing direction.
@@ -82,7 +82,7 @@ describe("the M9 seam ledger", () => {
     expect(seamSummary()).not.toContain("Remaining:");
   });
 
-  it("still refuses to call a partial seam ready", () => {
+  it("still refuses to call a partial seam ready", async () => {
     // The mechanism, on a synthetic ledger so it cannot rot as the real one improves. A partial adoption means both
     // copies of the engine live, which is the fork the plan says ends the project — so "mostly ready" has to read
     // as "not ready", however close the fraction gets.
@@ -95,7 +95,7 @@ describe("the M9 seam ledger", () => {
     expect(coverage.ratio).toBe(0.5);
   });
 
-  it("does not count a boundary as a gap", () => {
+  it("does not count a boundary as a gap", async () => {
     // `ApiClient` staying in massing is the design, not a shortfall. Counting it against readiness would make the
     // number permanently and misleadingly low.
     const coverage = seamCoverage();
@@ -103,12 +103,12 @@ describe("the M9 seam ledger", () => {
     expect(coverage.gaps.map((g) => g.id)).not.toContain("api.client");
   });
 
-  it("has no duplicate ids", () => {
+  it("has no duplicate ids", async () => {
     const ids = SEAM.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("reports ready only when the gaps are closed", () => {
+  it("reports ready only when the gaps are closed", async () => {
     const closed = SEAM.map((e) => (e.state === "gap" ? { ...e, state: "covered" as const, via: "viewport" } : e));
     const coverage = seamCoverage(closed);
     expect(coverage.ready).toBe(true);
@@ -132,7 +132,10 @@ describe("the M9 seam ledger", () => {
  * ribbon only when given somewhere to put it" can be asserted without a renderer.
  */
 vi.mock("@massing/viewport", () => ({
-  createViewport: () => {
+  // **Async, matching the real signature.** A synchronous mock would let a missing `await` in `embed.ts` pass here
+  // and fail in production: `await someObject` resolves to the object, so the facade would work against the fake and
+  // hold a `Promise<Viewport>` against the real one. The mock has to be the same shape as the thing it stands in for.
+  createViewport: async () => {
     const listeners: ((ids: readonly number[]) => void)[] = [];
     let disposed = 0;
     return {
@@ -154,6 +157,9 @@ vi.mock("@massing/viewport", () => ({
         listeners.push(fn);
         return () => void listeners.splice(listeners.indexOf(fn), 1);
       },
+      // The backend the viewport reports. Present because `Viewport` now carries it (ADR-0012) and a host is
+      // expected to surface it.
+      backend: { backend: "webgl2", reason: "test double", degraded: false },
       stats: () => ({ triangles: 0, drawCalls: 0, geometries: 0, textures: 0, fps: 60 }),
       dispose: () => {
         disposed++;
@@ -202,23 +208,29 @@ function fakeKernel(over: Partial<KernelProvider> = {}) {
   return { kernel, opened };
 }
 
-function mount(over: Partial<Parameters<typeof createMassingViewer>[0]> = {}): {
+/**
+ * Async since `createViewport` became async for `WebGPURenderer.init()` (ADR-0012).
+ *
+ * The viewport is mocked here, so the promise resolves immediately — but the signature has to match the real one or
+ * these tests would stop exercising the shape massing actually calls.
+ */
+async function mount(over: Partial<Parameters<typeof createMassingViewer>[0]> = {}): Promise<{
   viewer: MassingViewer;
   container: HTMLElement;
   opened: string[];
-} {
+}> {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const { kernel, opened } = fakeKernel();
-  const viewer = createMassingViewer({ container, kernel, tessellate, modelId: asModelId("m"), ...over });
+  const viewer = await createMassingViewer({ container, kernel, tessellate, modelId: asModelId("m"), ...over });
   return { viewer, container, opened };
 }
 
 describe("createMassingViewer", () => {
-  it("is idempotent on dispose", () => {
+  it("is idempotent on dispose", async () => {
     // React strict mode unmounts twice, and throwing the second time turns a benign double-unmount into a crash.
     // Every kernel guide in this repo says the same thing about `dispose`; the facade has to obey it too.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     expect(() => {
       viewer.dispose();
       viewer.dispose();
@@ -230,7 +242,7 @@ describe("createMassingViewer", () => {
     // The failure this prevents: a correct-looking 3D view whose kernel still holds the previous model, so the
     // first edit applies to a file the user is not looking at. Doing it inside `open()` rather than leaving it to
     // the caller is what makes that impossible rather than merely documented.
-    const { viewer, opened } = mount();
+    const { viewer, opened } = await mount();
     const result = await viewer.open(IFC, "Tower-A.ifc");
     expect(result.ok).toBe(true);
     expect(opened).toHaveLength(1);
@@ -241,7 +253,7 @@ describe("createMassingViewer", () => {
   it("refuses a file whose bytes are not what its name says", async () => {
     // A `.ifc` that is really an ifcZIP is routine — Revit and Archicad both export one — and handing a ZIP to an
     // IFC parser yields "unexpected token PK", which is true and useless.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     const result = await viewer.open("PKjunk", "model.ifc");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.why).toContain("zip");
@@ -249,7 +261,7 @@ describe("createMassingViewer", () => {
   });
 
   it("reports a model with no geometry rather than showing an empty scene", async () => {
-    const { viewer } = mount();
+    const { viewer } = await mount();
     const result = await viewer.open("ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\nENDSEC;\n", "e.ifc");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.why).toContain("no geometry");
@@ -259,7 +271,7 @@ describe("createMassingViewer", () => {
   it("discards a drawing cut from the previous model", async () => {
     // A plan is a *view* of a model. Keeping one across a model swap would show the old building with the new
     // model's identity attached to it, which is worse than showing nothing.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.open(IFC, "a.ifc");
     expect(viewer.cut()).not.toBeNull();
     expect(viewer.drawing).not.toBeNull();
@@ -268,16 +280,16 @@ describe("createMassingViewer", () => {
     viewer.dispose();
   });
 
-  it("refuses to export before anything is cut", () => {
+  it("refuses to export before anything is cut", async () => {
     // Throwing here rather than returning an empty SVG. An empty export looks like a successful export of an
     // empty model, and somebody will send it to a consultant.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     expect(() => viewer.export("svg")).toThrow(/cut\(\) first/);
     viewer.dispose();
   });
 
   it("exports all three formats from one drawing", async () => {
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.open(IFC, "a.ifc");
     viewer.cut();
     expect(typeof viewer.export("svg")).toBe("string");
@@ -286,23 +298,23 @@ describe("createMassingViewer", () => {
     viewer.dispose();
   });
 
-  it("renders a ribbon only when given somewhere to put it", () => {
+  it("renders a ribbon only when given somewhere to put it", async () => {
     // A host mid-migration keeps its own toolbar, and a facade that insisted on rendering one would force a
     // bigger PR than the migration needs.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     expect(viewer.ribbon).toBeNull();
     viewer.dispose();
 
     const ribbonContainer = document.createElement("div");
     document.body.appendChild(ribbonContainer);
-    const second = mount({ ribbonContainer });
+    const second = await mount({ ribbonContainer });
     expect(second.viewer.ribbon).not.toBeNull();
     expect(ribbonContainer.querySelector(".mv-ribbon-tabs")).not.toBeNull();
     second.viewer.dispose();
     expect(ribbonContainer.querySelector(".mv-ribbon-tabs")).toBeNull();
   });
 
-  it("reports a keybinding conflict rather than resolving it silently", () => {
+  it("reports a keybinding conflict rather than resolving it silently", async () => {
     const status: string[] = [];
     const conflicting = [
       {
@@ -326,17 +338,17 @@ describe("createMassingViewer", () => {
         },
       },
     ];
-    const { viewer } = mount({ plugins: conflicting, onStatus: (m) => status.push(m) });
+    const { viewer } = await mount({ plugins: conflicting, onStatus: (m) => status.push(m) });
     expect(status.join(" ")).toContain("Ctrl+K");
     expect(status.join(" ")).toContain("the first wins");
     viewer.dispose();
   });
 
-  it("refuses to load a plugin with no loader configured", () => {
+  it("refuses to load a plugin with no loader configured", async () => {
     // A default loader returning an empty runtime would make a plugin that failed to load indistinguishable from
     // one that loaded and did nothing.
     const status: string[] = [];
-    const { viewer } = mount({
+    const { viewer } = await mount({
       plugins: [
         {
           id: "x.y",
@@ -355,11 +367,11 @@ describe("createMassingViewer", () => {
     });
   });
 
-  it("installs a drop target only when a handler is given", () => {
+  it("installs a drop target only when a handler is given", async () => {
     // Otherwise the facade would install a document-level guard in a host that already has one, and two guards
     // both cancelling the default is how a host's own drop handling stops working.
     const onFiles = vi.fn();
-    const { viewer, container } = mount({ onFiles });
+    const { viewer, container } = await mount({ onFiles });
     const event = new Event("dragover", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "dataTransfer", { value: { files: [], items: [], dropEffect: "none" } });
     container.dispatchEvent(event);
@@ -380,7 +392,7 @@ describe("the session the facade exposes", () => {
     //
     // This needs no GPU, and it is the stronger claim anyway: with something selected and no pointer recorded, an
     // element pick must NOT resolve. Under the old code it resolved to the selection and committed.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.open(IFC, "Tower-A.ifc");
 
     const off = viewer.commands.register({
@@ -409,7 +421,7 @@ describe("the session the facade exposes", () => {
     // `CommandContext.dispatch` is documented as "how a composite command is built". It was stubbed to
     // `{ok: true, value: null}`, so a command dispatching a sub-command got success back and nothing happened: no
     // kernel call, no undo entry, an incomplete audit log, and no way to notice.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.open(IFC, "Tower-A.ifc");
 
     let innerRan = 0;
@@ -488,7 +500,7 @@ describe("showMeshes", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const { kernel } = fakeKernel();
-    const viewer = createMassingViewer({ container, kernel, modelId: asModelId("m") });
+    const viewer = await createMassingViewer({ container, kernel, modelId: asModelId("m") });
 
     const result = await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
     expect(result.ok).toBe(true);
@@ -500,7 +512,7 @@ describe("showMeshes", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const { kernel } = fakeKernel();
-    const viewer = createMassingViewer({ container, kernel, modelId: asModelId("m") });
+    const viewer = await createMassingViewer({ container, kernel, modelId: asModelId("m") });
 
     const result = await viewer.openIfc(IFC, "Tower-A.ifc");
     expect(result.ok).toBe(false);
@@ -513,7 +525,7 @@ describe("showMeshes", () => {
   });
 
   it("builds the snap grid, which is the thing viewport.showModel silently skipped", async () => {
-    const { viewer } = mount();
+    const { viewer } = await mount();
     viewer.session.arm("draft.wall");
     // A cursor 20 mm from the square's corner at (1, 0, 1). Without a snap grid there are no candidates and this
     // is null — which is exactly how a host using `showModel` directly lost snapping without any error.
@@ -529,7 +541,7 @@ describe("showMeshes", () => {
   });
 
   it("hands the model to the kernel when asked, and not when told it is already open", async () => {
-    const { viewer, opened } = mount();
+    const { viewer, opened } = await mount();
 
     await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
     // The remote case: the server already holds the model, so sending it would be pointless at best. Critically it
@@ -544,7 +556,7 @@ describe("showMeshes", () => {
   });
 
   it("discards a drawing and selection cut from the previous model", async () => {
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.open(IFC, "a.ifc");
     expect(viewer.cut()).not.toBeNull();
     viewer.select("0aBcDeFgHiJkLmNoPqRsTu" as never);
@@ -560,7 +572,7 @@ describe("showMeshes", () => {
   it("cuts a drawing from meshes it was handed directly", async () => {
     // Proof the geometry reached the 2D layer and not only the GPU: the drawing has to carry the GlobalId that
     // came in with the meshes, because that is what markup and plan↔3D selection anchor to.
-    const { viewer } = mount();
+    const { viewer } = await mount();
     await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
     const drawing = viewer.cut({ kind: "plan", cutHeight: 0.5 });
     expect(drawing).not.toBeNull();
@@ -568,7 +580,7 @@ describe("showMeshes", () => {
   });
 
   it("refuses empty geometry instead of showing an empty scene", async () => {
-    const { viewer } = mount();
+    const { viewer } = await mount();
     const result = await viewer.showMeshes({ meshes: [], guids: new Map(), kernel: { alreadyOpen: true } });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.why).toContain("no geometry");
@@ -576,7 +588,7 @@ describe("showMeshes", () => {
   });
 
   it("keeps `open` working as a delegate, because it is a published surface", async () => {
-    const { viewer, opened } = mount();
+    const { viewer, opened } = await mount();
     const result = await viewer.open(IFC, "Tower-A.ifc");
     expect(result.ok).toBe(true);
     expect(opened).toHaveLength(1);

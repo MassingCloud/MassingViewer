@@ -168,7 +168,7 @@ el("#viewport").insertAdjacentHTML(
 const locale = navigator.language.split("-")[0] ?? "en";
 const i18n = createTranslator({ locale, catalogue: locale === "de" ? DE : {} });
 
-const viewport = createViewport({ container: el("#viewport") });
+const viewport = await createViewport({ container: el("#viewport") });
 
 const resolveGuid = (expressId: number): Guid | null => toGuid(guids.get(expressId));
 // Reassigned when the kernel authors something and the model is re-tessellated from its IFC output.

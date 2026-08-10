@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createRenderer, type RendererChoice, type WebGpuProbe } from "./renderer.js";
 import { createSection, type SectionController } from "./section.js";
 import { createWalk, type WalkController, type WalkOptions } from "./walk.js";
 import { frameLoop } from "./raf.js";
@@ -26,6 +27,13 @@ import type { ModelId } from "@massing/core";
 export interface ViewportOptions {
   /** Walk-mode tuning. Eye height in particular: 1.6 m is what makes a low soffit look low.*/
   readonly walk?: WalkOptions;
+  /**
+   * How to decide whether WebGPU is usable. Injectable, and the default is the browser.
+   *
+   * Present so a test can drive the fallback branch — an adapter that is advertised and then refuses to
+   * initialise is the case the fallback exists for, and it needs hardware no CI runner has. See `renderer.ts`.
+   */
+  readonly webGpuProbe?: WebGpuProbe;
   readonly container: HTMLElement;
   /** Cap on device pixel ratio. Above ~2 the cost is real and the difference is not. */
   readonly maxPixelRatio?: number;
@@ -44,6 +52,14 @@ export interface Viewport {
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
   readonly renderer: THREE.WebGLRenderer;
+  /**
+   * Which rendering backend is in use, and why.
+   *
+   * Exposed rather than kept internal because ADR-0012 makes surfacing it a requirement, not polish: *"a silent
+   * WebGL fallback means a user reports 'it's slow on my iPad' and nobody can tell whether the fast path ever
+   * engaged."* A host is expected to show `reason` and count `backend`.
+   */
+  readonly backend: RendererChoice;
   /** Replace the model. Disposes the previous one — see the note in `meshes.ts` about GPU allocations. */
   showModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId): BuildResult;
   /** Frame the whole model, or the current selection when there is one. */
@@ -68,7 +84,15 @@ export interface Viewport {
 
 const SELECTION_COLOR = new THREE.Color(0.15, 0.55, 1.0);
 
-export function createViewport(options: ViewportOptions): Viewport {
+/**
+ * Build a viewport.
+ *
+ * **Async since 2026-08-10, and that is the whole cost of ADR-0012**: `WebGPURenderer.init()` returns a promise, so
+ * the renderer cannot be constructed synchronously. The ripple reaches `createMassingViewer` and therefore massing's
+ * integration, which is why federation (ADR-0013) is batched with it — one breaking change for the consumer instead
+ * of two.
+ */
+export async function createViewport(options: ViewportOptions): Promise<Viewport> {
   const { container } = options;
 
   // --- renderer -------------------------------------------------------------------------------------
@@ -79,7 +103,13 @@ export function createViewport(options: ViewportOptions): Viewport {
   // `preserveDrawingBuffer` is deliberately left OFF. It costs memory on every frame, and it is only needed
   // to read pixels after the fact. Capture code must instead render one fresh frame and read immediately —
   // massing's hero-capture documents this, and the visual-regression harness depends on it.
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  // WebGPU when the host can, WebGL2 otherwise, and the choice is reported rather than inferred. The WebGL
+  // construction stays here — including the `antialias`/`preserveDrawingBuffer` reasoning above — and is passed to
+  // the seam as the fallback, so the two renderers cannot drift in how they are configured.
+  const { renderer, choice: backend } = await createRenderer(
+    options.webGpuProbe,
+    () => new THREE.WebGLRenderer({ antialias: true, alpha: false }),
+  );
   renderer.setClearColor(options.background ?? 0x1a1d21, 1);
   renderer.shadowMap.enabled = false; // shadows are an env-tools concern, not a walking-skeleton one
   container.appendChild(renderer.domElement);
@@ -303,6 +333,7 @@ export function createViewport(options: ViewportOptions): Viewport {
   }
 
   return {
+    backend,
     scene,
     camera,
     renderer,
