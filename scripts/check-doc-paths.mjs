@@ -15,7 +15,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, posix, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -221,6 +221,22 @@ for (const docPath of GATED) {
     // A path:line reference — check the file, ignore the line.
     const bare = token.replace(/:\d+(-\d+)?$/, "");
     if (UPSTREAM_PREFIXES.some((p) => bare.startsWith(p))) continue;
+
+    /**
+     * Resolved **relative to the citing document first**, then from the repository root.
+     *
+     * The root-only version of this check blessed links that do not work. A markdown link is relative to the
+     * file containing it, so `[ADR-0013](docs/adr/0013-federation.md)` written *inside* `docs/adr/` points at
+     * `docs/adr/docs/adr/0013-federation.md` — a 404 for every reader — while satisfying a gate that only ever
+     * tried the root. That is why documents under `docs/` had drifted into writing the root-prefixed form: it
+     * was the form the gate accepted, so it was the form that got written.
+     *
+     * `scripts/build-site.mjs` found all five of them the moment it started checking, because a site generator
+     * has no choice but to resolve links the way a browser does. Accepting both here lets a citation be written
+     * the way that actually works, and leaves the site builder as the stricter of the two.
+     */
+    const relativeToDoc = posix.normalize(posix.join(posix.dirname(docPath), bare));
+    if (existsSync(join(ROOT, relativeToDoc))) continue;
     if (existsSync(join(ROOT, bare))) continue;
 
     // Allow a bare basename if exactly one file in the repo has that name — docs often cite

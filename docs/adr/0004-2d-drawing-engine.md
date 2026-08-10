@@ -1,7 +1,9 @@
 # ADR-0004 — 2D drawing engine: adopt @ifc-lite/drawing-2d, keep our own cutter for interaction
 
-- **Status:** **Accepted** (2026-08-06, on measured results — see "Verdict")
-- **Date:** 2026-08-06
+- **Status:** **Amended** (2026-08-09) — the measured verdict stands and was **not implemented**, because the
+  winner's licence is refused by the consumer this repository exists to serve. See "Amendment: the winner is
+  licence-blocked" at the end. Originally **Accepted** (2026-08-06, on measured results — see "Verdict").
+- **Date:** 2026-08-06, amended 2026-08-09
 
 ## Context
 
@@ -252,3 +254,66 @@ drops every hidden line while the stats insist they were produced. The SDM adapt
 - Not measured, and deliberately deferred: peak worker memory, the GPU path, and output quality against a
   curated reference render. Those need the M1 fixture and a browser; they gate nothing now that correctness
   and identity are settled.
+
+---
+
+## Amendment: the winner is licence-blocked, and the code never adopted it
+
+**2026-08-09.** Three artefacts in this repository disagreed with each other, and this section resolves that
+rather than leaving the contradiction for someone to trip over.
+
+### What the disagreement was
+
+1. **This ADR** says *"Adopt `@ifc-lite/drawing-2d`"*, on measured results, and the consequences section
+   describes `packages/drawings2d` wrapping it behind `DrawingProvider`.
+2. **The code never did.** `@ifc-lite` appears in `packages/drawings2d` and `packages/viewport` **only in doc
+   comments** — there is not one real import anywhere in `packages/*/src` or `apps/*/src`. What ships is our own
+   sectioner: `packages/drawings2d/src/section.ts`, plus `plan.ts`, `svg.ts`, `dxf.ts` and `pdf.ts` on top of it.
+   `@ifc-lite/drawing-2d` is a **root devDependency**, used by `bench/drawing-engines/` and nothing else.
+3. **`scripts/check-consumer-licenses.mjs`** — added 2026-08-09 — now refuses exactly this adoption.
+   `@ifc-lite/*` is MPL-2.0, and the gate holds the runtime closure of `@massing/embed` to *massing's* permitted
+   list, which is MIT / MIT-0 / BSD-2 / BSD-3 / 0BSD / Apache-2.0 / ISC.
+
+### Why the decision goes this way rather than the other
+
+Not re-litigated on merit: **the consumer refused the licence, in writing.** massing's constraint, stated
+verbatim during the M9 integration discussion:
+
+> MPL-2.0 and BSL-1.0 are *not* on our permitted list — we tolerate weak copyleft only where it's already
+> unavoidable in the ifcopenshell/certifi core, and a new one entering through a viewer dependency isn't that.
+
+`ADR-0003` calls MPL-2.0 "permissive enough" **for this repository**, and that is still true — it is why the
+bake-off was allowed to consider it, and why `resvg` and `axe-core` remain devDependencies here. But the whole
+purpose of this repository is to be consumed by massing, and a dependency the consumer will not accept is not
+available, however good it measured. Adopting it would move the problem into massing's audit, in massing's
+repository, for a reason originating here.
+
+### What therefore ships
+
+**Our own sectioner, as the only drawing generator.** The bake-off's finding about *why* ifc-lite won is not
+withdrawn and should not be forgotten — it is now a list of known weaknesses in what we ship:
+
+- **Coplanar cuts.** Our cutter drops coplanar triangles by design, so a cut exactly at a datum emits **zero**
+  loops. This ADR called that "the *normal* case in BIM, not an edge case", and it remains true. `plan-0050` in
+  the golden suite exists to keep the grazing case visible, and `fixtures/plans.ts` documents it as the
+  degenerate view.
+- **The absent 6–12 months.** Projection bands, hidden-line removal, silhouette and crease edges, line merging,
+  door symbols, north arrows, scale bars. Some of this now exists in `drawings2d`; the rest does not, and the
+  plan already lists z-sort HLR as v1's honest approximation with exact BREP HLR cut.
+
+Two consequences follow, and both are better recorded than assumed:
+
+- **`DrawingProvider` keeps earning its place.** It was designed so either engine could back it. That is now what
+  makes this reversible: if massing ever accepts MPL-2.0, or if ifc-lite relicenses, the adoption is a provider
+  swap rather than a rewrite.
+- **The differential oracle is gone, and that is a real loss.** The bake-off's best by-product was two engines
+  disagreeing on a golden case being the cheapest bug detector available. With one engine, Tier 1 compares our
+  sectioner against *its own previous output*, which cannot catch a shared wrong assumption. `bench/` still runs
+  both, so the comparison is available on demand — it is simply no longer automatic. Noted in `docs/testing.md`.
+
+### What was wrong in the original consequences section
+
+- *"`packages/drawings2d` wraps `@ifc-lite/drawing-2d` behind `DrawingProvider`"* — it does not, and never did.
+- *"add the `@ifc-lite/*` set to `scripts/check-fragments-version.mjs` as a coupled group"* — not done, and now
+  should not be: that gate's `KNOWN_GOOD` already carries five pre-registered packages that are not installed,
+  and adding four more phantom entries is how a gate's appearance drifts from its scope. See the note there.

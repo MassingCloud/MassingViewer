@@ -89,9 +89,36 @@ const BANNED = {
  * repo, which is exactly why the risk is real — copy-paste between sibling repos is how contamination
  * actually happens, not via `npm install`.
  */
+/**
+ * Repositories nothing may be copied *from*, checked by source header.
+ *
+ * **`massing-families` came off this list on 2026-08-09, on checked facts rather than a guess.** It was here
+ * because GitHub's API reports its licence as `NOASSERTION`, and the plan recorded that as `"Other"` — a fair
+ * reading of the metadata and wrong about the repository. It carries *two* licence files, which is why automatic
+ * detection gives up:
+ *
+ * | Path | Licence |
+ * |---|---|
+ * | `catalog/` and the generated IFC packs | **CC0-1.0** — public domain, and already on `ALLOW` above |
+ * | `src/`, `tools/`, `tests/` | **MIT** |
+ * | `data/` | derived values from AISC/ASTM/ASME tables, with a NOTICE; sources not redistributed |
+ * | **`upstream/`** | **a derivative of `ibuilder/massing`, carrying that project's terms** |
+ *
+ * So the blanket ban was blocking 419 families and 2,769 types of *public-domain* content — the family library
+ * this product needs — for no licence reason at all. What is genuinely off limits is one directory, and that is
+ * what the marker now targets.
+ *
+ * The lesson is worth keeping, because it is the same shape as the version-parity gate's: a rule written from
+ * metadata rather than from the repository will be enforced long after it stops being true, and an
+ * over-restrictive gate is trusted exactly as much as a correct one.
+ */
 const FORBIDDEN_COPYRIGHT_SOURCES = [
   { name: "MassingCloud/massing-cloud", license: "GPL-2.0", marker: /massing-cloud/i },
-  { name: "MassingCloud/massing-families", license: "Other (unresolved)", marker: /massing-families/i },
+  {
+    name: "MassingCloud/massing-families/upstream",
+    license: "derivative of ibuilder/massing",
+    marker: /massing-families[/\\]upstream/i,
+  },
 ];
 
 /** Exceptions require a written reason and a tracking issue — the same discipline as .gitleaksignore. */
