@@ -32,7 +32,7 @@
     "test:fast": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run gates",
-    "gates": "npm run gate:arch && npm run gate:license && npm run gate:provenance && npm run gate:docs && npm run gate:versions && npm run gate:fixtures && npm run gate:packaging && npm run gate:recipes && npm run gate:doccode && npm run gate:flags && npm run gate:messages",
+    "gates": "npm run gate:arch && npm run gate:license && npm run gate:consumer && npm run gate:provenance && npm run gate:docs && npm run gate:versions && npm run gate:fixtures && npm run gate:packaging && npm run gate:recipes && npm run gate:doccode && npm run gate:flags && npm run gate:messages",
     "gate:arch": "node scripts/check-architecture.mjs",
     "gate:license": "node scripts/check-licenses.mjs",
     "gate:provenance": "node scripts/check-provenance.mjs",
@@ -56,7 +56,8 @@
     "gate:release": "node scripts/check-release-ready.mjs",
     "tag:published": "node scripts/tag-published.mjs",
     "site": "node scripts/build-site.mjs",
-    "site:docs": "node scripts/build-site.mjs --docs-only"
+    "site:docs": "node scripts/build-site.mjs --docs-only",
+    "gate:consumer": "node scripts/check-consumer-licenses.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

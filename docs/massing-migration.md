@@ -114,6 +114,28 @@ by accident. Sabotage-tested in `packages/embed/src/embed.test.ts`: removing the
 `{ alreadyOpen: true }` is taken on trust, because `KernelProvider` has no portable way to ask a kernel which model
 it holds. That is a real limitation and it is why the field is explicit rather than inferred.
 
+## Licences: one third-party runtime dependency, and a gate that keeps it that way
+
+The external runtime closure of `@massing/embed` is **`three`, and nothing else** — traced through eleven
+workspace packages, of which only `@massing/viewport` reaches outside. So adopting this takes on one third-party
+runtime dependency, and it is one massing already has.
+
+That is worth a gate rather than a sentence, because it is a fact about today. `scripts/check-consumer-licenses.mjs`
+walks the `dependencies` and `peerDependencies` of `@massing/embed` transitively — workspace packages through their
+manifests, external packages through the lockfile — and checks the result against **massing's** list rather than
+this repository's:
+
+    MIT · MIT-0 · BSD-2-Clause · BSD-3-Clause · 0BSD · Apache-2.0 · ISC
+
+Two lists, deliberately. `check-licenses.mjs` permits `MPL-2.0` so `@resvg/resvg-js` can rasterise the Tier-3
+drawing baselines and `@ifc-lite/*` can serve as the 2D bake-off's differential oracle; neither runs in a browser.
+All 31 MPL-2.0 packages here are devDependencies. Without the second gate, the day one of them becomes a runtime
+dependency of a consumed package is the day massing's own audit fails, in massing's repository, for a reason that
+originated in this one. Sabotage-tested by adding `@resvg/resvg-js` to `@massing/drawings2d`.
+
+`peerDependencies` count as consumed, because a peer is something the host installs *because we asked it to*.
+Excluding them would let this gate pass while handing massing the problem to resolve itself.
+
 ## What massing keeps
 
 From `SEAM`, the entries marked `massing`. These are boundaries, not gaps:

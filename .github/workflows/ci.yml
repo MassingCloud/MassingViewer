@@ -124,6 +124,14 @@ jobs:
       - name: Licenses (permissive-only, transitive, banned-by-name)
         run: npm run gate:license
 
+      - name: Licenses again, on massing's stricter list, for the closure it actually ships
+        # Two lists, on purpose. The gate above uses this repository's, which permits MPL-2.0 so `resvg` can
+        # rasterise the Tier-3 baselines and `@ifc-lite` can serve as the 2D differential oracle — neither of which
+        # runs in anyone's browser. This one uses *massing's* list on the runtime closure of `@massing/embed`,
+        # because the day an MPL-2.0 runtime dependency lands in a consumed package is the day massing's own audit
+        # fails, in massing's repository, for a reason that originated here. That closure is currently one package.
+        run: npm run gate:consumer
+
       - name: Provenance (extraction headers agree with the ledger, both directions)
         run: npm run gate:provenance
 
