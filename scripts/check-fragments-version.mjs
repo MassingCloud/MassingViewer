@@ -37,12 +37,12 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
  * plan, check the worker does not hang — not a dependency bump.
  */
 const KNOWN_GOOD = {
-  three: "0.184.0",
-  "@types/three": "0.184.1",
-  "@thatopen/components": "3.4.6",
-  "@thatopen/components-front": "3.4.3",
-  "@thatopen/ui": "3.4.3",
-  "@thatopen/fragments": "3.4.5",
+  three: "0.185.1",
+  "@types/three": "0.185.4",
+  "@thatopen/components": "3.4.8",
+  "@thatopen/components-front": "3.4.4",
+  "@thatopen/ui": "3.4.10",
+  "@thatopen/fragments": "3.4.7",
   "web-ifc": "0.0.77",
 };
 

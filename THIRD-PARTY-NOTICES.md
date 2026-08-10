@@ -145,7 +145,7 @@ installed on whichever host happened to run the generator.
 - `@types/react` 19.2.18
 - `@types/react-dom` 19.2.4
 - `@types/stats.js` 0.17.4
-- `@types/three` 0.184.1
+- `@types/three` 0.185.4
 - `@types/webxr` 0.5.24
 - `@types/whatwg-mimetype` 3.0.2
 - `@types/ws` 8.18.1
@@ -313,7 +313,7 @@ installed on whichever host happened to run the generator.
 - `strip-bom` 3.0.0
 - `supports-color` 7.2.0
 - `term-size` 2.2.1
-- `three` 0.184.0
+- `three` 0.185.1
 - `tinybench` 2.9.0
 - `tinyexec` 1.3.0
 - `tinyglobby` 0.2.17

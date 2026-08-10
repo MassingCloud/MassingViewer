@@ -74,7 +74,23 @@ export default defineConfig({
    * were never cached; that is what this fixes, and it is the demo's headline claim.
    */
   plugins: [massingPwa()],
-  resolve: { alias: workspaceAliases() },
+  resolve: {
+    alias: workspaceAliases(),
+    /**
+     * One `three`, always.
+     *
+     * `three` holds module-level state — the `WebGLRenderer` registry, `Layers` masks, and the `Cache` the
+     * memory-leak gate asserts is empty — so two copies in one bundle do not merely waste bytes: `instanceof`
+     * fails across them, raycasting silently misses, and the symptom is "picking stopped working" with no error.
+     * The plan calls this out because it is a **measured** failure in massing, which carries the same line in its
+     * own Vite config for the same reason.
+     *
+     * It became possible here the moment `@massing/viewport` declared `three` as a *peer* rather than a direct
+     * dependency: a peer is the host's to supply, and a host that also depends on something else wanting `three`
+     * can end up with two. Cheap insurance against an expensive, silent failure.
+     */
+    dedupe: ["three"],
+  },
   // Relative base so the built demo works from a subpath (GitHub Pages) without a rebuild.
   base: "./",
   build: { outDir: "dist", emptyOutDir: true, target: "es2023" },
