@@ -54,8 +54,22 @@ function brotliKB(bytes) {
 function entryFromHtml(htmlPath) {
   const html = readFileSync(htmlPath, "utf8");
   const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+  /**
+   * `modulepreload` counts as part of the entry, and missing it was a real hole.
+   *
+   * Found 2026-08-10 by the WebGPU renderer. A dynamic `import("three/webgpu")` made Rollup split `three` into a
+   * shared `three.core` chunk, which `index.html` then references as `<link rel="modulepreload">` rather than as a
+   * `<script src>`. The browser fetches it on first load — it is not optional and not lazy — but this function only
+   * looked at `src` and stylesheets, so **entry JS fell from ~165 KB to 116 KB while first-load cost went up.**
+   *
+   * A budget that improves when the thing it measures gets worse is worse than no budget. This file's own header
+   * already records the sibling lesson — parsing the entry out of the HTML rather than filename-matching, because a
+   * hashed vendor chunk was once miscounted as shell — and this is the same mistake one layer along: trusting the
+   * *shape* of the reference instead of asking what the browser actually loads.
+   */
+  const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map((m) => m[1]);
   const styles = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)].map((m) => m[1]);
-  return { scripts, styles };
+  return { scripts: [...scripts, ...preloads], styles };
 }
 
 const problems = [];
@@ -98,13 +112,32 @@ for (const target of targets) {
     else js += kb;
   }
 
-  // Total output, so a lazy chunk ballooning is visible even though it is not in the entry.
+  /**
+   * Total output — so a lazy chunk ballooning is visible even though it is not in the entry — **minus chunks that
+   * are mutually exclusive alternatives**, which get their own budget instead.
+   *
+   * Added 2026-08-10, when the WebGPU renderer landed. `three/webgpu` is imported dynamically precisely so a
+   * WebGL-only visitor never downloads it, and that worked: entry JS stayed at 116 KB against a 150.7 budget. But
+   * the *total* jumped 165 → 356 KB, because it summed both renderers — and **no visitor ever downloads both.**
+   *
+   * The tempting fix was `--update`, and it would have been the wrong one twice over: it is the reflexive
+   * re-baselining this repository's risk register names, and it would have quietly redefined `totalJsCss` from
+   * "what a visitor downloads" into "what exists on disk", leaving 190 KB of slack for real bloat to hide in.
+   *
+   * So alternates are partitioned out and budgeted separately. `totalJsCss` keeps meaning what it meant.
+   */
+  const alternatePatterns = (budgets[target.name]?.alternates ?? []).map((p) => new RegExp(p));
   let total = 0;
+  let alternates = 0;
   const walk = (d) => {
     for (const e of readdirSync(d)) {
       const f = join(d, e);
       if (statSync(f).isDirectory()) walk(f);
-      else if (/\.(js|css)$/.test(e)) total += brotliKB(readFileSync(f));
+      else if (/\.(js|css)$/.test(e)) {
+        const kb = brotliKB(readFileSync(f));
+        if (alternatePatterns.some((re) => re.test(e))) alternates += kb;
+        else total += kb;
+      }
     }
   };
   walk(dir);
@@ -113,6 +146,7 @@ for (const target of targets) {
     entryJs: +js.toFixed(1),
     entryCss: +css.toFixed(1),
     totalJsCss: +total.toFixed(1),
+    ...(alternatePatterns.length > 0 ? { alternatesJs: +alternates.toFixed(1) } : {}),
   };
 
   const budget = budgets[target.name];
@@ -121,9 +155,16 @@ for (const target of targets) {
   console.log(`  ${"entry JS".padEnd(34)} ${js.toFixed(1)} KB br${budget ? ` (budget ${budget.entryJs})` : ""}`);
   console.log(`  ${"entry CSS".padEnd(34)} ${css.toFixed(1)} KB br${budget ? ` (budget ${budget.entryCss})` : ""}`);
   console.log(`  ${"total JS+CSS".padEnd(34)} ${total.toFixed(1)} KB br${budget ? ` (budget ${budget.totalJsCss})` : ""}`);
+  if (alternatePatterns.length > 0) {
+    console.log(
+      `  ${"mutually-exclusive alternates".padEnd(34)} ${alternates.toFixed(1)} KB br` +
+        `${budget?.alternatesJs ? ` (budget ${budget.alternatesJs})` : ""}  — never downloaded alongside the above`,
+    );
+  }
 
   if (budget) {
-    for (const key of ["entryJs", "entryCss", "totalJsCss"]) {
+    for (const key of ["entryJs", "entryCss", "totalJsCss", "alternatesJs"]) {
+      if (budget[key] === undefined) continue;
       const limit = budget[key] * TOLERANCE;
       const actual = measured[target.name][key];
       if (actual > limit) {
@@ -139,7 +180,19 @@ for (const target of targets) {
 
 if (UPDATE) {
   const { writeFileSync } = await import("node:fs");
-  writeFileSync(BUDGETS_PATH, `${JSON.stringify(measured, null, 2)}\n`, "utf8");
+  /**
+   * Merged, not replaced — because this file holds **configuration as well as measurements**.
+   *
+   * `alternates` is a list of patterns saying which chunks are mutually exclusive; it is a decision, not a number
+   * this script can re-derive. The first version of `--update` wrote `measured` wholesale and silently deleted it,
+   * which un-partitioned the WebGPU chunk and made the total jump straight back to 356 KB. A re-baseline command
+   * that quietly discards configuration is a trap, and it discards it exactly when someone is already busy
+   * reacting to a failure.
+   */
+  const merged = Object.fromEntries(
+    Object.entries(measured).map(([name, numbers]) => [name, { ...budgets[name], ...numbers }]),
+  );
+  writeFileSync(BUDGETS_PATH, `${JSON.stringify(merged, null, 2)}\n`, "utf8");
   console.log(`\nwrote ${relative(ROOT, BUDGETS_PATH)}`);
 } else if (Object.keys(budgets).length === 0) {
   console.log(`\nNo budgets recorded yet. Baseline them with: npm run gate:bundle -- --update`);

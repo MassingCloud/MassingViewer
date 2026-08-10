@@ -80,6 +80,30 @@ same renderer-keyed baseline discipline the WebGL project already uses, so a run
 instead of silently comparing two different rasterisers. Until then the blocker stands, and a WebGPU visual project
 must not be added on the strength of hope.
 
+### The measured cost on first load: about 30 KB brotli, and a gate that had been lying
+
+Wiring the seam in on 2026-08-10 cost first-load bytes, and the number is worth recording because it is the price
+of this decision rather than an accident.
+
+`three/webgpu` is imported **dynamically**, so a WebGL-only visitor never downloads it — that worked, and the
+`^three\.webgpu` chunk (147 KB br) is now budgeted separately as a *mutually exclusive alternative*, since no
+visitor fetches both renderers. But the dynamic import makes Rollup split `three` into a shared `three.core` chunk
+instead of inlining it, and splitting costs duplication that inlining did not: **entry JS went from ~165 KB br to
+194.8 KB br.** Roughly 30 KB on the WebGL path, in exchange for a WebGPU fast path on modern hardware. That is
+judged worth it; it is recorded so it is a decision rather than drift.
+
+Two gate defects surfaced on the way, both of which had been quietly wrong before this change:
+
+- **`bundle-budget.mjs` did not count `<link rel="modulepreload">`.** The browser fetches those on first load. So
+  when the split moved `three` into a preloaded chunk, the reported entry JS *fell* from ~165 to 116 KB while the
+  real first-load cost rose. A budget that improves when the thing it measures gets worse is worse than no budget.
+  The file's own header already recorded the sibling lesson — parse the entry out of the HTML rather than
+  filename-match, because a hashed vendor chunk was once miscounted as shell — and this was the same mistake one
+  layer along.
+- **`--update` replaced the budgets file wholesale**, deleting the `alternates` patterns, which are configuration
+  rather than a measurement. A re-baseline command that discards configuration does so exactly when someone is
+  already busy reacting to a failure.
+
 **Not claimed:** that WebGPU is faster here. Nothing in this repository has measured it. The scale fixtures in the
 roadmap come first precisely so the claim can be made from numbers instead of from the specification.
 
