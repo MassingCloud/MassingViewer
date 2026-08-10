@@ -22,6 +22,14 @@ The single most useful output of the review. `MassingCloud` holds:
 | `massingbill`, `massingplan` | Billing (G702/G703), CPM scheduling | 5D, 4D |
 | **MassingViewer** | this repository | "Layer 3: TypeScript Client" |
 
+**Settled 2026-08-09: `modelmaker` is the platform**, and this repository integrates with it. `massingviser` is
+analysed for what is worth borrowing server-side — its Python geometry pipeline (BVH picking, frustum culling,
+clash, LOD, crease-aware tessellation), its capability-family contracts, its content-addressed versioning — and
+**not** adopted as a second browser viewer. See [ADR-0014](adr/0014-python-server-javascript-viewport.md), which
+also draws the Reflex boundary: Python and Rust own the server, compiled JavaScript owns the viewport, and a Reflex
+shell (if adopted) mounts `@massing/embed` as a React component rather than putting a WebSocket in the snapping
+path.
+
 **Our own ground truth was wrong about one of these.** The plan records `massingviser` as an *"unrelated Python
 project"* needing a README disambiguation line. It is a federated AEC platform with a plugin kernel — the closest
 thing in the org to the proposed Layer 1. That mis-characterisation is corrected here.
