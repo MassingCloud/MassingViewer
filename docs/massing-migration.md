@@ -82,6 +82,38 @@ that is not a hypothesis, it is what happened the first time in `apps/demo`.
 The same applies to the tessellator: `createMassingViewer` takes one as a parameter. Bundling `web-ifc` here would
 force a WASM asset on every host, and massing already has a pipeline.
 
+## massing never hands this facade IFC text — use `showMeshes`
+
+massing converts IFC to Fragments server-side and streams geometry; *"never parse full IFC in the browser at
+runtime"* is one of its hard constraints. So `tessellate` is **optional** and `openIfc` is not massing's entry
+point. This is:
+
+```ts ignore
+const viewer = createMassingViewer({ container, kernel }); // no tessellator at all
+await viewer.showMeshes({
+  meshes, // from your Fragments pipeline
+  guids, // expressId → GlobalId
+  // The server already holds this model, so there is nothing to send it.
+  kernel: { alreadyOpen: true },
+});
+```
+
+**Why this exists rather than `viewport.showModel`.** `showModel` is public and would accept the same meshes, and
+it **silently skips three things** `openIfc` also does: rebuilding the snap grid, handing the model to the kernel,
+and invalidating a drawing and selection cut from the previous model. The result looks correct — 3D renders,
+picking works — while snapping has no candidates and the first edit is applied to whichever model the kernel last
+opened. Both entry points now route through one internal `applyModel`, so that path no longer exists.
+
+**Why `kernel` is required and not defaulted.** Both wrong answers are silent. Omitting the handoff leaves the
+kernel on the previous model. Calling `kernel.open(modelId)` with *no* IFC text makes `LocalKernel` **start a blank
+model** — `ifc` omitted means `BLANK_IFC4` in `packages/kernel-local/src/core.ts` — so the viewport would show your
+building and the kernel would hold an empty one. Making the caller state which case it is means neither can happen
+by accident. Sabotage-tested in `packages/embed/src/embed.test.ts`: removing the snap-grid rebuild and ignoring
+`alreadyOpen` each fail a named test.
+
+`{ alreadyOpen: true }` is taken on trust, because `KernelProvider` has no portable way to ask a kernel which model
+it holds. That is a real limitation and it is why the field is explicit rather than inferred.
+
 ## What massing keeps
 
 From `SEAM`, the entries marked `massing`. These are boundaries, not gaps:

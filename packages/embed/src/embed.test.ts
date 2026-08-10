@@ -448,3 +448,138 @@ describe("the session the facade exposes", () => {
     viewer.dispose();
   });
 });
+
+// ===================================================================================================
+// showMeshes — the entry point for a host that never hands over IFC text
+// ===================================================================================================
+
+describe("showMeshes", () => {
+  /**
+   * These exist because of a specific finding, and it is worth stating so the tests are not mistaken for
+   * coverage-by-symmetry.
+   *
+   * massing converts IFC server-side and streams geometry; *"never parse full IFC in the browser at runtime"* is
+   * one of its hard constraints. Before `showMeshes`, the only route for such a host was `viewport.showModel` —
+   * which works, reports success, and **silently skips** the snap grid, the kernel handoff, and invalidating a
+   * drawing and selection cut from the previous model. 3D and picking both look right. Snapping has no candidates
+   * and the first edit goes to whichever model the kernel last opened.
+   *
+   * So each test below pins one of the things that used to be skipped.
+   */
+
+  /** The same square `tessellate` produces, handed over directly the way a Fragments pipeline would. */
+  const SQUARE = {
+    meshes: [
+      {
+        expressId: 7,
+        ifcType: "IFCWALL",
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1]),
+        normals: new Float32Array(18),
+        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+        color: [0.8, 0.8, 0.8, 1] as const,
+      },
+    ],
+    guids: new Map([[7, "1zYxWvUtSrQpOnMlKjIhGf"]]),
+  };
+
+  it("shows geometry without a tessellator being supplied at all", async () => {
+    // The point of making `tessellate` optional: a host that never parses IFC must not have to ship a `web-ifc`
+    // WASM payload it would never execute.
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const { kernel } = fakeKernel();
+    const viewer = createMassingViewer({ container, kernel, modelId: asModelId("m") });
+
+    const result = await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.elements).toBe(1);
+    viewer.dispose();
+  });
+
+  it("says so, rather than crashing, when openIfc is called with no tessellator", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const { kernel } = fakeKernel();
+    const viewer = createMassingViewer({ container, kernel, modelId: asModelId("m") });
+
+    const result = await viewer.openIfc(IFC, "Tower-A.ifc");
+    expect(result.ok).toBe(false);
+    // A host that reached here has almost certainly called the wrong method, so the message names the other one.
+    if (!result.ok) {
+      expect(result.why).toContain("no tessellator");
+      expect(result.why).toContain("showMeshes");
+    }
+    viewer.dispose();
+  });
+
+  it("builds the snap grid, which is the thing viewport.showModel silently skipped", async () => {
+    const { viewer } = mount();
+    viewer.session.arm("draft.wall");
+    // A cursor 20 mm from the square's corner at (1, 0, 1). Without a snap grid there are no candidates and this
+    // is null — which is exactly how a host using `showModel` directly lost snapping without any error.
+    // `Vec2` in this codebase is `{ x, z }` — the ground plane, not screen space. Writing `{ x, y }` here is how
+    // this test failed the first time, and it failed by reporting "the grid was not rebuilt", which was a lie.
+    const before = viewer.session.hover({ x: 1.02, z: 1.02 });
+    expect(before.snap, "snapped before any model was shown").toBeNull();
+
+    await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
+    const after = viewer.session.hover({ x: 1.02, z: 1.02 });
+    expect(after.snap, "no snap candidate after showMeshes — the grid was not rebuilt").not.toBeNull();
+    viewer.dispose();
+  });
+
+  it("hands the model to the kernel when asked, and not when told it is already open", async () => {
+    const { viewer, opened } = mount();
+
+    await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
+    // The remote case: the server already holds the model, so sending it would be pointless at best. Critically it
+    // must not call `kernel.open(modelId)` with no text either — for LocalKernel that starts a BLANK model, so the
+    // viewport would show this geometry while the kernel held nothing.
+    expect(opened, "showMeshes reopened the kernel despite alreadyOpen").toHaveLength(0);
+
+    await viewer.showMeshes({ ...SQUARE, kernel: { ifc: IFC } });
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toContain("ISO-10303-21");
+    viewer.dispose();
+  });
+
+  it("discards a drawing and selection cut from the previous model", async () => {
+    const { viewer } = mount();
+    await viewer.open(IFC, "a.ifc");
+    expect(viewer.cut()).not.toBeNull();
+    viewer.select("0aBcDeFgHiJkLmNoPqRsTu" as never);
+    expect(viewer.selection).not.toBeNull();
+
+    await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
+    // A plan is a *view* of a model, and a GlobalId selected in the old one need not exist in this one.
+    expect(viewer.drawing, "a drawing survived a model swap").toBeNull();
+    expect(viewer.selection, "a selection survived a model swap").toBeNull();
+    viewer.dispose();
+  });
+
+  it("cuts a drawing from meshes it was handed directly", async () => {
+    // Proof the geometry reached the 2D layer and not only the GPU: the drawing has to carry the GlobalId that
+    // came in with the meshes, because that is what markup and plan↔3D selection anchor to.
+    const { viewer } = mount();
+    await viewer.showMeshes({ ...SQUARE, kernel: { alreadyOpen: true } });
+    const drawing = viewer.cut({ kind: "plan", cutHeight: 0.5 });
+    expect(drawing).not.toBeNull();
+    viewer.dispose();
+  });
+
+  it("refuses empty geometry instead of showing an empty scene", async () => {
+    const { viewer } = mount();
+    const result = await viewer.showMeshes({ meshes: [], guids: new Map(), kernel: { alreadyOpen: true } });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.why).toContain("no geometry");
+    viewer.dispose();
+  });
+
+  it("keeps `open` working as a delegate, because it is a published surface", async () => {
+    const { viewer, opened } = mount();
+    const result = await viewer.open(IFC, "Tower-A.ifc");
+    expect(result.ok).toBe(true);
+    expect(opened).toHaveLength(1);
+    viewer.dispose();
+  });
+});

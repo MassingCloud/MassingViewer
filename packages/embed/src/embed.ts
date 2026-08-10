@@ -71,6 +71,15 @@ export interface MassingViewerOptions {
   /** Where the 3D view goes. */
   readonly container: HTMLElement;
   /**
+   * How a model's bytes become meshes. **Optional**, and only needed for {@link MassingViewer.openIfc}.
+   *
+   * Optional rather than required because a host that converts IFC server-side and streams geometry never hands
+   * this facade any IFC text — it calls {@link MassingViewer.showMeshes} instead. Requiring a tessellator would
+   * force such a host to supply a `web-ifc` WASM payload it would never execute, which is the cost the note on
+   * {@link Tessellator} exists to avoid. Without one, `openIfc` refuses and says so.
+   */
+  readonly tessellate?: Tessellator;
+  /**
    * The geometry kernel. **Required.**
    *
    * Not defaulted, on purpose — see the note above. The host constructs it, which is what makes
@@ -125,7 +134,47 @@ export interface MassingViewer {
    * Load an IFC. Accepts text or bytes, and sniffs rather than trusting a name.
    *
    * Returns a result rather than throwing, because "this file is a ZIP despite its extension" is a question for
-   * the user and not an exception for the caller.
+   * the user and not an exception for the caller. Refuses if no `tessellate` was supplied, rather than throwing
+   * somewhere deeper.
+   */
+  openIfc(
+    source: string | Uint8Array,
+    name?: string,
+  ): Promise<{ ok: true; elements: number } | { ok: false; why: string }>;
+
+  /**
+   * Show geometry a host produced itself, with no IFC text anywhere.
+   *
+   * The entry point for a host whose pipeline converts IFC server-side and streams geometry — massing does exactly
+   * that, and *"never parse full IFC in the browser at runtime"* is one of its hard constraints. Before this
+   * existed the only route was `viewport.showModel`, which works and **silently skips three things `openIfc` also
+   * does**: the snap grid, the kernel handoff, and invalidating a drawing and selection cut from the previous
+   * model. The result looked correct — 3D and picking both fine — while snapping had no candidates and the first
+   * edit went to whichever model the kernel last opened.
+   *
+   * So this does all of it, and there is no half-wired path left to take by accident.
+   */
+  showMeshes(model: {
+    readonly meshes: readonly SourceMesh[];
+    readonly guids: Map<number, string>;
+    /**
+     * How the kernel learns about this model. **Required, and deliberately not defaulted**, because both wrong
+     * answers are silent:
+     *
+     * - Skipping the handoff sends the first edit to whatever the kernel last held.
+     * - Calling `kernel.open(modelId)` with no IFC text makes `LocalKernel` **start a blank model** — see
+     *   `packages/kernel-local/src/core.ts`, where `ifc` omitted means `BLANK_IFC4`. The viewport would show this
+     *   model and the kernel would hold an empty one.
+     *
+     * `{ alreadyOpen: true }` is the remote case: the server already has the model, so there is nothing to send.
+     * It is taken on trust — `KernelProvider` has no portable way to ask — which is why it has to be stated.
+     */
+    readonly kernel: { readonly alreadyOpen: true } | { readonly ifc: string };
+  }): Promise<{ ok: true; elements: number } | { ok: false; why: string }>;
+
+  /**
+   * @deprecated Use {@link MassingViewer.openIfc}. Retained because this is a published surface; it delegates and
+   * does nothing else.
    */
   open(source: string | Uint8Array, name?: string): Promise<{ ok: true; elements: number } | { ok: false; why: string }>;
 
@@ -179,11 +228,17 @@ export interface Tessellator {
   (ifcText: string): { meshes: readonly SourceMesh[]; guids: Map<number, string> };
 }
 
+/**
+ * `tessellate` required.
+ *
+ * @deprecated Use {@link MassingViewerOptions}, where it is optional. Kept so existing callers keep compiling: a
+ * host that passes one is still doing something valid, it is only no longer the sole way in.
+ */
 export interface MassingViewerOptionsWithTessellator extends MassingViewerOptions {
   readonly tessellate: Tessellator;
 }
 
-export function createMassingViewer(options: MassingViewerOptionsWithTessellator): MassingViewer {
+export function createMassingViewer(options: MassingViewerOptions): MassingViewer {
   const modelId = options.modelId ?? asModelId("model");
   const status = options.onStatus ?? (() => {});
   const crash = createCrashHandler({ where: "massingviewer", sink: options.crashSink ?? NOOP_CRASH_SINK });
@@ -332,6 +387,51 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
     return raw === undefined ? null : (raw as Guid);
   };
 
+  /**
+   * Everything that has to happen when the model changes, in one place.
+   *
+   * There are four steps and the whole point is that no caller can perform three of them. `viewport.showModel` on
+   * its own leaves the snap grid built from the previous model, the kernel holding the previous model, and a
+   * drawing and selection cut from the previous model — and reports success, because from the viewport's point of
+   * view it succeeded. Both entry points route through here so that path does not exist.
+   */
+  async function applyModel(
+    next: readonly SourceMesh[],
+    nextGuids: Map<number, string>,
+    handoff: { readonly alreadyOpen: true } | { readonly ifc: string },
+    label: string,
+  ): Promise<{ ok: true; elements: number } | { ok: false; why: string }> {
+    meshes = next;
+    guids = nextGuids;
+
+    // Rebuilt here, once, rather than derived per hover. A stale grid would offer snaps to geometry that is no
+    // longer in the model, which is worse than offering none.
+    buildSnapGrid(meshes);
+    const built = viewport.showModel(meshes, guidOf, modelId);
+    viewport.fit();
+
+    // A drawing cut from the previous model is not a view of this one, and a selected GlobalId from it may not
+    // exist here. Cleared before the kernel handoff, so an early return below cannot leave them stale.
+    drawing = null;
+    selection = null;
+
+    // The kernel is brought onto the new model here, not left to the caller. A viewer whose 3D view is right and
+    // whose kernel still holds the previous model applies the first edit to a file the user is not looking at.
+    if (!("alreadyOpen" in handoff)) {
+      const openable = options.kernel as KernelProvider & {
+        open?: (id: ModelId, ifc?: string) => Promise<{ ok: boolean; error?: { message: string } }>;
+      };
+      if (typeof openable.open === "function") {
+        const opened = await openable.open(modelId, handoff.ifc);
+        if (!opened.ok) {
+          return { ok: false, why: opened.error?.message ?? `the kernel would not open ${label}` };
+        }
+      }
+    }
+
+    return { ok: true, elements: built.elements.length };
+  }
+
   const offSelect = viewport.onSelect((expressIds) => {
     const first = expressIds[0];
     selection = first === undefined ? null : guidOf(first);
@@ -376,7 +476,18 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
     },
     modelId,
 
-    async open(source, name = "model.ifc") {
+    async openIfc(source, name = "model.ifc") {
+      if (options.tessellate === undefined) {
+        // Refused here, with a sentence, rather than crashing on `undefined(...)` three frames down. A host that
+        // never intended to parse IFC in the browser has almost certainly called the wrong method.
+        return {
+          ok: false,
+          why:
+            `${name}: no tessellator was supplied, so this viewer cannot read IFC. Either pass \`tessellate\` to ` +
+            `createMassingViewer, or use showMeshes() if your pipeline converts IFC outside the browser.`,
+        };
+      }
+
       const text = typeof source === "string" ? source : new TextDecoder().decode(source);
       // Sniffed rather than trusted. A `.ifc` that is really an ifcZIP is routine — Revit and Archicad both
       // export one — and handing a ZIP to an IFC parser produces "unexpected token PK", which is useless.
@@ -390,28 +501,19 @@ export function createMassingViewer(options: MassingViewerOptionsWithTessellator
       const parsed = options.tessellate(text);
       if (parsed.meshes.length === 0) return { ok: false, why: `${name}: parsed, but no geometry` };
 
-      meshes = parsed.meshes;
-      guids = parsed.guids;
-      // Rebuilt here, once, rather than derived per hover. A stale grid would offer snaps to geometry that is no
-      // longer in the model, which is worse than offering none.
-      buildSnapGrid(meshes);
-      const built = viewport.showModel(meshes, guidOf, modelId);
-      viewport.fit();
+      return applyModel(parsed.meshes, parsed.guids, { ifc: text }, name);
+    },
 
-      // The kernel is reopened on the new bytes here, not left to the caller. A viewer whose 3D view is right and
-      // whose kernel still holds the previous model applies the first edit to a file the user is not looking at.
-      const openable = options.kernel as KernelProvider & {
-        open?: (id: ModelId, ifc?: string) => Promise<{ ok: boolean; error?: { message: string } }>;
-      };
-      if (typeof openable.open === "function") {
-        const opened = await openable.open(modelId, text);
-        if (!opened.ok) return { ok: false, why: opened.error?.message ?? "the kernel would not open this model" };
+    async showMeshes(model) {
+      if (model.meshes.length === 0) {
+        return { ok: false, why: "showMeshes was given no geometry — nothing would be visible" };
       }
+      return applyModel(model.meshes, model.guids, model.kernel, "the supplied meshes");
+    },
 
-      // A drawing cut from the previous model is not a view of this one.
-      drawing = null;
-      selection = null;
-      return { ok: true, elements: built.elements.length };
+    /** @deprecated Delegates to `openIfc` and does nothing else. */
+    async open(source, name) {
+      return this.openIfc(source, name);
     },
 
       session,
