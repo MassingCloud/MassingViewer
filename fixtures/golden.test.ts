@@ -189,3 +189,42 @@ describe("Tier 2 — structural assertions", () => {
     expect(drawing.provenance.guidCoverage).toBeLessThanOrEqual(1);
   });
 });
+
+// ===================================================================================================
+// Cutting exactly at a datum — the regression test for a bug that silently deleted walls
+// ===================================================================================================
+
+describe("cuts exactly at a datum", () => {
+  /**
+   * The defect: `section.ts` discards coplanar triangles, so a cut plane sitting exactly on a face lost geometry
+   * with no report. Measured before the fix, cut loops on `sample`: `0, 0, 5, 3, 0` at the five datums, against
+   * `1, 6, 7, 5, 0` one millimetre above them. At 2.100 that is four walls missing from a plan, and `incomplete[]`
+   * stayed empty because the sectioner did not know it had dropped anything.
+   *
+   * Plans are cut at storey elevations, so this is the normal case rather than an edge case.
+   *
+   * The fix nudges a coincident plane up by 0.1 mm and declares it. The assertion is the one that matters and it is
+   * deliberately not a hardcoded list: **the exact cut must agree with the cut just above it**, which is what
+   * "nudged up" means. A hardcoded set of counts would pass while meaning nothing if the fixture changed.
+   */
+  const DATUMS = [-0.2, 0, 0.9, 2.1, 3];
+
+  for (const fixture of FIXTURES) {
+    for (const datum of DATUMS) {
+      it(`${fixture} at ${datum} m agrees with 1 mm above it`, () => {
+        const at = drawingFor(fixture, { kind: "plan", cutHeight: datum });
+        const above = drawingFor(fixture, { kind: "plan", cutHeight: datum + 0.001 });
+        const cuts = (d: typeof at): number => d.entities.filter((e) => e.role === "cut").length;
+        expect(cuts(at), `cutting exactly at ${datum} lost loops relative to ${datum + 0.001}`).toBe(cuts(above));
+      });
+    }
+  }
+
+  it("declares the nudge when it happens, and stays quiet when it does not", () => {
+    const nudged = drawingFor("sample", { kind: "plan", cutHeight: 2.1 });
+    expect(nudged.provenance.approximations.join(" ")).toContain("coincident with a face");
+    // 1.2 m is mid-wall — no face there, so no caveat. A caveat on every drawing is one nobody reads.
+    const clean = drawingFor("sample", { kind: "plan", cutHeight: 1.2 });
+    expect(clean.provenance.approximations.join(" ")).not.toContain("coincident with a face");
+  });
+});

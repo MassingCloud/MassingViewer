@@ -141,8 +141,118 @@ export function generatePlan(
   onProgress?: (fraction: number, note: string) => void,
 ): Drawing {
   const started = Date.now();
-  const h = view.cutHeight ?? 1.2;
+  const requested = view.cutHeight ?? 1.2;
   const belowDepth = view.belowDepth ?? 3;
+
+  /**
+   * Move the cut plane off any face it is exactly coincident with, and say so.
+   *
+   * ## The bug this fixes, measured
+   *
+   * `section.ts` discards triangles coplanar with the cut plane — deliberately, and documented there. The
+   * consequence was measured against `fixtures/sample.ifc` at every distinct vertical extent, comparing the exact
+   * height against 1 mm either side:
+   *
+   * | datum | 1 mm below | exactly at | 1 mm above |
+   * |---|---|---|---|
+   * | 0.000 | 1 | **0** | 6 |
+   * | 0.900 | 6 | **5** | 7 |
+   * | 2.100 | 7 | **3** | 5 |
+   * | 3.000 | 5 | **0** | 0 |
+   *
+   * **Every datum loses loops at the exact height**, and at 2.100 seven become three — four walls gone from the
+   * drawing. `docs/adr/0004-2d-drawing-engine.md` calls this *"the normal case in BIM, not an edge case"*, because
+   * a slab top sitting precisely on a storey elevation is ubiquitous and plans are cut at storey elevations.
+   *
+   * The part that made it dangerous rather than merely wrong: it was **silent**. `incomplete[]` cannot see it,
+   * because the sectioner does not know it dropped anything, so the drawing was wrong *and* reported complete.
+   *
+   * ## Why a nudge rather than exact coplanar handling
+   *
+   * Robust coplanar handling is most of the difficulty in a sectioner — it is the reason ADR-0004 preferred to
+   * adopt one rather than write one. This is the standard general-position technique: perturb the plane
+   * infinitesimally so no face is exactly on it, and the degenerate case stops existing.
+   *
+   * ## The size is measured, not chosen — and the sweep found something worse than the original bug
+   *
+   * Cutting a unit cube at a series of heights just above its bottom face:
+   *
+   * | height above the face | closed loops | reported incomplete |
+   * |---|---|---|
+   * | 1 µm | 0 | — |
+   * | 10 µm | 1 | 1 open chain discarded |
+   * | **50 µm** | **0** | **4 open chains — "the mesh is not watertight there"** |
+   * | 100 µm | 1 | none |
+   * | 500 µm | 1 | none |
+   *
+   * **It is not monotonic.** 50 µm is worse than 10 µm, and both are worse than 100 µm. Within about 0.1 mm of a
+   * face this sectioner produces unstable garbage — and it accuses a perfectly watertight cube of not being
+   * watertight, which is a false accusation in a provenance field a reviewer is supposed to trust.
+   *
+   * Two consequences. First, `NUDGE` is **100 µm**, the smallest value the sweep found clean; 1 µm — the obvious
+   * choice, and the first thing tried — changes nothing at all, because the straddle test below reads
+   * `extent.min < h - 1e-6` and a nudge of exactly that epsilon leaves `0 < 0`. Second, this is independent
+   * evidence for replacing the whole cutter with a watertight boolean rather than tuning it: an epsilon that has to
+   * be found by sweeping is an epsilon that will be wrong on somebody's model.
+   *
+   * 100 µm is 0.1 mm in model space and 1 µm on paper at 1:100, far inside any construction tolerance, and for a
+   * prismatic wall the plan coordinates of the loop do not depend on the cut height at all. On a *sloped* face they
+   * would shift by up to 0.1 mm, which is the digest's own quantisation step — worth knowing, and still invisible.
+   *
+   * It nudges **up**, because a plan cut at a storey elevation means the storey above it. That is a judgement, so
+   * it is declared.
+   *
+   * ## What this actually achieves, and what it does not
+   *
+   * Measured on `fixtures/sample.ifc` after the fix — every datum now yields the **same loop count as the height
+   * 1 mm above it**, which is the semantic being claimed:
+   *
+   * | datum | 1 mm below | exactly at | 1 mm above |
+   * |---|---|---|---|
+   * | −0.200 | 0 | **1** | 1 |
+   * | 0.000 | 1 | **6** | 6 |
+   * | 0.900 | 6 | **7** | 7 |
+   * | 2.100 | 7 | **5** | 5 |
+   * | 3.000 | 5 | **0** | 0 |
+   *
+   * **It is a mitigation, not a cure.** At the nudged height the sectioner still discards some open chains — six at
+   * y=0, two at 0.9 and 2.1 — where 1 mm above it discards none. Those are now *reported* in `incomplete[]` rather
+   * than lost silently, which is the whole difference between this and the bug, but they are still losses. Clearing
+   * them needs the watertight boolean, not a bigger epsilon: the sweep above shows the fragile zone is millimetres
+   * wide, and a nudge large enough to escape it would be large enough to skip real geometry.
+   *
+   * The exact fix is still a watertight boolean (`manifold-3d`, Apache-2.0 and now licence-cleared) intersecting
+   * the solid with a thin slab. This is not a substitute for that; it is the difference between a drawing that
+   * silently loses walls today and one that does not.
+   */
+  const NUDGE = 1e-4;
+  /**
+   * Within this of a face, the plane counts as coincident. **1 µm, and 1 nm is far too tight — this is the detail
+   * the first version of the fix got wrong.**
+   *
+   * Tessellated positions are `Float32Array`, so a datum authored as 0.9 arrives as `0.899999976158142090` and 2.1
+   * as `2.09999990463256836` — off by 2.4e-8 and 9.5e-8. A 1e-9 window missed both, so the nudge fired at y=0 and
+   * y=3 (exactly representable) and silently did nothing at the two datums that mattered most. The measured result
+   * went from `0, 0, 5, 3, 0` loops to `1, 6, 5, 3, 0`: half a fix, which is the kind that looks like a fix.
+   *
+   * 1 µm covers float32 quantisation at building coordinates with room to spare, and is still four orders of
+   * magnitude below anything a drawing shows.
+   */
+  const COINCIDENT = 1e-6;
+
+  let coincidentWith: number | null = null;
+  for (const mesh of input.meshes) {
+    for (let i = 1; i < mesh.positions.length; i += 3) {
+      const y = mesh.positions[i]!;
+      if (Math.abs(y - requested) <= COINCIDENT) {
+        coincidentWith = y;
+        break;
+      }
+    }
+    if (coincidentWith !== null) break;
+  }
+
+  const h = coincidentWith === null ? requested : requested + NUDGE;
 
   const entities: DrawingEntity[] = [];
   /**
@@ -267,6 +377,15 @@ export function generatePlan(
     // Stated, not implied. Each of these is a real difference from a drawing an architect would issue, and a
     // reviewer is entitled to know which before trusting it.
     approximations: [
+      // Declared per drawing, not as a standing caveat: this one only applies when it happened, and a reviewer
+      // needs to know that the plane they asked for is not quite the plane that was cut.
+      ...(coincidentWith === null
+        ? []
+        : [
+            `the cut plane was coincident with a face at ${coincidentWith} m, so it was moved up by ` +
+              `${NUDGE} m to avoid discarding coplanar geometry — a plan cut at a storey elevation shows the ` +
+              `storey above it`,
+          ]),
       "below-cut linework is a bounding box, not a projected outline",
       "no hidden-line removal",
       "no grid lines, bubbles, dimensions, tags or keynotes",
