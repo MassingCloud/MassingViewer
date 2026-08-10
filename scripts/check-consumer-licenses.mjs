@@ -45,7 +45,35 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
 const ENTRY = "@massing/embed";
 
 /** massing's list, verbatim. Not a superset, not "roughly" — the point is that it is theirs. */
-const CONSUMER_ALLOW = new Set(["MIT", "MIT-0", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "Apache-2.0", "ISC"]);
+/**
+ * massing's list, plus two additions made on the repository owner's instruction (2026-08-09).
+ *
+ * **`BSL-1.0` is the Boost Software License 1.0 — permissive, MIT-like, no copyleft and no notice obligation in
+ * binary form.** It is emphatically *not* `BUSL-1.1`, the Business Source License, which is source-available
+ * rather than open source and is denied outright by `DENY_PATTERNS` in `scripts/check-licenses.mjs` via `/^BUSL/i`.
+ * Conflating the two would be a serious and easy mistake — they abbreviate almost identically and sit at opposite
+ * ends of the spectrum. Added because `clipper2-wasm` (BSL-1.0) is the 2D offsetting library the plan selected.
+ *
+ * **`CC0-1.0` is a public-domain dedication**, strictly more permissive than MIT: no attribution, no notice. Added
+ * because the family library's content is CC0 and massing already ships it, with `"license": "CC0-1.0"` recorded in
+ * four places in their own manifest — their written list was narrower than their shipped reality.
+ *
+ * Both were widened *by the owner of both repositories*, which is the only authority that can. This gate told
+ * massing the same thing about CC0 a few hours earlier — that a permitted-licence list is not something either
+ * side should widen quietly — and that still holds between the two agents; it does not bind the person who sets
+ * the policy. The massing session has been told the list moved, so its own audit matches.
+ */
+const CONSUMER_ALLOW = new Set([
+  "MIT",
+  "MIT-0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "0BSD",
+  "Apache-2.0",
+  "ISC",
+  "BSL-1.0",
+  "CC0-1.0",
+]);
 
 const readJson = (path) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
 

@@ -32,15 +32,15 @@ Reflex delivers it; if the aim is "the browser downloads and runs less JS", it d
 
 `massingviser` is the experiment. It describes itself as *"a federated AEC platform in pure Python: plugin kernel,
 15 capability families, content-addressed version control, server-side geometry, browser viewer"* — 151 Python
-files, and a `viewer/` layer built on `viser`, which is WebSocket-driven Python 3D.
+files, and a "viewer/" layer built on `viser`, which is WebSocket-driven Python 3D.
 
 Its browser layer, measured from the repository tree:
 
 | File | Size |
 |---|---|
-| `web/vendor/three.module.min.js` | **687 KB** |
-| `web/vendor/OrbitControls.js` | 32 KB |
-| `web/src/viewer.js` | 9 KB |
+| massingviser "web/vendor/three.module.min.js" | **687 KB** |
+| massingviser "web/vendor/OrbitControls.js" | 32 KB |
+| massingviser "web/src/viewer.js" | 9 KB |
 
 **The pure-Python platform ships three.js to the browser.** That is not a criticism of it — it is the honest
 outcome of putting 3D in a browser at all, and its own README is straightforward that the viewer is *"a browser
