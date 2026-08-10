@@ -78,7 +78,21 @@ door/window openings) are not a family library and were never meant to be.
 **Content is loaded, never vendored.** The plan already specifies this: *"Asset packs are code-free plugins. One
 `.mvpack` manifest serves 3D families, 2D blocks, markup stamps, hatch patterns and sheet templates."* So
 MassingViewer ships the format, the loader and the gallery under MIT; `massing-families` ships content under CC0.
-It already publishes a "manifest.json" described as *"what a catalog shelf reads"*, which is the integration point.
+
+**The integration point is massing's library endpoint, not the catalog repository.** Confirmed with the massing
+session on 2026-08-09, against their tree rather than inferred: massing has already vendored their copy of "fetch_families.py"
+there, `services/data/families/external/` holds 59 files including the architectural-assemblies pack,
+`GET /families/library` is live and returns `external.packs`, and
+`POST /projects/{pid}/families/import` copies every `IfcTypeProduct` in, deduped by class and name. So a
+connected viewer reads **their** shelf. Fetching `massing-families` independently would give two copies of the
+same library, free to drift — and the offline case is a cached pack, not a second fetcher.
+
+**CC0 status, stated because it was worth asking.** massing's permitted list is MIT / BSD-2 / BSD-3 / 0BSD /
+Apache-2.0 / ISC and does **not** name CC0-1.0 — while they already ship CC0-1.0 content, with
+`"license": "CC0-1.0"` recorded in four places in their own manifest. Their written rule is narrower than their
+shipped reality, which is the same shape of defect as this repository's `KNOWN_GOOD` tuple reading as a
+seven-package pin. Treated as accepted on the basis of existing practice; the formal list change is with the
+repository owner, because a permitted-licence list is not a thing either side should widen quietly.
 
 The licence gate was corrected as part of this review: `massing-families` was blanket-forbidden on the strength of
 GitHub reporting `NOASSERTION`, which is a *detection* artefact of its two licence files. Only "upstream/" is

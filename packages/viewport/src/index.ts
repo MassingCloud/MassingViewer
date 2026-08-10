@@ -1,3 +1,5 @@
+export { browserWebGpuProbe, createRenderer } from "./renderer.js";
+export type { RendererBundle, RendererChoice, WebGpuProbe } from "./renderer.js";
 export { createGizmo } from "./gizmo.js";
 export type { GizmoCommit, GizmoController, GizmoOptions, HeightDelta, MoveDelta, RotateDelta } from "./gizmo.js";
 export { createGrid, createPreview, screenToGround } from "./draft.js";
