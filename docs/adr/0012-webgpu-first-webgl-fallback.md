@@ -52,6 +52,34 @@ Vulkan target, so this is plausible rather than solved), and until it exists the
 about the WebGPU renderer. Shipping WebGPU with a WebGL-only visual gate would be a gate that reports green about
 a code path it never exercises — the failure mode this repository writes its gates against.
 
+### How the blocker gets closed: by measurement, in `scripts/probe-webgpu.mjs`
+
+Written 2026-08-09, after the question turned out to be unanswerable on the development host. Two findings worth
+keeping, because both would otherwise be rediscovered:
+
+- **Playwright's default headless browser does not expose `navigator.gpu` at all.** It launches
+  `chromium_headless_shell`. Measured under four flag combinations, including the visual gate's own
+  `--use-angle=swiftshader`: `navigator.gpu` was `undefined` every time. So a WebGPU E2E project cannot simply be
+  added to the existing configuration — it needs the full Chromium build.
+- **The full build will not launch on that host**, failing with `spawn UNKNOWN` — the same Windows side-by-side
+  fault that stops Firefox there, documented in `scripts/e2e.mjs`. The development machine therefore cannot answer
+  this question at all, which is fine, because the runner is what matters.
+
+So `.github/workflows/nightly.yml` runs the probe on `ubuntu-latest` and **reports** rather than gating: "no GPU on a CPU runner" is
+the expected starting state, and failing a build on it would make the normal condition read as a regression. It
+tries flag sets cheapest-first, so the output names the *minimum* that works.
+
+The detail that decides it: `--use-webgpu-adapter=swiftshader` plus `--enable-unsafe-webgpu` (which disables the
+adapter blocklist — a CPU adapter is refused without it) is not sufficient on its own. **SwiftShader's Vulkan path
+needs the system Vulkan loader and a Mesa ICD installed**, and `playwright install --with-deps` does not install
+them; without them `requestAdapter()` returns null however many flags are passed. The job installs `libvulkan1`
+and `mesa-vulkan-drivers` for exactly that reason.
+
+When the probe reports an adapter, the visual gate grows a WebGPU project keyed by **adapter description** — the
+same renderer-keyed baseline discipline the WebGL project already uses, so a runner-image change fails loudly
+instead of silently comparing two different rasterisers. Until then the blocker stands, and a WebGPU visual project
+must not be added on the strength of hope.
+
 **Not claimed:** that WebGPU is faster here. Nothing in this repository has measured it. The scale fixtures in the
 roadmap come first precisely so the claim can be made from numbers instead of from the specification.
 

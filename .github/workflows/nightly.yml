@@ -131,6 +131,38 @@ jobs:
             e2e/visual/
           retention-days: 14
 
+  webgpu-probe:
+    name: Is a software WebGPU adapter obtainable?
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Vulkan loader and Mesa ICD
+        # The part that is easy to miss, and the reason a naive attempt returns null: SwiftShader's Vulkan path
+        # needs the system loader and an ICD present. `playwright install --with-deps` does not install them, so
+        # without this step `requestAdapter()` returns null however many flags are passed.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers vulkan-tools
+
+      - name: Full Chromium, not the headless shell
+        # `chromium_headless_shell` — Playwright's default — does not expose `navigator.gpu` at all. Measured on
+        # the development host under four flag combinations, including the visual gate's own.
+        run: npx playwright install --with-deps chromium
+
+      - name: Probe, and report
+        # Deliberately not a gate. "No GPU on a CPU runner" is the expected starting state, and failing the build
+        # on it would make the normal condition look like a regression. What is wanted is the adapter string, so
+        # ADR-0012's blocker can be closed on a measurement instead of an assumption.
+        run: node scripts/probe-webgpu.mjs
+
   raster:
     name: Tier-3 drawing rasterisation
     runs-on: ubuntu-latest
