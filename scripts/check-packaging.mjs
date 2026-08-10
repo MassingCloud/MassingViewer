@@ -248,9 +248,63 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+/**
+ * Every workspace package is in the lockfile.
+ *
+ * Added 2026-08-10, after adding `packages/assets` and pushing without re-running `npm install` broke **four
+ * workflows at once** — CI, E2E, Pages and Security — with `npm error Missing: @massing/assets@0.1.0 from lock
+ * file`. Locally everything passed: lint, typecheck, all twelve gates and 1,227 tests, because `node_modules`
+ * already held the workspace symlink. `npm ci` is the only thing that compares the manifests against the lockfile,
+ * and it does not run on a machine that already has the tree installed.
+ *
+ * That is the exact failure shape `vitest.config.ts` warns about in its own comment — *"CI fails and local passes…
+ * the worst shape of CI failure: invisible on the machine where the code was written"* — and the answer is the same
+ * one this repository keeps reaching for: make the machine that wrote the code able to see it.
+ *
+ * Cheap by construction: a lockfile read and a set lookup, no network and no install. It cannot replace `npm ci`,
+ * but it catches the one mistake that is easy to make and expensive to discover.
+ */
+const lockPath = join(ROOT, "package-lock.json");
+if (existsSync(lockPath)) {
+  const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  const linked = new Set(
+    Object.values(lock.packages ?? {})
+      .filter((entry) => entry.link === true || entry.name !== undefined)
+      .map((entry) => entry.name)
+      .filter((name) => typeof name === "string"),
+  );
+  // Workspace entries are keyed by path, so also accept the path form npm actually writes.
+  for (const key of Object.keys(lock.packages ?? {})) linked.add(key);
+
+  // Every workspace manifest, published or not — `npm ci` cares about all of them, not only the published ones.
+  for (const group of ["packages", "apps"]) {
+    const groupDir = join(ROOT, group);
+    if (!existsSync(groupDir)) continue;
+    for (const entry of readdirSync(groupDir)) {
+      const manifestPath = join(groupDir, entry, "package.json");
+      if (!existsSync(manifestPath)) continue;
+      const manifestName = JSON.parse(readFileSync(manifestPath, "utf8")).name;
+      const path = `${group}/${entry}`;
+      if (linked.has(manifestName) || linked.has(path)) continue;
+      problems.push(
+        `${path}: not in package-lock.json. Run \`npm install\` and commit the lockfile — otherwise \`npm ci\` ` +
+          `fails on every workflow with "Missing: ${manifestName} from lock file", while everything passes ` +
+          `locally because node_modules already has the symlink.`,
+      );
+    }
+  }
+}
+
+if (problems.length > 0) {
+  console.error(`\nPackaging gate failed — ${problems.length} problem(s):\n`);
+  for (const p of problems) console.error(`  • ${p}`);
+  console.error("");
+  process.exit(1);
+}
+
 console.log(
   `Packaging gate passed: ${checked} published package(s), entry points consistent with their builds; ` +
     `${loaded} load cleanly in Node` +
     (unbuilt > 0 ? `, ${unbuilt} not built (run \`npm run build\` to include those)` : "") +
-    ".",
+    "; all in the lockfile.",
 );
