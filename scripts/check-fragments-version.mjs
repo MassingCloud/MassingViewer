@@ -6,7 +6,7 @@
  * `.frag` tiles. MassingViewer has no Dockerfiles and a different, monorepo-specific risk: two packages
  * resolving *different* versions of the same coupled dependency while each looks fine in isolation.
  *
- * ## Why these five packages are one decision, not five
+ * ## Why these packages are one decision, not seven
  *
  * `@thatopen/fragments` writes a binary tile format. `@thatopen/components` consumes it. `web-ifc` produces
  * the geometry that becomes it. `three` defines the buffer layouts all of them build. Mixing versions does
@@ -35,6 +35,12 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
  * These are exact, not ranges, and `.npmrc` sets `save-exact=true` repo-wide so a caret cannot creep in.
  * Changing a value here is a deliberate act that requires re-verifying the whole set — load a model, cut a
  * plan, check the worker does not hang — not a dependency bump.
+ *
+ * **Only `three` and `@types/three` are actually installed.** The `@thatopen/*` entries and `web-ifc` are
+ * *pre-registered*: nothing in this repository depends on them, because `packages/ifc` is a hand-written STEP
+ * parser and `packages/viewport` sits on raw three.js. They are kept so that the day one is added it is pinned to
+ * a value someone verified rather than to whatever npm resolves that afternoon — and the gate now prints which
+ * half is which, because reading this list as a live seven-package pin cost a sibling repository real effort.
  */
 const KNOWN_GOOD = {
   three: "0.185.1",
@@ -86,7 +92,7 @@ for (const [name, sites] of declarations) {
     if (site.version !== expected) {
       problems.push(
         `${site.label} (${site.field}): ${name} is "${site.version}", expected exactly "${expected}". ` +
-          `A range here is also a failure — these five move as one set.`,
+          `A range here is also a failure — the coupled set moves together.`,
       );
     }
   }
@@ -134,11 +140,31 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-const declared = [...declarations.keys()];
+const declared = [...declarations.keys()].sort();
+const preRegistered = Object.keys(KNOWN_GOOD)
+  .filter((name) => !declarations.has(name))
+  .sort();
+
+/**
+ * Both halves, named.
+ *
+ * It used to print only the count of declared packages, which was true and read as though the whole tuple were
+ * enforced. A sibling repository took it at face value and spent real effort reconciling against five versions
+ * that are not installed here — `@thatopen/*` and `web-ifc` are not dependencies at all, because `packages/ifc`
+ * is a hand-written STEP parser. The numbers were never wrong; the *scope* was narrower than the appearance, and
+ * a gate that looks broader than it is will be trusted for things it does not check.
+ *
+ * The pre-registered entries stay, because they are worth keeping: the day one of them is added it is pinned to a
+ * verified value instead of to whatever npm resolves that afternoon. They are just no longer implied to be live.
+ */
 console.log(
   declared.length === 0
     ? `Version-parity gate passed: none of the coupled 3D packages are declared yet ` +
-        `(${Object.keys(KNOWN_GOOD).length} tracked, enforced from the moment one appears).`
-    : `Version-parity gate passed: ${declared.length} coupled package(s) declared across ` +
-        `${all.length} manifest(s), all matching KNOWN_GOOD.`,
+        `(${Object.keys(KNOWN_GOOD).length} pre-registered, enforced from the moment one appears).`
+    : `Version-parity gate passed: ${declared.length} of ${Object.keys(KNOWN_GOOD).length} coupled package(s) ` +
+        `declared across ${all.length} manifest(s), all matching KNOWN_GOOD.`,
 );
+console.log(`  enforced now:   ${declared.join(", ")}`);
+if (preRegistered.length > 0) {
+  console.log(`  not installed:  ${preRegistered.join(", ")} — pinned in advance, nothing to check yet`);
+}
