@@ -6,12 +6,12 @@ MassingViewer depends on the packages below. This project accepts only permissiv
 posture and the reasoning are in `docs/adr/0003-license-posture.md`.
 
 Generated from `package-lock.json` rather than from an installed `node_modules`, so this list is the
-same on every platform and covers all 73 platform-specific binaries — not only the handful
+same on every platform and covers all 58 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-420 package(s) across 12 license(s).
+396 package(s) across 11 license(s).
 
-## MIT (324)
+## MIT (301)
 
 - `@babel/code-frame` 7.29.7
 - `@babel/compat-data` 7.29.7
@@ -54,9 +54,6 @@ installed on whichever host happened to run the generator.
 - `@changesets/types` 6.1.0
 - `@changesets/types` 4.1.0
 - `@changesets/write` 0.4.0
-- `@emnapi/core` 1.11.1
-- `@emnapi/runtime` 1.11.1
-- `@emnapi/wasi-threads` 1.2.2
 - `@eslint-community/eslint-utils` 4.10.1
 - `@eslint-community/regexpp` 4.12.2
 - `@eslint/js` 9.39.5
@@ -68,11 +65,9 @@ installed on whichever host happened to run the generator.
 - `@jridgewell/trace-mapping` 0.3.31
 - `@manypkg/find-root` 1.1.0
 - `@manypkg/get-packages` 1.1.3
-- `@napi-rs/wasm-runtime` 1.2.2
 - `@nodelib/fs.scandir` 2.1.5
 - `@nodelib/fs.stat` 2.0.5
 - `@nodelib/fs.walk` 1.2.8
-- `@oxc-project/types` 0.139.0
 - `@oxc-project/types` 0.143.0
 - `@oxlint/binding-android-arm-eabi` 1.76.0 _(android/arm)_
 - `@oxlint/binding-android-arm64` 1.76.0 _(android/arm64)_
@@ -93,34 +88,19 @@ installed on whichever host happened to run the generator.
 - `@oxlint/binding-win32-arm64-msvc` 1.76.0 _(win32/arm64)_
 - `@oxlint/binding-win32-ia32-msvc` 1.76.0 _(win32/ia32)_
 - `@oxlint/binding-win32-x64-msvc` 1.76.0 _(win32/x64)_
-- `@rolldown/binding-android-arm64` 1.1.5 _(android/arm64)_
 - `@rolldown/binding-android-arm64` 1.2.3 _(android/arm64)_
-- `@rolldown/binding-darwin-arm64` 1.1.5 _(darwin/arm64)_
 - `@rolldown/binding-darwin-arm64` 1.2.3 _(darwin/arm64)_
-- `@rolldown/binding-darwin-x64` 1.1.5 _(darwin/x64)_
 - `@rolldown/binding-darwin-x64` 1.2.3 _(darwin/x64)_
-- `@rolldown/binding-freebsd-x64` 1.1.5 _(freebsd/x64)_
 - `@rolldown/binding-freebsd-x64` 1.2.3 _(freebsd/x64)_
-- `@rolldown/binding-linux-arm-gnueabihf` 1.1.5 _(linux/arm)_
 - `@rolldown/binding-linux-arm-gnueabihf` 1.2.3 _(linux/arm)_
-- `@rolldown/binding-linux-arm64-gnu` 1.1.5 _(linux/arm64)_
 - `@rolldown/binding-linux-arm64-gnu` 1.2.3 _(linux/arm64)_
-- `@rolldown/binding-linux-arm64-musl` 1.1.5 _(linux/arm64)_
 - `@rolldown/binding-linux-arm64-musl` 1.2.3 _(linux/arm64)_
-- `@rolldown/binding-linux-ppc64-gnu` 1.1.5 _(linux/ppc64)_
 - `@rolldown/binding-linux-ppc64-gnu` 1.2.3 _(linux/ppc64)_
-- `@rolldown/binding-linux-s390x-gnu` 1.1.5 _(linux/s390x)_
 - `@rolldown/binding-linux-s390x-gnu` 1.2.3 _(linux/s390x)_
-- `@rolldown/binding-linux-x64-gnu` 1.1.5 _(linux/x64)_
 - `@rolldown/binding-linux-x64-gnu` 1.2.3 _(linux/x64)_
-- `@rolldown/binding-linux-x64-musl` 1.1.5 _(linux/x64)_
 - `@rolldown/binding-linux-x64-musl` 1.2.3 _(linux/x64)_
-- `@rolldown/binding-openharmony-arm64` 1.1.5 _(openharmony/arm64)_
 - `@rolldown/binding-openharmony-arm64` 1.2.3 _(openharmony/arm64)_
-- `@rolldown/binding-wasm32-wasi` 1.1.5 _(wasm32)_
-- `@rolldown/binding-win32-arm64-msvc` 1.1.5 _(win32/arm64)_
 - `@rolldown/binding-win32-arm64-msvc` 1.2.3 _(win32/arm64)_
-- `@rolldown/binding-win32-x64-msvc` 1.1.5 _(win32/x64)_
 - `@rolldown/binding-win32-x64-msvc` 1.2.3 _(win32/x64)_
 - `@rolldown/pluginutils` 1.0.1
 - `@rolldown/pluginutils` 1.0.0-rc.3
@@ -128,7 +108,6 @@ installed on whichever host happened to run the generator.
 - `@testing-library/dom` 10.4.1
 - `@testing-library/react` 16.3.2
 - `@tweenjs/tween.js` 23.1.3
-- `@tybys/wasm-util` 0.10.3
 - `@types/aria-query` 5.0.4
 - `@types/babel__core` 7.20.5
 - `@types/babel__generator` 7.27.0
@@ -298,7 +277,6 @@ installed on whichever host happened to run the generator.
 - `read-yaml-file` 1.1.0
 - `resolve-from` 5.0.0
 - `reusify` 1.1.0
-- `rolldown` 1.1.5
 - `rolldown` 1.2.3
 - `run-parallel` 1.2.0
 - `safer-buffer` 2.1.2
@@ -326,7 +304,6 @@ installed on whichever host happened to run the generator.
 - `undici-types` 7.16.0
 - `universalify` 0.1.2
 - `update-browserslist-db` 1.3.0
-- `vite` 8.1.5
 - `vite` 8.2.1
 - `vitest` 4.1.10
 - `whatwg-mimetype` 3.0.0
@@ -462,10 +439,6 @@ installed on whichever host happened to run the generator.
 ## SEE LICENSE IN LICENSE (1)
 
 - `spawndamnit` 3.0.1
-
-## 0BSD (1)
-
-- `tslib` 2.8.1
 
 ## Deliberately excluded
 
