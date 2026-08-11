@@ -136,7 +136,39 @@ Acceptance: a sheet composes one or more viewports plus a title block from a tem
 (markup on a generated sheet resolving to an IFC GUID); `@massingcloud/pdf-viewer` is a dependency, not a fork;
 its `pdfjs-dist` worker is bundled, never CDN-loaded, so the offline claim holds.
 
-### 4. Benchmarks at scale — before any Rust decision
+### 4. Benchmarks at scale — **measured 2026-08-10, and the answer is "not yet"**
+
+`fixtures/scale.ts` generates buildings in memory rather than committing them, and `fixtures/scale.test.ts` measures
+parse → tessellate → section end to end. Run it with `SCALE=1`; the generator's own correctness tests run every PR,
+because a generator emitting subtly invalid STEP would make every number below authoritative-looking noise.
+
+| case | IFC | products | triangles | parse ms | µs/element | cut ms | µs/mesh |
+|---|---|---|---|---|---|---|---|
+| small | 0.01 MB | 16 | 192 | 10 | 625 | 7 | 438 |
+| medium | 0.07 MB | 144 | 1,728 | 85 | 590 | 14 | 97 |
+| large | 0.34 MB | 640 | 7,680 | 130 | 203 | 11 | 17 |
+| xlarge | 1.11 MB | 2,000 | 24,000 | 256 | 128 | 29 | 15 |
+
+**Cost per element falls monotonically as the model grows** — 625 → 128 µs — so the pipeline is linear or better and
+the small cases are dominated by fixed costs and JIT warm-up. Section cost per mesh flattens at ~15 µs. **Nothing
+here says the TypeScript parser is a ceiling**, which is the evidence the Rust decision was waiting for, and the
+answer at these sizes is no.
+
+Three honest limits on that conclusion, because it is the kind of result that gets over-read:
+
+- **The largest case is 1.11 MB.** The plan's motivating fixture is a *240 MB tower* — roughly 200× this. Linear
+  extrapolation at 128 µs/element puts a model that size near **a minute** of parse, which *is* the regime where a
+  Rust core would earn its toolchain. That is an extrapolation, not a measurement, and the fixture does not reach it.
+- **Absolute times vary run to run** — xlarge parse measured 138 ms and 256 ms on consecutive runs of the same code
+  on a loaded developer machine. The *shape* of the curve is the finding; the absolute numbers are not budget
+  material, which is why this reports rather than gates.
+- **Nothing here measures memory**, and peak worker memory is the other half of what breaks on a large model.
+
+What would change the decision: extending the generator past ~100,000 elements and finding per-element cost rising,
+or finding peak memory unacceptable. `massingviser`'s Python geometry pipeline (BVH picking, culling, clash, LOD) is
+the comparison to borrow rather than repeat — see ADR-0014.
+
+### 4b. What the benchmark does not yet cover
 
 Two small fixtures today, scale explicitly deferred. Generate rather than commit: small / medium / large /
 federated, with budgets measured and not guessed (`perf/README.md`'s posture). This is the gate that decides
