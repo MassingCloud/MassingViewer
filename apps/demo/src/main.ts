@@ -14,6 +14,7 @@ import {
   toDxf,
   toPdf,
   toSvg,
+  type TitleBlockFields,
 } from "@massing/drawings2d";
 import {
   DEFAULT_TOOLSET,
@@ -86,6 +87,7 @@ app.innerHTML = `
       <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
       <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
       <button id="theme" title="Repaint the plan — no regeneration" disabled>Arch</button>
+      <button id="sheet" title="Show the plan as an issued sheet: border, title block, revision table, scale bar" disabled aria-pressed="false">Sheet</button>
       <button id="delete" title="Delete the selected element (Del) — watch any markup on it orphan">Delete</button>
       <button id="pdf" title="Export the plan as a layered PDF that keeps its GlobalIds" disabled>PDF</button>
       <button id="dxf" title="Export the plan as DXF R12" disabled>DXF</button>
@@ -812,6 +814,34 @@ void startKernel();
 
 let drawing: Drawing | null = null;
 let planTheme = ARCHITECTURAL;
+/** Whether the plan pane is showing an issued sheet or bare linework. */
+let asSheet = false;
+/**
+ * A fixed date on the demo's title block.
+ *
+ * Not `new Date()`. The demo is what the E2E suite and the visual baseline drive, and a title block that stamps
+ * today's date would change the sheet every day — turning a stable baseline into a daily false alarm. The same
+ * reasoning `pdf.ts` already applies to its own creation date.
+ */
+const SHEET_DATE = "2026-08-11";
+
+/**
+ * The demo's title block, in one place.
+ *
+ * Shared between the pane toggle and the two file exports on purpose: a sheet whose PDF says one thing and whose
+ * on-screen preview says another is the drift the Semantic Drawing Model exists to prevent, and it would be the
+ * demo's own fault rather than the library's.
+ */
+const sheetFields = (name: string): TitleBlockFields => ({
+  project: "MassingViewer sample",
+  sheetName: name,
+  sheetNumber: "A-101",
+  date: SHEET_DATE,
+  drawnBy: "MV",
+  revision: "A",
+  status: "FOR REVIEW",
+  revisions: [{ rev: "A", date: SHEET_DATE, description: "Cut from the model", by: "MV" }],
+});
 
 /** The tessellated model as drawing input, carrying the identity each line must keep. */
 function planInput(): DrawingInput {
@@ -843,7 +873,14 @@ function paintPlan(): void {
   }
   // `interactive` adds the transparent fat twins that make 0.5 mm linework clickable. Without them plan↔3D
   // selection is technically present and practically unusable.
-  el("#plan-svg").innerHTML = toSvg(drawing, planTheme, paper, { interactive: true, border: true });
+  el("#plan-svg").innerHTML = toSvg(drawing, planTheme, paper, {
+    interactive: true,
+    border: true,
+    // Off by default: a title block inside a live pane is furniture around a view, not a sheet. The toggle is here
+    // because the difference between "a plan" and "an issued sheet" is the point of the feature, and a demo that
+    // only ever showed one of the two would not make it.
+    ...(asSheet ? { scaleBar: true, titleBlock: sheetFields(drawing.name) } : {}),
+  });
   highlightPlan();
 }
 
@@ -851,6 +888,7 @@ function generate(): void {
   drawing = generatePlan(planInput(), { kind: "plan", cutHeight: 1.2 });
   el("#plan-pane").hidden = false;
   el<HTMLButtonElement>("#theme").disabled = false;
+  el<HTMLButtonElement>("#sheet").disabled = false;
   el<HTMLButtonElement>("#dxf").disabled = false;
   el<HTMLButtonElement>("#pdf").disabled = false;
   paintPlan();
@@ -887,6 +925,16 @@ el("#theme").addEventListener("click", () => {
   planTheme = planTheme === ARCHITECTURAL ? FIRE_SAFETY : ARCHITECTURAL;
   el("#theme").textContent = planTheme === ARCHITECTURAL ? "Arch" : "Fire";
   // No regeneration. Same Drawing, different stylesheet.
+  paintPlan();
+});
+
+el("#sheet").addEventListener("click", () => {
+  asSheet = !asSheet;
+  // `aria-pressed` rather than a colour change alone: this is a toggle, and a toggle whose state only exists as a
+  // shade is invisible to a screen reader and to anyone who cannot see the shade.
+  el("#sheet").setAttribute("aria-pressed", String(asSheet));
+  // Also no regeneration. Sheet furniture is a render-time argument, exactly like the theme — which is the ADR-0004
+  // claim this button demonstrates rather than asserts.
   paintPlan();
 });
 
@@ -1017,7 +1065,14 @@ el("#pdf").addEventListener("click", () => {
     renderKernelPanel("this plan does not fit on A3 at any standard scale", "warn");
     return;
   }
-  const bytes = toPdf(drawing, planTheme, paper, { border: true, title: `${drawing.name} — 1:${paper.scale}` });
+  const bytes = toPdf(drawing, planTheme, paper, {
+    border: true,
+    scaleBar: true,
+    // Unconditional, unlike the pane: a downloaded PDF has no "preview" reading. It is an issued sheet or it is a
+    // file nobody can file.
+    titleBlock: sheetFields(drawing.name),
+    title: `${drawing.name} — 1:${paper.scale}`,
+  });
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
   const a = document.createElement("a");
   a.href = url;
@@ -1045,7 +1100,11 @@ el("#dxf").addEventListener("click", () => {
     renderKernelPanel("this plan does not fit on A3 at any standard scale", "warn");
     return;
   }
-  const text = toDxf(drawing, planTheme, paper);
+  const text = toDxf(drawing, planTheme, paper, {
+    border: true,
+    scaleBar: true,
+    titleBlock: sheetFields(drawing.name),
+  });
   const url = URL.createObjectURL(new Blob([text], { type: "application/dxf" }));
   const a = document.createElement("a");
   a.href = url;

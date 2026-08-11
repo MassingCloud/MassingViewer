@@ -2,6 +2,7 @@ import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
 import { layersIn } from "./model.js";
 import { type Paper, transformFor } from "./paper.js";
 import { type Theme, paintFor } from "./theme.js";
+import { sheetFurniture, type SheetItem, type TitleBlockFields } from "./sheet.js";
 
 /**
  * DXF R12 (ASCII) serialisation.
@@ -186,6 +187,70 @@ export interface DxfOptions {
    * fire-safety plan arrives with the whole building's below-cut geometry in it.
    */
   readonly includeHidden?: boolean;
+  /** The outer frame inside the paper margin. */
+  readonly border?: boolean;
+  /** Title block fields. Absent means no title block. */
+  readonly titleBlock?: TitleBlockFields;
+  /** A graphic scale bar. */
+  readonly scaleBar?: boolean;
+}
+
+/** The layer sheet furniture lands on, named the way a consultant expects to find it. */
+const SHEET_LAYER = "SHEET";
+
+/**
+ * Sheet furniture as DXF entities.
+ *
+ * **The Y flip lives here.** Furniture is declared in `sheet.ts` as millimetres with Y *down*, matching the SVG
+ * viewBox and the way a person describes a sheet; DXF is Y-up. Converting in one place is the point of declaring the
+ * convention once — the alternative is three serialisers each deciding, and a title block mirrored to the top of the
+ * page in whichever one got it wrong.
+ */
+function furnitureDxf(items: readonly SheetItem[], sheetHeight: number): string {
+  const y = (v: number): number => sheetHeight - v;
+  let out = "";
+  const line = (x1: number, y1: number, x2: number, y2: number): string =>
+    group(0, "LINE") +
+    group(8, SHEET_LAYER) +
+    group(62, 7) +
+    group(10, n(x1)) +
+    group(20, n(y(y1))) +
+    group(30, 0) +
+    group(11, n(x2)) +
+    group(21, n(y(y2))) +
+    group(31, 0);
+
+  for (const item of items) {
+    if (item.kind === "line") {
+      out += line(item.from.x, item.from.y, item.to.x, item.to.y);
+    } else if (item.kind === "rect") {
+      // Four LINEs rather than a closed POLYLINE: R12 polylines carry a vertex list and a SEQEND, and for a
+      // rectangle that is more file for no more information.
+      const { x } = item.at;
+      const top = item.at.y;
+      const bottom = item.at.y + item.height;
+      const right = x + item.width;
+      out += line(x, top, right, top) + line(right, top, right, bottom);
+      out += line(right, bottom, x, bottom) + line(x, bottom, x, top);
+    } else {
+      out +=
+        group(0, "TEXT") +
+        group(8, SHEET_LAYER) +
+        group(62, 7) +
+        group(10, n(item.at.x)) +
+        group(20, n(y(item.at.y))) +
+        group(30, 0) +
+        group(40, n(item.size)) +
+        group(1, item.text) +
+        (item.anchor === "start"
+          ? ""
+          : group(72, item.anchor === "middle" ? 1 : 2) +
+            group(11, n(item.at.x)) +
+            group(21, n(y(item.at.y))) +
+            group(31, 0));
+    }
+  }
+  return out;
 }
 
 /**
@@ -205,8 +270,17 @@ export function toDxf(drawing: Drawing, theme: Theme, paper: Paper, options: Dxf
     return q;
   };
 
+  const furniture = sheetFurniture(paper, {
+    border: options.border,
+    titleBlock: options.titleBlock,
+    scaleBar: options.scaleBar,
+  });
+
   const used = layersIn(drawing).map(layerName);
-  const layers = [...new Set(used)];
+  // Declared in the layer table, not just referenced: a DXF whose entities name an undeclared layer is accepted by
+  // AutoCAD and rejected by several other readers — the note below already records that, and furniture is subject to
+  // it too.
+  const layers = [...new Set(furniture.length > 0 ? [...used, SHEET_LAYER] : used)];
 
   let out = "";
 
@@ -239,6 +313,7 @@ export function toDxf(drawing: Drawing, theme: Theme, paper: Paper, options: Dxf
     if (paint.hidden === true && options.includeHidden !== true) continue;
     out += entityDxf(entity, layerName(entity.layer), aciFor(paint.stroke), at, t.mmPerMetre);
   }
+  out += furnitureDxf(furniture, paper.size.height);
   out += group(0, "ENDSEC");
 
   out += group(0, "EOF");

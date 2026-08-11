@@ -34,6 +34,9 @@ export type { Paper, PaperSize, Scale, ScaleLadder, Transform } from "./paper.js
 export { toSvg } from "./svg.js";
 export type { SvgOptions } from "./svg.js";
 
+export { sheetFurniture } from "./sheet.js";
+export type { Revision, SheetItem, SheetOptions, TitleBlockFields } from "./sheet.js";
+
 export { dxfLimitations, toDxf } from "./dxf.js";
 export type { DxfOptions } from "./dxf.js";
 

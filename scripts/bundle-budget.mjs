@@ -32,6 +32,35 @@ const BUDGETS_PATH = join(ROOT, "scripts", "bundle-budgets.json");
  */
 const TOLERANCE = 1.08; // 8% headroom, so a dependency patch bump does not fail the build
 
+/**
+ * Directories whose contents, if newer than the build, mean the build is not of this source tree.
+ *
+ * Added after this gate did both of the two things a stale measurement can do, in one sitting. It reported a **30 KB
+ * regression that did not exist** — a leftover entry chunk from an earlier build was still in `dist`, so the total
+ * counted two entries — and then, after the directory was cleaned, it reported a **passing number for a bundle built
+ * from different source**, because it never builds and simply measures whatever is on disk.
+ *
+ * The false pass is the dangerous one: the gate exists to catch growth, and a gate that silently measures yesterday's
+ * output cannot. CI happens to build immediately beforehand, so this only ever bites locally — which is exactly where
+ * someone decides whether a number is worth investigating.
+ */
+const SOURCES = ["apps/demo/src", "packages"];
+
+/** Newest mtime under a directory, skipping `node_modules` and `dist` — build outputs are not inputs. */
+function newestMtime(dir) {
+  let newest = 0;
+  const walk = (path) => {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "dist") continue;
+      const full = join(path, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else newest = Math.max(newest, statSync(full).mtimeMs);
+    }
+  };
+  if (existsSync(dir)) walk(dir);
+  return newest;
+}
+
 const targets = [
   {
     name: "demo shell",
@@ -86,6 +115,20 @@ for (const target of targets) {
   const html = join(ROOT, target.html);
   if (!existsSync(html)) {
     problems.push(`${target.name}: ${target.html} does not exist — run the build first`);
+    continue;
+  }
+
+  // Refuse to measure a build older than the source it claims to be a build of. Reported as a problem rather than a
+  // warning, because the whole output below would otherwise be a number about a different tree.
+  const builtAt = statSync(html).mtimeMs;
+  const sourceAt = Math.max(...SOURCES.map((s) => newestMtime(join(ROOT, s))));
+  if (sourceAt > builtAt) {
+    const age = Math.round((sourceAt - builtAt) / 1000);
+    problems.push(
+      `${target.name}: the build in ${target.dir} is ${age}s older than the sources it was built from.\n` +
+        `          Every number below would describe a different tree. Run:\n` +
+        `              npm run build --workspace @massing/demo`,
+    );
     continue;
   }
 

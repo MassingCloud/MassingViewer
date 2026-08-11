@@ -1,6 +1,7 @@
 import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
 import { type Paper, type Transform, transformFor } from "./paper.js";
 import { type Paint, type Theme, paintFor } from "./theme.js";
+import { sheetFurniture, type TitleBlockFields } from "./sheet.js";
 
 /**
  * PDF 1.7 serialisation — the third pure function of `(Drawing, Theme, Paper)`.
@@ -44,6 +45,10 @@ import { type Paint, type Theme, paintFor } from "./theme.js";
 
 export interface PdfOptions {
   readonly border?: boolean;
+  /** Title block fields. Absent means no title block. */
+  readonly titleBlock?: TitleBlockFields;
+  /** A graphic scale bar. */
+  readonly scaleBar?: boolean;
   readonly title?: string;
   readonly author?: string;
   readonly subject?: string;
@@ -374,12 +379,49 @@ export function toPdf(drawing: Drawing, theme: Theme, paper: Paper, options: Pdf
   // anything other than white lose their contrast. The SVG does the same for the same reason.
   content.push(`q\n1 1 1 rg\n0 0 ${pt(widthPt)} ${pt(heightPt)} re\nf\nQ`);
 
-  if (options.border === true) {
-    const m = paper.margin * MM_TO_PT;
-    content.push(
-      `q\n0.0667 0.0667 0.0667 RG\n${pt(0.35 * MM_TO_PT)} w\n` +
-        `${pt(m)} ${pt(m)} ${pt(widthPt - m * 2)} ${pt(heightPt - m * 2)} re\nS\nQ`,
-    );
+  /**
+   * Sheet furniture — border, title block, revision table, scale bar.
+   *
+   * **The Y flip lives here**, as it does in `dxf.ts`. `sheet.ts` declares furniture in millimetres with Y *down*,
+   * matching the SVG viewBox and the way a person describes a sheet; PDF is Y-up, so a page height minus the
+   * furniture's y is the conversion. One visible place per serialiser, rather than three layouts that drift.
+   *
+   * Deliberately outside the layer OCGs below: a reader toggling "A-WALL" off must not take the title block with it,
+   * and furniture has no drawing layer to belong to.
+   */
+  const furniture = sheetFurniture(paper, {
+    border: options.border,
+    titleBlock: options.titleBlock,
+    scaleBar: options.scaleBar,
+  });
+  if (furniture.length > 0) {
+    const fy = (v: number): number => heightPt - v * MM_TO_PT;
+    const fx = (v: number): number => v * MM_TO_PT;
+    content.push(`q\n0.0667 0.0667 0.0667 RG\n0.0667 0.0667 0.0667 rg`);
+    for (const item of furniture) {
+      if (item.kind === "line") {
+        content.push(
+          `${pt(item.weight * MM_TO_PT)} w\n${pt(fx(item.from.x))} ${pt(fy(item.from.y))} m ` +
+            `${pt(fx(item.to.x))} ${pt(fy(item.to.y))} l\nS`,
+        );
+      } else if (item.kind === "rect") {
+        // `re` takes a lower-left corner, and the furniture's `at` is the *upper* left — so the height comes off the
+        // flipped y. Getting this wrong draws every box one box-height too high.
+        content.push(
+          `${pt(item.weight * MM_TO_PT)} w\n${pt(fx(item.at.x))} ${pt(fy(item.at.y + item.height))} ` +
+            `${pt(fx(item.width))} ${pt(fx(item.height))} re\nS`,
+        );
+      } else {
+        const size = item.size * MM_TO_PT;
+        const width = textWidth(item.text, size);
+        const shift = item.anchor === "middle" ? -width / 2 : item.anchor === "end" ? -width : 0;
+        content.push(
+          `BT\n/F1 ${pt(size)} Tf\n${pt(fx(item.at.x) + shift)} ${pt(fy(item.at.y))} Td\n` +
+            `${str(item.text)} Tj\nET`,
+        );
+      }
+    }
+    content.push("Q");
   }
 
   for (const layer of layers) {

@@ -1,6 +1,7 @@
 import type { Drawing, DrawingEntity, EntityGeometry, Point } from "./model.js";
 import { type Paper, type Transform, toPaper, toPaperLength, transformFor } from "./paper.js";
 import { type Paint, type Theme, paintFor } from "./theme.js";
+import { sheetFurniture, type SheetItem, type TitleBlockFields } from "./sheet.js";
 
 /**
  * SVG serialisation: a pure function of `(Drawing, Theme, Paper)`.
@@ -46,8 +47,46 @@ export interface SvgOptions {
   readonly interactive?: boolean;
   /** Draw the sheet border. */
   readonly border?: boolean;
+  /**
+   * Title block fields. Absent means no title block — a viewer pane wants the linework alone.
+   *
+   * Paper-space furniture, built by `sheetFurniture`, so SVG, DXF and PDF cannot each grow a layout of their own.
+   */
+  readonly titleBlock?: TitleBlockFields;
+  /** A graphic scale bar, which survives being printed "to fit" in a way the numeric ratio does not. */
+  readonly scaleBar?: boolean;
   /** Set as the SVG title, for accessibility. Defaults to the drawing's name. */
   readonly title?: string;
+}
+
+/**
+ * One piece of sheet furniture as SVG.
+ *
+ * Furniture is already in millimetres with Y **down** — the same convention as the viewBox — so no transform is
+ * applied here. That is the whole reason `sheet.ts` declares Y-down: this serialiser needs no conversion, and the two
+ * that do (DXF and PDF, both Y-up) flip in one visible place instead of every serialiser inventing a layout.
+ *
+ * Text is escaped through `xml()` like every other string in this file: title-block fields are user-supplied — a
+ * project name comes from whoever set up the job — so this is the same untrusted-input path as an element name.
+ */
+function sheetItemSvg(item: SheetItem): string {
+  if (item.kind === "line") {
+    return (
+      `<line x1="${mm(item.from.x)}" y1="${mm(item.from.y)}" x2="${mm(item.to.x)}" y2="${mm(item.to.y)}" ` +
+      `stroke-width="${item.weight}"/>`
+    );
+  }
+  if (item.kind === "rect") {
+    return (
+      `<rect x="${mm(item.at.x)}" y="${mm(item.at.y)}" width="${mm(item.width)}" height="${mm(item.height)}" ` +
+      `fill="none" stroke-width="${item.weight}"/>`
+    );
+  }
+  return (
+    `<text x="${mm(item.at.x)}" y="${mm(item.at.y)}" font-size="${item.size}" ` +
+    `font-family="Helvetica, Arial, sans-serif" text-anchor="${item.anchor}" ` +
+    `${item.bold === true ? `font-weight="600" ` : ""}fill="#111111" stroke="none">${xml(item.text)}</text>`
+  );
 }
 
 /** Escape text for XML content and attribute values. */
@@ -175,12 +214,18 @@ export function toSvg(drawing: Drawing, theme: Theme, paper: Paper, options: Svg
   // other than white paper loses its lightest lines.
   out.push(`<rect x="0" y="0" width="${mm(size.width)}" height="${mm(size.height)}" fill="#ffffff"/>`);
 
-  if (options.border === true) {
-    const m = paper.margin;
-    out.push(
-      `<rect x="${mm(m)}" y="${mm(m)}" width="${mm(size.width - m * 2)}" height="${mm(size.height - m * 2)}" ` +
-        `fill="none" stroke="#111111" stroke-width="0.35" data-role="sheet"/>`,
-    );
+  // Furniture before linework, so the drawing sits on top of the border rather than under it.
+  const furniture = sheetFurniture(paper, {
+    border: options.border,
+    titleBlock: options.titleBlock,
+    scaleBar: options.scaleBar,
+  });
+  if (furniture.length > 0) {
+    // One group, still marked `data-role="sheet"` as the bare border was, so a host that hides sheet furniture to
+    // show the drawing alone keeps working and a theme's layer toggles never reach it.
+    out.push(`<g data-role="sheet" stroke="#111111">`);
+    for (const item of furniture) out.push(sheetItemSvg(item));
+    out.push(`</g>`);
   }
 
   // Grouped by layer, so layer visibility is a CSS toggle on a `<g>` and DXF export has its tables ready.

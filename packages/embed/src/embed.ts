@@ -22,6 +22,7 @@ import {
   type ElementMesh,
   type Paper,
   type Theme,
+  type TitleBlockFields,
   type ViewDefinition,
 } from "@massing/drawings2d";
 import { createDropTarget, sniff, supportFor, type DropTarget, type OpenedFile } from "@massing/fileio";
@@ -212,7 +213,18 @@ export interface MassingViewer {
   /** The most recently cut drawing. */
   readonly drawing: Drawing | null;
   /** Serialise the current drawing. Throws only if nothing has been cut. */
-  export(format: ExportFormat, theme?: Theme, paper?: Paper): string | Uint8Array;
+  /**
+   * Serialise the current drawing.
+   *
+   * `sheetOptions` carries the title block. DXF and PDF get a border, a title block and a scale bar; the interactive
+   * SVG deliberately gets none, because that one is the app's own pane and furniture around a live view is noise.
+   */
+  export(
+    format: ExportFormat,
+    theme?: Theme,
+    paper?: Paper,
+    sheetOptions?: { readonly titleBlock?: TitleBlockFields; readonly scaleBar?: boolean },
+  ): string | Uint8Array;
 
   select(guid: Guid | null): void;
   readonly selection: Guid | null;
@@ -740,13 +752,31 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
       return drawing;
     },
 
-    export(format, theme = ARCHITECTURAL, paper) {
+    export(format, theme = ARCHITECTURAL, paper, sheetOptions) {
       if (drawing === null) throw new Error("nothing to export — call cut() first");
       const sheet = paper ?? fitToPaper(drawing, PAPER_SIZES.find((p) => p.name === "A3")!, 10);
       if (sheet === null) throw new Error("this drawing does not fit on A3 at any standard scale");
+      /**
+       * An exported sheet gets a border and a title block; the interactive SVG does not.
+       *
+       * The same drawing serves two purposes, and they want opposite furniture. A pane inside the app is a *view* —
+       * a title block floating in a panel is noise. A file that leaves the building is a *sheet*, and one without a
+       * project name, a sheet number and a revision is not issuable, whatever the linework looks like.
+       *
+       * The title block's own fields default to the drawing rather than to nothing, so an export that names none of
+       * them still carries the scale, the view name and a date instead of an empty block.
+       */
+      const furniture = {
+        border: true,
+        scaleBar: sheetOptions?.scaleBar ?? true,
+        titleBlock: {
+          sheetName: drawing.name,
+          ...sheetOptions?.titleBlock,
+        },
+      };
       if (format === "svg") return toSvg(drawing, theme, sheet, { interactive: true });
-      if (format === "dxf") return toDxf(drawing, theme, sheet);
-      return toPdf(drawing, theme, sheet, { border: true });
+      if (format === "dxf") return toDxf(drawing, theme, sheet, furniture);
+      return toPdf(drawing, theme, sheet, furniture);
     },
 
     addModel(model) {

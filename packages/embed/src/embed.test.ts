@@ -856,3 +856,64 @@ describe("cutting indexed geometry, which is what a tessellator produces", () =>
     viewer.dispose();
   });
 });
+
+describe("an exported sheet carries a title block; the app's own pane does not", () => {
+  /**
+   * The same drawing serves two purposes that want opposite furniture.
+   *
+   * A pane inside the application is a *view*: a title block floating in a panel is noise, which is the complaint
+   * that started this work from the other direction. A file that leaves the building is a *sheet*, and one with no
+   * project name, sheet number or revision is not issuable however good the linework is.
+   */
+  const cutOne = async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    expect(viewer.cut({ kind: "plan", cutHeight: 0.5 })).not.toBeNull();
+    return viewer;
+  };
+
+  it("puts the caller's fields into an exported PDF", async () => {
+    const viewer = await cutOne();
+    const pdf = viewer.export("pdf", undefined, undefined, {
+      titleBlock: { project: "Tower A", sheetNumber: "A-101", revision: "C" },
+    }) as Uint8Array;
+    const text = new TextDecoder("latin1").decode(pdf);
+    for (const field of ["Tower A", "A-101", "PROJECT", "SHEET"]) {
+      expect(text, `the exported PDF has no ${field}`).toContain(field);
+    }
+    viewer.dispose();
+  });
+
+  it("puts them into an exported DXF too, so the two delivery formats agree", async () => {
+    // Export is meant to be three pure functions of the same inputs. A title block present in the PDF and absent
+    // from the DXF would be exactly the parallel-path drift the Semantic Drawing Model exists to prevent.
+    const viewer = await cutOne();
+    const dxf = viewer.export("dxf", undefined, undefined, {
+      titleBlock: { project: "Tower A", sheetNumber: "A-101" },
+    }) as string;
+    expect(dxf).toContain("Tower A");
+    expect(dxf).toContain("A-101");
+    expect(dxf, "sheet furniture is not on its own layer").toContain("SHEET");
+    viewer.dispose();
+  });
+
+  it("leaves the interactive SVG free of sheet furniture", async () => {
+    const viewer = await cutOne();
+    const svg = viewer.export("svg", undefined, undefined, { titleBlock: { project: "Tower A" } }) as string;
+    expect(svg, "the app's own pane grew a title block").not.toContain("PROJECT");
+    // And it keeps the thing it exists for: clickable, identity-carrying linework.
+    expect(svg).toContain("data-guid");
+    viewer.dispose();
+  });
+
+  it("falls back to the drawing's own name rather than an empty block", async () => {
+    // An export that names no fields should still say what the sheet is and at what scale. An empty title block is
+    // worse than none: it looks like an issued sheet whose information was lost.
+    const viewer = await cutOne();
+    const pdf = viewer.export("pdf") as Uint8Array;
+    const text = new TextDecoder("latin1").decode(pdf);
+    expect(text, "the exported sheet does not name the drawing").toContain("Plan");
+    expect(text, "the exported sheet does not state its scale").toContain("1:");
+    viewer.dispose();
+  });
+});

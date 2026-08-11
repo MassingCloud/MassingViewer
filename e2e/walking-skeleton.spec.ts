@@ -1194,3 +1194,43 @@ test("selecting any band of a pierced wall selects the whole wall", async ({ pag
   expect(guids).toHaveLength(3);
   expect(new Set(guids).size, "the bands of one wall disagree about their GlobalId").toBe(1);
 });
+
+test("the Sheet toggle turns a plan into an issued sheet, without re-cutting it", async ({ page }) => {
+  /**
+   * ADR-0004's claim, demonstrated in a browser rather than asserted in a doc comment: paper is a **render-time**
+   * concern, so a title block is an argument to the serialiser and not a regeneration.
+   *
+   * The observable is that the linework comes back byte-identical across the toggle while the furniture appears.
+   *
+   * Stated precisely, because the title overclaims slightly: this proves the *output* did not change, not that
+   * `generatePlan` was never called. A deterministic re-cut would produce the same bytes. What it does catch is the
+   * failure that matters to a user — furniture arriving and the drawing shifting underneath it — and it catches a
+   * toggle that silently does nothing.
+   */
+  await cutPlan(page);
+
+  const linework = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("#plan-svg [data-guid]:not([data-hit])")].map((n) => n.getAttribute("d")).join("|"),
+    );
+
+  const before = await linework();
+  expect(await page.locator("#plan-svg text").count(), "the plan pane already has a title block").toBe(0);
+
+  await page.locator("#sheet").dispatchEvent("click");
+  await expect(page.locator("#sheet")).toHaveAttribute("aria-pressed", "true");
+
+  // The title block, the revision table and the scale bar, by their labels rather than by coordinates — a layout
+  // assertion here would break on every spacing change and tell nobody anything.
+  const sheetText = await page.locator("#plan-svg").innerText().catch(async () => page.locator("#plan-svg").textContent());
+  for (const field of ["PROJECT", "DRAWING TITLE", "SHEET", "REV", "STATUS", "DESCRIPTION"]) {
+    expect(sheetText ?? "", `the sheet has no ${field}`).toContain(field);
+  }
+
+  expect(await linework(), "the plan was re-cut instead of re-rendered").toBe(before);
+
+  // And back, because a toggle that cannot be un-pressed is a one-way door.
+  await page.locator("#sheet").dispatchEvent("click");
+  await expect(page.locator("#sheet")).toHaveAttribute("aria-pressed", "false");
+  expect(await page.locator("#plan-svg text").count(), "the furniture did not come off again").toBe(0);
+});
