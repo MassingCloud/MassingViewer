@@ -107,6 +107,33 @@ Two gate defects surfaced on the way, both of which had been quietly wrong befor
 **Not claimed:** that WebGPU is faster here. Nothing in this repository has measured it. The scale fixtures in the
 roadmap come first precisely so the claim can be made from numbers instead of from the specification.
 
+## Amendment, 2026-08-11: the fallback was not transparent, and that had to be measured too
+
+This ADR assumed without saying so that *choosing* WebGL2 looks exactly like never having tried WebGPU. It did not.
+
+On a host that advertises `navigator.gpu` but has no obtainable adapter, the seam imported `three/webgpu`,
+constructed a `WebGPURenderer`, and awaited an `init()` that failed. The WebGL2 renderer built afterwards then drew
+a **measurably different picture** — a deterministic silhouette shift, byte-identical on Windows and on Linux CI,
+which turned the nightly visual gate red from the seam's own commit onwards. Four commits shipped over it, because
+the gate is nightly and nobody runs it locally.
+
+Narrowed by elimination rather than by reading three's source: importing `three/webgpu` alone changed nothing;
+constructing the renderer alone changed nothing; `init()` was the step that moved the picture. The precise global
+state it mutates is still unidentified — what is established is that a failed initialisation is not free.
+
+The fix asks `requestAdapter()` **before** importing or constructing anything, and reports "advertised but no
+adapter" as `degraded: false` — because nothing failed, and a device with no GPU getting WebGL2 is this ADR working,
+not this ADR being disappointed. `degraded: true` is now reserved for an adapter that exists and still will not
+initialise.
+
+That remaining path is **not proven transparent** — it cannot be reached on any machine available here, which is why
+the seam is injectable in the first place. If the visual gate ever moves again without a geometry change, this is
+the first thing to suspect.
+
+The general lesson is the one the bundle-budget entry above already records in a different costume: a fallback is a
+behaviour, and an untested behaviour that only runs on hardware you do not have is an assumption wearing a
+implementation's clothes.
+
 ## Alternatives rejected
 
 - **Keep WebGL2 only.** Defensible until Safari 26; now it forgoes compute-driven culling, large point clouds and

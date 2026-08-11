@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRenderer, type WebGpuProbe } from "./renderer.js";
+import { createRenderer, NoWebGpuAdapter, type WebGpuProbe } from "./renderer.js";
 
 /**
  * Tests for the renderer seam's *selection*, which is the only part of it that can be tested off hardware.
@@ -80,5 +80,40 @@ describe("createRenderer", () => {
     );
     expect(choice.reason).toContain("Adapter lost.");
     expect(choice.reason).not.toContain("at Foo");
+  });
+});
+
+describe("no adapter, which is not the same as a failure", () => {
+  /**
+   * The distinction this branch exists for, learned the expensive way.
+   *
+   * `navigator.gpu` being present says the *browser* supports WebGPU, not that the *machine* can provide it. A
+   * headless container, a missing Vulkan driver or a blocklisted device all advertise it and then hand back no
+   * adapter. Treating that as "WebGPU failed" mislabels the ordinary case as a degradation.
+   *
+   * It also has to be caught *early*. A `WebGPURenderer.init()` that fails does not leave the page as it found it:
+   * on this project it deterministically changed what the WebGL2 renderer drew afterwards, on two operating
+   * systems, and turned the nightly visual gate red for four commits. Asking for the adapter first is what keeps
+   * the fallback transparent — which is the property ADR-0012 actually promises.
+   */
+  it("reports WebGL2 without calling it degraded", async () => {
+    const { choice } = await createRenderer(
+      probe({ create: () => Promise.reject(new NoWebGpuAdapter()) }),
+      fakeRenderer,
+    );
+    expect(choice.backend).toBe("webgl2");
+    expect(choice.degraded, "no adapter is not a degradation — nothing failed").toBe(false);
+    expect(choice.reason).toContain("no adapter");
+  });
+
+  it("still reports degraded for a real initialisation failure, so the two do not collapse into one", async () => {
+    // The guard against over-correcting: if every WebGPU disappointment became "no adapter", the degraded signal
+    // ADR-0012 requires would never fire again, and the silent-fallback problem would be back with a nicer message.
+    const { choice } = await createRenderer(
+      probe({ create: () => Promise.reject(new Error("Device lost")) }),
+      fakeRenderer,
+    );
+    expect(choice.degraded).toBe(true);
+    expect(choice.reason).toContain("Device lost");
   });
 });

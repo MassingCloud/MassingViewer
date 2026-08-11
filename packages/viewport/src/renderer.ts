@@ -58,12 +58,46 @@ export interface WebGpuProbe {
   create(): Promise<THREE.WebGLRenderer>;
 }
 
-/** The default probe: `navigator.gpu`, then three's own WebGPU renderer. */
+/**
+ * Thrown when `navigator.gpu` exists but hands back no adapter.
+ *
+ * A distinct type because that is not a failure — it is the browser correctly reporting that this machine has no
+ * usable GPU for WebGPU (no Vulkan driver, a blocklisted device, a headless container). Reporting it as a degradation
+ * would cry wolf on exactly the hosts where WebGL2 is the right answer.
+ */
+export class NoWebGpuAdapter extends Error {
+  constructor() {
+    super("navigator.gpu is present but requestAdapter() returned null");
+    this.name = "NoWebGpuAdapter";
+  }
+}
+
+/** The default probe: `navigator.gpu`, then an adapter, then three's own WebGPU renderer. */
 export function browserWebGpuProbe(): WebGpuProbe {
   return {
     available: () =>
       typeof navigator !== "undefined" && (navigator as { gpu?: unknown }).gpu !== undefined,
     create: async () => {
+      /**
+       * Ask for an adapter **before** importing or constructing anything.
+       *
+       * Measured, not defensive: a `WebGPURenderer.init()` that fails does *not* leave the page as it found it. On a
+       * host advertising `navigator.gpu` with no obtainable adapter, attempting and failing changed what the
+       * subsequently-created WebGL2 renderer drew — a deterministic silhouette shift, identical on Windows and on
+       * Linux CI, which turned the nightly visual gate red. Bisected to this attempt, then narrowed by elimination:
+       * importing `three/webgpu` alone did nothing, constructing the renderer alone did nothing, and `init()` was
+       * the step that moved the picture.
+       *
+       * So the fallback was not transparent, and ADR-0012 requires that it be: choosing WebGL2 must look exactly
+       * like never having tried. Checking the adapter first avoids the whole sequence in the common
+       * advertised-but-unusable case. It does not *prove* transparency when an adapter exists and `init()` still
+       * fails — that path remains reported as `degraded`, and is the one to suspect if this ever recurs.
+       */
+      const adapter = await (
+        navigator as unknown as { gpu: { requestAdapter(): Promise<unknown | null> } }
+      ).gpu.requestAdapter();
+      if (adapter === null || adapter === undefined) throw new NoWebGpuAdapter();
+
       // Imported lazily, and this is load-bearing rather than tidy: `three/webgpu` is a separate ~1 MB entry
       // point, and a static import would ship it to every WebGL-only visitor — the exact cost the bundle budget
       // exists to catch. A dynamic import keeps it out of the shell chunk.
@@ -111,6 +145,18 @@ export async function createRenderer(
       choice: { backend: "webgpu", reason: "WebGPU.", degraded: false },
     };
   } catch (error) {
+    if (error instanceof NoWebGpuAdapter) {
+      return {
+        renderer: makeWebGl(),
+        choice: {
+          backend: "webgl2",
+          reason: "WebGPU is advertised but this device offers no adapter; using WebGL2.",
+          // Not degraded, for the same reason absent WebGPU is not: nothing failed. The browser said it could not
+          // supply a GPU, and WebGL2 is the correct answer rather than a consolation.
+          degraded: false,
+        },
+      };
+    }
     const why = error instanceof Error ? error.message.split(/\r?\n/)[0] : String(error);
     return {
       renderer: makeWebGl(),
