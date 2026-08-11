@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { asModelId } from "@massing/core";
 import type { KernelProvider } from "@massing/kernel-api";
+import { guidsIn } from "@massing/drawings2d";
 import { createMassingViewer, type MassingViewer } from "./embed.js";
 import { SEAM, seamCoverage, seamSummary } from "./seam.js";
 
@@ -136,24 +137,53 @@ vi.mock("@massing/viewport", () => ({
   // and fail in production: `await someObject` resolves to the object, so the facade would work against the fake and
   // hold a `Promise<Viewport>` against the real one. The mock has to be the same shape as the thing it stands in for.
   createViewport: async () => {
-    const listeners: ((ids: readonly number[]) => void)[] = [];
+    const listeners: ((refs: readonly { modelId: string; expressId: number }[]) => void)[] = [];
     let disposed = 0;
+    /**
+     * A **real** registry, not a stub returning fixed values.
+     *
+     * The federation facade's job is bookkeeping across models, so a mock whose `models` is a hardcoded array would
+     * let every one of those tests pass while the real viewport was never told about the second model. Keeping an
+     * actual Map here is what makes "the facade forgot to call `addModel`" a failure.
+     */
+    const registry = new Map<string, { visible: boolean }>();
+    const build = (meshes: readonly unknown[]) => ({
+      group: {},
+      elements: meshes.map((_, i) => ({ expressId: i + 1, guid: null, ifcType: "IFCWALL", object: {} })),
+      unresolved: [],
+      triangles: meshes.length * 2,
+      bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } },
+    });
     return {
       scene: {},
       camera: {},
       renderer: {},
-      showModel: (meshes: readonly unknown[]) => ({
-        group: {},
-        elements: meshes.map((_, i) => ({ expressId: i + 1, guid: null, ifcType: "IFCWALL", object: {} })),
-        unresolved: [],
-        triangles: meshes.length * 2,
-        bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } },
-      }),
+      showModel: (meshes: readonly unknown[], _guid: unknown, id: string) => {
+        registry.clear();
+        registry.set(id, { visible: true });
+        return build(meshes);
+      },
+      addModel: (meshes: readonly unknown[], _guid: unknown, id: string) => {
+        registry.set(id, { visible: registry.get(id)?.visible ?? true });
+        return build(meshes);
+      },
+      removeModel: (id: string) => registry.delete(id),
+      get models() {
+        return [...registry.keys()];
+      },
+      setModelVisible: (id: string, visible: boolean) => {
+        const entry = registry.get(id);
+        if (entry === undefined) return false;
+        entry.visible = visible;
+        return true;
+      },
+      isModelVisible: (id: string) => registry.get(id)?.visible ?? null,
+      setModelTransform: (id: string) => registry.has(id),
       fit: () => {},
       pick: () => null,
       select: () => {},
       selection: [],
-      onSelect: (fn: (ids: readonly number[]) => void) => {
+      onSelect: (fn: (refs: readonly { modelId: string; expressId: number }[]) => void) => {
         listeners.push(fn);
         return () => void listeners.splice(listeners.indexOf(fn), 1);
       },
@@ -592,6 +622,237 @@ describe("showMeshes", () => {
     const result = await viewer.open(IFC, "Tower-A.ifc");
     expect(result.ok).toBe(true);
     expect(opened).toHaveLength(1);
+    viewer.dispose();
+  });
+});
+
+// ===================================================================================================
+// Federation at the facade — ADR-0013's last mile
+// ===================================================================================================
+
+/**
+ * A closed unit box with a chosen expressId and guid, so two models can deliberately collide on the id.
+ *
+ * A **box**, not the flat quad the tests above use. A zero-thickness surface has no closed section, so cutting it
+ * yields a drawing with no element-derived geometry — which made the labelling test below fail for a reason that had
+ * nothing to do with labelling. The other tests here never cut, so a quad was enough for them.
+ */
+const boxAs = (expressId: number, guid: string) => ({
+  meshes: [
+    {
+      expressId,
+      ifcType: "IFCWALL",
+      // 8 corners: y=0 face first, then y=1. Cut at y=0.5 and the section is a real loop.
+      positions: new Float32Array([
+        0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, //
+        0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1,
+      ]),
+      normals: new Float32Array(24),
+      indices: new Uint32Array([
+        0, 2, 1, 0, 3, 2, // bottom
+        4, 5, 6, 4, 6, 7, // top
+        0, 1, 5, 0, 5, 4, // z = 0
+        3, 7, 6, 3, 6, 2, // z = 1
+        0, 4, 7, 0, 7, 3, // x = 0
+        1, 2, 6, 1, 6, 5, // x = 1
+      ]),
+      color: [0.8, 0.8, 0.8, 1] as const,
+    },
+  ],
+  guids: new Map([[expressId, guid]]),
+});
+
+const ARCH_GUID = "0aBcDeFgHiJkLmNoPqRsTu";
+const STRUCT_GUID = "1zYxWvUtSrQpOnMlKjIhGf";
+const STRUCT = asModelId("struct");
+
+describe("federation at the facade", () => {
+  it("adds a model beside the reference model rather than replacing it", async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    const added = viewer.addModel({ modelId: STRUCT, ...boxAs(1, STRUCT_GUID) });
+
+    expect(added).toEqual({ ok: true, elements: 1 });
+    expect(viewer.models).toEqual([asModelId("m"), STRUCT]);
+    viewer.dispose();
+  });
+
+  it("keeps showMeshes as REPLACE, so a single-model host is unchanged", async () => {
+    // The compatibility promise. showMeshes has always meant "show this instead", and federation must not quietly
+    // turn every load into an accumulation — a host calling it in a loop would end up with a scene full of history.
+    const { viewer } = await mount();
+    viewer.addModel({ modelId: STRUCT, ...boxAs(1, STRUCT_GUID) });
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    expect(viewer.models).toEqual([asModelId("m")]);
+    viewer.dispose();
+  });
+
+  it("cuts a plan that labels each model's element with ITS OWN GlobalId", async () => {
+    /**
+     * The bug this design exists to prevent, and the one a union-of-meshes shortcut would have shipped.
+     *
+     * Both models here contain expressId 1 — ordinary, because expressIds are per file. Handing the union to a single
+     * expressId-to-guid map would label one model's wall with the other's GlobalId. The drawing would look correct
+     * and its data-guid attributes would point at the wrong building: markup anchored from that plan would land on
+     * another consultant's element, and nothing would report it.
+     */
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(1, STRUCT_GUID) });
+
+    const drawing = viewer.cut({ kind: "plan", cutHeight: 0.5 });
+    expect(drawing, "nothing was cut, so the labelling assertion below would be vacuous").not.toBeNull();
+    // guidsIn is the package's own accessor. My first attempt invented an `e.guids` array that does not exist, so
+    // the set came back empty and the test failed for a reason unrelated to what it is about.
+    const guids = new Set(guidsIn(drawing!));
+    expect(guids, "the architectural element lost its GlobalId").toContain(ARCH_GUID);
+    expect(guids, "the structural element was labelled with the wrong model's GlobalId").toContain(STRUCT_GUID);
+    viewer.dispose();
+  });
+
+  it("reports a duplicate GlobalId across models instead of resolving it silently", async () => {
+    // IFC requires GlobalIds to be unique, and real exporters break that. Refusing the file would stop the user
+    // looking at their own building; resolving it silently would put their markup on the wrong element. Saying so is
+    // the only option that does neither.
+    const warnings: string[] = [];
+    const { viewer } = await mount({
+      onStatus: (m: string, kind: string) => {
+        if (kind === "warn") warnings.push(m);
+      },
+    });
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(7, ARCH_GUID) });
+
+    expect(warnings.join(" "), "a duplicate GlobalId passed without a word").toContain(ARCH_GUID);
+    viewer.dispose();
+  });
+
+  it("does not repoint the kernel at an added model", async () => {
+    /**
+     * The judgement worth pinning, because the opposite is defensible until you say it out loud.
+     *
+     * showMeshes hands the kernel its model, since a viewer whose kernel holds a different file edits something the
+     * user is not looking at. A federation has no equivalent answer — an authoring kernel edits *one* file — so
+     * following the most recent arrival would mean a consultant's reference model becomes the edit target simply by
+     * being loaded second.
+     */
+    const { viewer, opened } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { ifc: IFC } });
+    const afterReference = opened.length;
+    viewer.addModel({ modelId: STRUCT, ...boxAs(1, STRUCT_GUID) });
+    expect(opened.length, "adding a reference model repointed the kernel at it").toBe(afterReference);
+    viewer.dispose();
+  });
+
+  it("treats an anchor as live if the element exists in ANY loaded model", async () => {
+    // Orphan detection scoped to one model would report every consultant-model anchor as orphaned the moment
+    // federation was used — the markup equivalent of the selection bug.
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(1, STRUCT_GUID) });
+
+    viewer.select(STRUCT_GUID as never);
+    const topic = viewer.raise({ title: "on the structural model" });
+    expect(topic, "nothing was raised, so the orphan assertion would be vacuous").not.toBeNull();
+    expect(viewer.orphans, "an anchor into a federated model was called orphaned").toEqual([]);
+    viewer.dispose();
+  });
+
+  it("unloads a model, and drops a selection that lived in it", async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(2, STRUCT_GUID) });
+    viewer.select(STRUCT_GUID as never);
+    expect(viewer.selection).toBe(STRUCT_GUID);
+
+    expect(viewer.removeModel(STRUCT)).toBe(true);
+    expect(viewer.models).toEqual([asModelId("m")]);
+    expect(viewer.selection, "a selection survived the unloading of the model holding it").toBeNull();
+    // False rather than throwing, so a host reacting to a websocket message need not guard.
+    expect(viewer.removeModel(STRUCT)).toBe(false);
+    viewer.dispose();
+  });
+
+  it("keeps a selection that lives in a model that was NOT unloaded", async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(2, STRUCT_GUID) });
+    viewer.select(ARCH_GUID as never);
+
+    viewer.removeModel(STRUCT);
+    expect(viewer.selection, "unloading one model cleared an unrelated selection").toBe(ARCH_GUID);
+    viewer.dispose();
+  });
+
+  it("invalidates a drawing when the federation changes under it", async () => {
+    // A drawing is a view of a set of models. Keeping it after one arrives or leaves would let export() emit a sheet
+    // of a scene that no longer exists, which is worse than making the caller re-cut.
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    expect(viewer.cut({ kind: "plan", cutHeight: 0.5 })).not.toBeNull();
+
+    viewer.addModel({ modelId: STRUCT, ...boxAs(2, STRUCT_GUID) });
+    expect(viewer.drawing, "a drawing cut before a model arrived still described the old federation").toBeNull();
+
+    viewer.cut({ kind: "plan", cutHeight: 0.5 });
+    viewer.removeModel(STRUCT);
+    expect(viewer.drawing, "a drawing survived the removal of a model it was cut from").toBeNull();
+    viewer.dispose();
+  });
+
+  it("hides one model without touching the other", async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+    viewer.addModel({ modelId: STRUCT, ...boxAs(2, STRUCT_GUID) });
+
+    expect(viewer.setModelVisible(STRUCT, false)).toBe(true);
+    expect(viewer.isModelVisible(STRUCT)).toBe(false);
+    expect(viewer.isModelVisible(asModelId("m"))).toBe(true);
+    expect(viewer.isModelVisible(asModelId("nope")), "guessed at a model it does not hold").toBeNull();
+    viewer.dispose();
+  });
+
+  it("refuses an empty model rather than registering a model with nothing in it", async () => {
+    const { viewer } = await mount();
+    const result = viewer.addModel({ modelId: STRUCT, meshes: [], guids: new Map() });
+    expect(result.ok).toBe(false);
+    expect(viewer.models).not.toContain(STRUCT);
+    viewer.dispose();
+  });
+});
+
+describe("cutting indexed geometry, which is what a tessellator produces", () => {
+  /**
+   * A regression test for a bug the facade shipped: `toElementMeshes` dropped `indices`.
+   *
+   * `ElementMesh` says absent indices mean the positions *are* a triangle soup, so dropping them did not fail — it
+   * changed the meaning of the data. An indexed box's 8 corners were read as 2 unrelated triangles, and `cut()`
+   * returned a plan of a shape that does not exist while reporting success.
+   *
+   * The assertion is on the **footprint**, not on entity counts. A count can be satisfied by nonsense geometry; the
+   * bounds of a section through a unit box at mid-height cannot — they must be the box's own footprint.
+   */
+  it("sections a box through its real faces, not through vertex soup", async () => {
+    const { viewer } = await mount();
+    await viewer.showMeshes({ ...boxAs(1, ARCH_GUID), kernel: { alreadyOpen: true } });
+
+    const drawing = viewer.cut({ kind: "plan", cutHeight: 0.5 });
+    expect(drawing).not.toBeNull();
+
+    const cut = drawing!.entities.filter((e) => e.role === "cut");
+    expect(cut.length, "no cut geometry at all — the section found nothing to cut").toBeGreaterThan(0);
+
+    // The unit box spans 0..1 in both plan axes, so `bounds` — the drawing's own record of its content extent — must
+    // be the box's footprint. A soup reading of the same 8 vertices sections two arbitrary triangles instead, and its
+    // extent does not agree with the box. Read from `bounds` rather than by walking `geometry`, which is a tagged
+    // union: reaching into it was how this test first asserted a field (`e.points`) that does not exist at that level.
+    expect(drawing!.bounds.min.x, "the plan does not start at the box's edge").toBeCloseTo(0, 3);
+    expect(drawing!.bounds.max.x, "the plan is not as wide as the box").toBeCloseTo(1, 3);
+    expect(drawing!.bounds.min.y).toBeCloseTo(0, 3);
+    expect(drawing!.bounds.max.y).toBeCloseTo(1, 3);
+
+    // Every element that should have a GlobalId has one, so the plan is anchorable.
+    expect(drawing!.provenance.guidCoverage).toBe(1);
     viewer.dispose();
   });
 });

@@ -184,6 +184,30 @@ export interface MassingViewer {
   open(source: string | Uint8Array, name?: string): Promise<{ ok: true; elements: number } | { ok: false; why: string }>;
 
   /** Cut a drawing from the current model. */
+  /**
+   * Add a model beside the ones already loaded — ADR-0013's federation at the facade.
+   *
+   * Re-adding an id replaces that model only. The added model is visible, snappable, cuttable and pickable, but it is
+   * **not** the kernel's edit target: an authoring kernel holds one file, and repointing it at whichever consultant's
+   * model arrived last would apply the next edit to something the user is not looking at. The reference model — the
+   * one {@link MassingViewer.openIfc} or {@link MassingViewer.showMeshes} set — keeps that role.
+   *
+   * A duplicate GlobalId across two models is reported through `onStatus`, not refused and not silently resolved.
+   */
+  addModel(model: {
+    readonly modelId: ModelId;
+    readonly meshes: readonly SourceMesh[];
+    readonly guids: Map<number, string>;
+  }): { ok: true; elements: number } | { ok: false; why: string };
+  /** Unload one model and free its GPU buffers. False if there was nothing by that id. */
+  removeModel(modelId: ModelId): boolean;
+  /** Loaded model ids, in load order. */
+  readonly models: readonly ModelId[];
+  /** Hide or show one model. Hidden means hidden to the pointer too. */
+  setModelVisible(modelId: ModelId, visible: boolean): boolean;
+  /** Whether a model is visible. `null` if there is no such model. */
+  isModelVisible(modelId: ModelId): boolean | null;
+
   cut(view?: ViewDefinition): Drawing | null;
   /** The most recently cut drawing. */
   readonly drawing: Drawing | null;
@@ -210,13 +234,29 @@ export interface MassingViewer {
   dispose(): void;
 }
 
-/** Meshes the drawing layer can cut, from meshes the viewport was given. */
+/**
+ * Meshes the drawing layer can cut, from meshes the viewport was given.
+ *
+ * **`indices` must be carried.** `ElementMesh` documents the rule — *"absent means `positions` is already a triangle
+ * soup"* — and this function used to drop it, so every indexed mesh was handed to the sectioner as loose vertices and
+ * read as unrelated triangles. An indexed box's 8 corners became 2 nonsense triangles: the cut still produced a
+ * drawing, so `cut()` reported success and returned a plan of a shape that does not exist. Tessellators emit indexed
+ * geometry as a matter of course, which is what made this the normal path rather than an edge case.
+ *
+ * It survived because the facade's own fixtures happened to be unindexed triangle soups, where dropping `indices` is
+ * a no-op — the exact shape of fixture that cannot see this bug.
+ */
 function toElementMeshes(meshes: readonly SourceMesh[], guidOf: (expressId: number) => Guid | null): ElementMesh[] {
   const out: ElementMesh[] = [];
   for (const mesh of meshes) {
     const guid = guidOf(mesh.expressId);
     if (guid === null) continue;
-    out.push({ guid, ifcClass: mesh.ifcType ?? "IfcBuildingElement", positions: Array.from(mesh.positions) });
+    out.push({
+      guid,
+      ifcClass: mesh.ifcType ?? "IfcBuildingElement",
+      positions: Array.from(mesh.positions),
+      ...(mesh.indices === undefined ? {} : { indices: Array.from(mesh.indices) }),
+    });
   }
   return out;
 }
@@ -386,16 +426,88 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
     status(`${chord} is bound by ${commands.join(" and ")}; the first wins`, "warn");
   }
 
-  let guids = new Map<number, string>();
-  let meshes: readonly SourceMesh[] = [];
+  /**
+   * The loaded models, keyed by id — ADR-0013's federation reaching the facade.
+   *
+   * ## Why the guid needs no model qualifier, contrary to what this was scoped as
+   *
+   * The plan for this work assumed identity had to become `(modelId, guid)` and be threaded through
+   * `AuthoringSession` and `@massing/markup`. Reading the constraint again dissolved most of it: an IFC **GlobalId is
+   * globally unique by specification** — a 22-character base64 UUID — so a guid already identifies an element across
+   * every loaded file. It is the *expressId* that is per-file and collides, which is a viewport concern and now
+   * handled there. So markup, selection and the authoring session keep taking a bare `Guid` and are federation-safe
+   * as they stand. Threading a model through them would have been ceremony.
+   *
+   * What that specification does not guarantee is that real exporters obey it. Duplicate GlobalIds across two files
+   * happen — copy-paste between projects, a bad exporter, the same file loaded twice under two ids. That is detected
+   * on load and **reported**, because a silently ambiguous guid resolves to whichever model was added first and the
+   * user would see markup land on the wrong building.
+   */
+  interface LoadedModel {
+    readonly meshes: readonly SourceMesh[];
+    readonly guids: Map<number, string>;
+  }
+  const models = new Map<ModelId, LoadedModel>();
   let drawing: Drawing | null = null;
   let selection: Guid | null = null;
   let disposed = false;
 
-  const guidOf = (expressId: number): Guid | null => {
-    const raw = guids.get(expressId);
-    return raw === undefined ? null : (raw as Guid);
-  };
+  /** A guid resolver bound to one model, which is what `viewport.addModel` wants. */
+  const guidResolverFor =
+    (id: ModelId) =>
+    (expressId: number): Guid | null => {
+      const raw = models.get(id)?.guids.get(expressId);
+      return raw === undefined ? null : (raw as Guid);
+    };
+
+  /** Every loaded model's meshes, in load order — what the snap grid is built from. */
+  const allMeshes = (): readonly SourceMesh[] => [...models.values()].flatMap((m) => [...m.meshes]);
+
+  /**
+   * The cuttable geometry of the whole federation, resolved **per model**.
+   *
+   * Not `toElementMeshes(allMeshes(), oneResolver)`. That would hand a union of meshes to a single expressId→guid map,
+   * and expressIds collide across files: every element whose id also exists in another model would be labelled with
+   * the other model's GlobalId. The drawing would look right and its `data-guid` attributes would point at the wrong
+   * building — a silent mislabelling, not a visible failure.
+   */
+  const federatedElementMeshes = (): ElementMesh[] =>
+    [...models.entries()].flatMap(([id, model]) => toElementMeshes(model.meshes, guidResolverFor(id)));
+
+  /** Which model holds a guid, or null. Linear over models, not over elements: each map lookup is O(1). */
+  function modelOfGuid(guid: Guid): { readonly modelId: ModelId; readonly expressId: number } | null {
+    for (const [id, model] of models) {
+      for (const [expressId, value] of model.guids) {
+        if (value === guid) return { modelId: id, expressId };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Report guids the incoming model shares with one already loaded.
+   *
+   * Reported rather than refused. A duplicate GlobalId is a defect in someone else's exporter, and refusing the file
+   * would leave the user unable to look at their own building; resolving it silently would put their markup on the
+   * wrong element. Naming it is the only option that does neither.
+   */
+  function reportGuidCollisions(incoming: Map<number, string>, exclude: ModelId): void {
+    const seen = new Set<string>();
+    for (const [id, model] of models) {
+      if (id === exclude) continue;
+      for (const value of model.guids.values()) seen.add(value);
+    }
+    const clashes = new Set([...incoming.values()].filter((g) => seen.has(g)));
+    if (clashes.size > 0) {
+      const sample = [...clashes].slice(0, 3).join(", ");
+      status(
+        `${clashes.size} GlobalId(s) in this model are already used by another loaded model (${sample}` +
+          `${clashes.size > 3 ? ", …" : ""}). IFC requires them to be unique; markup and selection on those ` +
+          `elements will resolve to whichever model was loaded first.`,
+        "warn",
+      );
+    }
+  }
 
   /**
    * Everything that has to happen when the model changes, in one place.
@@ -411,13 +523,15 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
     handoff: { readonly alreadyOpen: true } | { readonly ifc: string },
     label: string,
   ): Promise<{ ok: true; elements: number } | { ok: false; why: string }> {
-    meshes = next;
-    guids = nextGuids;
+    // Replace semantics: this entry point has always meant "show this model instead", and federation must not
+    // change that silently for a host that only ever holds one. `addModel` is the additive door.
+    models.clear();
+    models.set(modelId, { meshes: next, guids: nextGuids });
 
     // Rebuilt here, once, rather than derived per hover. A stale grid would offer snaps to geometry that is no
     // longer in the model, which is worse than offering none.
-    buildSnapGrid(meshes);
-    const built = viewport.showModel(meshes, guidOf, modelId);
+    buildSnapGrid(allMeshes());
+    const built = viewport.showModel(next, guidResolverFor(modelId), modelId);
     viewport.fit();
 
     // A drawing cut from the previous model is not a view of this one, and a selected GlobalId from it may not
@@ -439,6 +553,36 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
       }
     }
 
+    return { ok: true, elements: built.elements.length };
+  }
+
+  /**
+   * Add a model beside the ones already loaded, or replace just that one — the federated counterpart of
+   * {@link applyModel}.
+   *
+   * Deliberately **not** wired to the kernel. `applyModel` hands the kernel the model it is showing, because a
+   * single-model viewer whose kernel holds a different file edits something the user is not looking at. A federation
+   * has no such answer: an authoring kernel edits *one* file, and silently repointing it at whichever consultant's
+   * model arrived last would be worse than not touching it. So the reference model — the one the kernel holds and
+   * `applyModel` set — stays put, and added models are reference geometry until a host says otherwise. Stated here
+   * rather than discovered: an added model is visible, snappable, cuttable and pickable, but not the edit target.
+   */
+  function addFederatedModel(
+    id: ModelId,
+    next: readonly SourceMesh[],
+    nextGuids: Map<number, string>,
+  ): { ok: true; elements: number } | { ok: false; why: string } {
+    if (next.length === 0) return { ok: false, why: `${id}: no geometry` };
+    reportGuidCollisions(nextGuids, id);
+    models.set(id, { meshes: next, guids: nextGuids });
+
+    const built = viewport.addModel(next, guidResolverFor(id), id);
+    // The union, not just the new arrival: a snap grid holding only the last-added model would stop offering snaps to
+    // the building the user has been working on.
+    buildSnapGrid(allMeshes());
+    // A drawing cut before this model arrived is a view of a smaller federation, and re-cutting it silently would
+    // discard a paper transform the caller chose. Invalidated, so `drawing` never describes a scene that is gone.
+    drawing = null;
     return { ok: true, elements: built.elements.length };
   }
 
@@ -480,9 +624,12 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
     return applyModel(parsed.meshes, parsed.guids, { ifc: text }, name);
   }
 
-  const offSelect = viewport.onSelect((expressIds) => {
-    const first = expressIds[0];
-    selection = first === undefined ? null : guidOf(first);
+  const offSelect = viewport.onSelect((refs) => {
+    // Model-qualified, so the guid comes out of the map belonging to the model that was actually clicked. Resolving
+    // an expressId against the wrong model's map is not a missing lookup — it silently returns *a* guid, for the
+    // wrong element, and everything downstream believes it.
+    const first = refs[0];
+    selection = first === undefined ? null : guidResolverFor(first.modelId)(first.expressId);
     options.onSelect?.(selection);
   });
 
@@ -544,7 +691,7 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
       return openIfcImpl(source, name);
     },
 
-      session,
+    session,
     commands: registry,
 
     raise(options = {}) {
@@ -571,7 +718,9 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
       // Re-resolved on read, not cached. An anchor's liveness is a function of the *current* model, and a cached
       // answer would keep saying "live" after the element was deleted — precisely the failure the orphan machinery
       // exists to surface.
-      const live = new Set(guids.values());
+      // Every loaded model, because an anchor is live if the element exists *anywhere* in the federation. Scoping
+      // this to one model would report a consultant-model anchor as orphaned the moment federation was used.
+      const live = new Set([...models.values()].flatMap((m) => [...m.guids.values()]));
       return topics.filter(
         (topic) => topic.pin !== undefined && !isLive(resolveAnchor(topic.pin, (guid) => live.has(guid))),
       );
@@ -582,8 +731,8 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
     },
 
     cut(view = { kind: "plan", cutHeight: 1.2 }) {
-      if (meshes.length === 0) return null;
-      drawing = generatePlan({ name: view.storey ?? "Plan", meshes: toElementMeshes(meshes, guidOf) }, view);
+      if (models.size === 0) return null;
+      drawing = generatePlan({ name: view.storey ?? "Plan", meshes: federatedElementMeshes() }, view);
       return drawing;
     },
 
@@ -600,12 +749,42 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
       return toPdf(drawing, theme, sheet, { border: true });
     },
 
+    addModel(model) {
+      return addFederatedModel(model.modelId, model.meshes, model.guids);
+    },
+
+    removeModel(id) {
+      const removed = viewport.removeModel(id);
+      if (!removed) return false;
+      models.delete(id);
+      // The same three things `addModel` does, in reverse: a grid holding vertices of an unloaded model would offer
+      // snaps to geometry that is not there, and a drawing cut with it is a view of a federation that no longer
+      // exists. A selection into the removed model is dropped by the viewport, so `selection` is re-read rather than
+      // assumed still valid.
+      buildSnapGrid(allMeshes());
+      drawing = null;
+      if (selection !== null && modelOfGuid(selection) === null) selection = null;
+      return true;
+    },
+
+    get models() {
+      return [...models.keys()];
+    },
+
+    setModelVisible(id, visible) {
+      return viewport.setModelVisible(id, visible);
+    },
+
+    isModelVisible(id) {
+      return viewport.isModelVisible(id);
+    },
+
     select(guid) {
-      const match = [...guids.entries()].find(([, value]) => value === guid);
-      // Named explicitly: `guids` is this facade's single model, so resolving the id anywhere else would be wrong
-      // rather than merely ambiguous once the facade grows a second one.
-      viewport.select(match === undefined ? [] : [match[0]], modelId);
-      selection = match === undefined ? null : guid;
+      // A guid is globally unique, so the model holding it is a lookup rather than a guess — and naming it is what
+      // stops the same expressId in another model being highlighted instead.
+      const found = guid === null ? null : modelOfGuid(guid);
+      viewport.select(found === null ? [] : [found.expressId], found?.modelId);
+      selection = found === null ? null : guid;
     },
 
     get selection() {

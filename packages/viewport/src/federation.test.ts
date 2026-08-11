@@ -206,7 +206,7 @@ describe("what federation must not break", () => {
     const v = await viewer();
     v.addModel([cube(0, 1)], guids("a"), ARCH);
     v.select([1]);
-    expect(v.selection).toEqual([1]);
+    expect(v.selection).toEqual([{ modelId: ARCH, expressId: 1 }]);
     v.removeModel(ARCH);
     expect(v.selection).toEqual([]);
     v.dispose();
@@ -326,7 +326,7 @@ describe("selection with more than one model loaded", () => {
     v.select([1], ARCH);
 
     v.removeModel(STRUCT);
-    expect(v.selection, "an unrelated model's removal dropped the selection").toEqual([1]);
+    expect(v.selection, "an unrelated model's removal dropped the selection").toEqual([{ modelId: ARCH, expressId: 1 }]);
     v.dispose();
   });
 
@@ -362,8 +362,8 @@ describe("selection with more than one model loaded", () => {
     v.addModel([cube(10, 2)], guids("s"), STRUCT);
     v.select([1], ARCH);
 
-    const calls: number[][] = [];
-    v.onSelect((ids) => calls.push([...ids]));
+    const calls: { modelId: string; expressId: number }[][] = [];
+    v.onSelect((refs) => calls.push(refs.map((r) => ({ modelId: String(r.modelId), expressId: r.expressId }))));
 
     v.removeModel(STRUCT); // holds nothing selected
     expect(calls, "a removal that changed no selection still notified").toEqual([]);

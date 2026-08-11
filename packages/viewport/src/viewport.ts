@@ -115,10 +115,24 @@ export interface Viewport {
   readonly section: SectionController;
   /** First-person walk. One implementation, so massing can delete both of its two. */
   readonly walk: WalkController;
-  readonly selection: readonly number[];
-  onSelect(fn: (expressIds: readonly number[]) => void): () => void;
+  /** The current selection, model-qualified. */
+  readonly selection: readonly ElementRef[];
+  onSelect(fn: (selection: readonly ElementRef[]) => void): () => void;
   readonly stats: () => { triangles: number; drawCalls: number; geometries: number; textures: number; fps: number };
   dispose(): void;
+}
+
+/**
+ * An element, identified the only way that survives federation.
+ *
+ * An expressId is unique within one IFC file and nothing more, so `#1` alone names an element in *some* model. Every
+ * selection-shaped value on this interface carries the model with it, rather than offering a bare number that is
+ * correct until the day a second file is loaded. A `Guid` needs no such qualifier — IFC GlobalIds are globally
+ * unique — which is why `@massing/markup` still anchors on one.
+ */
+export interface ElementRef {
+  readonly modelId: ModelId;
+  readonly expressId: number;
 }
 
 const SELECTION_COLOR = new THREE.Color(0.15, 0.55, 1.0);
@@ -323,13 +337,9 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
    * two models were loaded: `select()` silently recoloured nothing while still updating `selection` and notifying
    * listeners. Resolving per model removes the possibility rather than fixing the symptom.
    */
-  interface ElementRef {
-    readonly modelId: ModelId;
-    readonly expressId: number;
-  }
   let selected: ElementRef[] = [];
   const originalColors = new Map<string, THREE.Color>();
-  const selectListeners = new Set<(ids: readonly number[]) => void>();
+  const selectListeners = new Set<(selection: readonly ElementRef[]) => void>();
   const colorKey = (ref: ElementRef): string => `${JSON.stringify(ref.modelId)}:${ref.expressId}`;
 
   /** Union of every *visible* model's bounds — what `fit()` frames when nothing is selected. */
@@ -384,7 +394,7 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     for (const key of originalColors.keys()) {
       if (key.startsWith(prefix)) originalColors.delete(key);
     }
-    if (dropped) for (const fn of selectListeners) fn(selectedIds());
+    if (dropped) for (const fn of selectListeners) fn(selected);
     return true;
   }
 
@@ -511,7 +521,6 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     return refs;
   }
 
-  const selectedIds = (): number[] => selected.map((ref) => ref.expressId);
 
   function select(expressIds: readonly number[], modelId?: ModelId) {
     // Restore previous selection colours first, so overlapping selections do not leave a stuck highlight.
@@ -529,7 +538,7 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
       if (!originalColors.has(key)) originalColors.set(key, material.color.clone());
       material.color.copy(SELECTION_COLOR);
     }
-    for (const fn of selectListeners) fn(selectedIds());
+    for (const fn of selectListeners) fn(selected);
   }
 
   return {
@@ -550,10 +559,9 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     pick,
     select,
     get selection() {
-      // expressIds, so a single-model host sees exactly what it saw before federation. Only ids that actually resolved
-      // appear: reporting a selection of geometry that is not loaded is the same class of lie as highlighting nothing
-      // and saying it worked.
-      return selectedIds();
+      // Only refs that actually resolved appear: reporting a selection of geometry that is not loaded is the same
+      // class of lie as highlighting nothing and saying it worked.
+      return selected;
     },
     onSelect(fn) {
       selectListeners.add(fn);

@@ -155,9 +155,12 @@ function Viewport3D(props: { readonly onSelect: (guid: Guid | null) => void }): 
       viewport = created;
       created.showModel(MODEL_DATA.meshes, (expressId) => toGuid(MODEL_DATA.guids.get(expressId)), MODEL);
       created.fit();
-      off = created.onSelect((expressIds) => {
-        const first = expressIds[0];
-        live.current.onSelect(first === undefined ? null : toGuid(MODEL_DATA.guids.get(first)));
+      off = created.onSelect((selection) => {
+        // The shell holds one model, so the ref's `modelId` is always `MODEL` and the guid map is the right one. The
+        // ref is destructured rather than ignored so that adding a second model here is a compile error, not a
+        // wrong lookup against the first model's map.
+        const first = selection[0];
+        live.current.onSelect(first === undefined ? null : toGuid(MODEL_DATA.guids.get(first.expressId)));
       });
     })();
 
