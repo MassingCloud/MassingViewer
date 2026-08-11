@@ -53,3 +53,13 @@ export type {
   RibbonLayout,
   TabId,
 } from "./ribbon.js";
+
+export { disciplinesIn, galleryFor, searchGallery } from "./gallery.js";
+export type {
+  Gallery,
+  GalleryEntry,
+  GalleryGroup,
+  GalleryOptions,
+  GallerySearchOptions,
+  GalleryTile,
+} from "./gallery.js";
