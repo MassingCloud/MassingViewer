@@ -41,8 +41,13 @@ vi.mock("./renderer.js", () => ({
   }),
 }));
 
-/** A unit cube at an offset, so two models can be told apart by where they are. */
-function cube(x: number, expressId: number): SourceMesh {
+/**
+ * A unit cube at an offset, so two models can be told apart by where they are.
+ *
+ * `color` is a parameter because a colour-restore bug is only *observable* when the two models start out different:
+ * with both grey, a cache keyed on the wrong thing restores grey onto grey and the test passes while the bug is live.
+ */
+function cube(x: number, expressId: number, color: readonly [number, number, number, number] = [0.8, 0.8, 0.8, 1]): SourceMesh {
   const v = [
     [x, 0, 0],
     [x + 1, 0, 0],
@@ -58,7 +63,7 @@ function cube(x: number, expressId: number): SourceMesh {
     positions,
     normals: new Float32Array(positions.length),
     indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-    color: [0.8, 0.8, 0.8, 1] as const,
+    color,
   } as unknown as SourceMesh;
 }
 
@@ -210,6 +215,169 @@ describe("what federation must not break", () => {
   it("picks nothing when there are no models, rather than throwing", async () => {
     const v = await viewer();
     expect(v.pick({ clientX: 400, clientY: 300 })).toBeNull();
+    v.dispose();
+  });
+});
+
+// ===================================================================================================
+// Selection across models — a bug federation introduced, caught by asking what `index` holds
+// ===================================================================================================
+
+describe("selection with more than one model loaded", () => {
+  /**
+   * The defect: `select()` resolved through a single `index`, which after federation is the *only* model's index —
+   * and therefore an **empty map whenever two models are loaded**. So the highlight silently stopped working while
+   * `selection` still updated and listeners still fired: a host would be told the selection succeeded.
+   *
+   * That is the "reports success while nothing happened" shape, which is the one this repository keeps finding by
+   * asking what a value actually contains rather than trusting that a call returned.
+   *
+   * Colour is the observable. `MeshLambertMaterial.color` is what `select` mutates, so reading it back is a direct
+   * check rather than a proxy.
+   */
+  const colourOf = (v: Awaited<ReturnType<typeof viewer>>, modelId: ReturnType<typeof asModelId>): string => {
+    // `buildScene` names each model's group `model:<id>` — that name is the only per-model handle in the scene graph,
+    // so the helper reads it rather than a `userData.modelId` that does not exist. Getting this wrong once already
+    // made all four tests fail on the helper instead of on the bug, which is a test that proves nothing.
+    const group = v.scene.getObjectByName(`model:${modelId}`);
+    if (group === undefined) throw new Error(`no group named model:${modelId}`);
+    const mesh = group.children.find((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh | undefined;
+    if (mesh === undefined) throw new Error(`group model:${modelId} has no mesh`);
+    return `#${(mesh.material as THREE.MeshLambertMaterial).color.getHexString()}`;
+  };
+
+  it("highlights the picked element when two models are loaded", async () => {
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 1)], guids("s"), STRUCT);
+
+    const before = colourOf(v, ARCH);
+    v.select([1], ARCH);
+    const after = colourOf(v, ARCH);
+    expect(after, "the element was not recoloured, so selection did nothing").not.toBe(before);
+    v.dispose();
+  });
+
+  it("leaves the other model alone when a model is named", async () => {
+    // Two models sharing expressId 1 is ordinary — expressIds are per file. Naming the model is what disambiguates,
+    // and it must not highlight both.
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 1)], guids("s"), STRUCT);
+
+    const archBefore = colourOf(v, ARCH);
+    const structBefore = colourOf(v, STRUCT);
+    v.select([1], ARCH);
+    // Both halves, deliberately. Asserting only that STRUCT is untouched is satisfied by highlighting *nothing* —
+    // which is precisely the bug — so the positive assertion is what stops the test passing vacuously.
+    expect(colourOf(v, ARCH), "the named model was not highlighted at all").not.toBe(archBefore);
+    expect(colourOf(v, STRUCT), "selecting in one model recoloured the other").toBe(structBefore);
+    v.dispose();
+  });
+
+  it("restores the previous colour when the selection moves, per model", async () => {
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 1)], guids("s"), STRUCT);
+
+    const archOriginal = colourOf(v, ARCH);
+    v.select([1], ARCH);
+    expect(colourOf(v, ARCH), "nothing was highlighted, so the restore proves nothing").not.toBe(archOriginal);
+    v.select([1], STRUCT);
+    expect(colourOf(v, ARCH), "the previous selection was not restored").toBe(archOriginal);
+    v.dispose();
+  });
+
+  it("restores each model's OWN colour, not whichever was cached under that expressId first", async () => {
+    /**
+     * The colour-cache collision, made observable.
+     *
+     * `originalColors` was keyed on the bare expressId. Two models both containing `#1` therefore shared one cache
+     * slot, and the second model's element never got its own colour recorded — so deselecting restored the *first*
+     * model's colour onto it. With both cubes grey (as every other test here has them) the wrong colour is the right
+     * colour and nothing fails, which is why this test gives them different ones.
+     */
+    const v = await viewer();
+    const red = [0.9, 0.1, 0.1, 1] as const;
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 1, red)], guids("s"), STRUCT);
+
+    const archOriginal = colourOf(v, ARCH);
+    const structOriginal = colourOf(v, STRUCT);
+    expect(archOriginal, "the fixture's two models are the same colour, so this test cannot detect the bug").not.toBe(
+      structOriginal,
+    );
+
+    v.select([1], STRUCT); // caches struct's red
+    v.select([1], ARCH); // restores struct, highlights arch
+    v.select([]); // restores arch — from arch's own cache, or from struct's?
+
+    expect(colourOf(v, ARCH), "arch was restored to the wrong model's colour").toBe(archOriginal);
+    expect(colourOf(v, STRUCT), "struct was not restored").toBe(structOriginal);
+    v.dispose();
+  });
+
+  it("keeps a selection in another model when one model is unloaded", async () => {
+    // Removal used to `originalColors.clear()` and blank the whole selection, which was harmless while only one model
+    // could be loaded and is wrong now: unloading the structural file must not drop an architectural selection.
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 2)], guids("s"), STRUCT);
+    v.select([1], ARCH);
+
+    v.removeModel(STRUCT);
+    expect(v.selection, "an unrelated model's removal dropped the selection").toEqual([1]);
+    v.dispose();
+  });
+
+  it("forgets a removed model's cached colours, so a reissue is not painted with the old file's colour", async () => {
+    /**
+     * Found by writing the prune and the key in two steps and then reading them together: the prune matched on
+     * `"arch "` while the key was `"arch":1`, so it silently never matched anything.
+     *
+     * The consequence needs three steps to show, which is why nothing else here catches it. A cached colour that
+     * outlives its geometry is not itself visible — but when the same model is reissued and reuses the expressId,
+     * `originalColors.has(key)` is already true, the new element's real colour is never recorded, and deselecting
+     * paints it with the colour of a file that is no longer loaded.
+     */
+    const v = await viewer();
+    const red = [0.9, 0.1, 0.1, 1] as const;
+    v.addModel([cube(0, 1)], guids("a"), ARCH); // grey
+    v.select([1], ARCH);
+    v.removeModel(ARCH);
+
+    v.addModel([cube(0, 1, red)], guids("a"), ARCH); // reissued, same expressId, different colour
+    const reissued = colourOf(v, ARCH);
+    v.select([1], ARCH);
+    v.select([]);
+    expect(colourOf(v, ARCH), "restored the colour of the model that was unloaded").toBe(reissued);
+    v.dispose();
+  });
+
+  it("tells listeners when a removal drops their selection, and stays quiet when it does not", async () => {
+    // A host that renders a properties panel from `onSelect` would otherwise keep displaying an element whose geometry
+    // has been unloaded — the panel/highlight disagreement `apps/demo/src/main.ts` already documents having had once.
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    v.addModel([cube(10, 2)], guids("s"), STRUCT);
+    v.select([1], ARCH);
+
+    const calls: number[][] = [];
+    v.onSelect((ids) => calls.push([...ids]));
+
+    v.removeModel(STRUCT); // holds nothing selected
+    expect(calls, "a removal that changed no selection still notified").toEqual([]);
+    v.removeModel(ARCH); // holds the selection
+    expect(calls, "the selection was dropped without telling anyone").toEqual([[]]);
+    v.dispose();
+  });
+
+  it("still works with one model and no modelId, so existing callers are unaffected", async () => {
+    const v = await viewer();
+    v.addModel([cube(0, 1)], guids("a"), ARCH);
+    const before = colourOf(v, ARCH);
+    v.select([1]);
+    expect(colourOf(v, ARCH)).not.toBe(before);
     v.dispose();
   });
 });

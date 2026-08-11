@@ -98,7 +98,14 @@ export interface Viewport {
     clientX: number;
     clientY: number;
   }): { expressId: number; guid: string | null; modelId: ModelId | null } | null;
-  select(expressIds: readonly number[]): void;
+  /**
+   * Highlight elements.
+   *
+   * `modelId` is optional and should be supplied whenever it is known — `pick()` returns it. Omitting it selects the
+   * id in *every* model that contains it, because an expressId is unique only within one IFC file and choosing
+   * arbitrarily between two valid matches would be an invisible coin toss. Unchanged for a single-model host.
+   */
+  select(expressIds: readonly number[], modelId?: ModelId): void;
   /**
    * Interactive clipping — a plane or a box.
    *
@@ -305,12 +312,25 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
   }
   const models = new Map<ModelId, Loaded>();
 
-  /** The single-model conveniences below read through these, so one model behaves exactly as it did before. */
-  const only = (): Loaded | null => (models.size === 1 ? [...models.values()][0]! : null);
-  let index = { byLocalId: new Map(), byExpressId: new Map() } as ReturnType<typeof elementIndex>;
-  let selection: number[] = [];
-  const originalColors = new Map<number, THREE.Color>();
+  /**
+   * Selection is held as `(modelId, expressId)` pairs, not bare expressIds.
+   *
+   * An expressId is only unique *within* an IFC file, so two federated models routinely both contain `#1`. Keying
+   * selection or cached colours on the number alone means model B's restore writes model A's colour, and there is no
+   * symptom until two disciplines are loaded at once — which is exactly when nobody is looking at the highlight code.
+   *
+   * This replaced a single `index` variable that pointed at *the only* model, and was therefore an empty map whenever
+   * two models were loaded: `select()` silently recoloured nothing while still updating `selection` and notifying
+   * listeners. Resolving per model removes the possibility rather than fixing the symptom.
+   */
+  interface ElementRef {
+    readonly modelId: ModelId;
+    readonly expressId: number;
+  }
+  let selected: ElementRef[] = [];
+  const originalColors = new Map<string, THREE.Color>();
   const selectListeners = new Set<(ids: readonly number[]) => void>();
+  const colorKey = (ref: ElementRef): string => `${JSON.stringify(ref.modelId)}:${ref.expressId}`;
 
   /** Union of every *visible* model's bounds — what `fit()` frames when nothing is selected. */
   function federatedBounds(): THREE.Box3 {
@@ -341,7 +361,6 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     // after setting a section would silently clear it — and the user would blame the edit, not the reload.
     section.reapply(build.group);
 
-    index = loaded.index;
     return build;
   }
 
@@ -353,11 +372,19 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     disposeScene(loaded.build);
     models.delete(modelId);
 
-    // Selection and cached colours belonged to geometry that no longer exists. Clearing them is not tidiness: a
-    // stale expressId would recolour whichever element later happens to reuse that number.
-    originalColors.clear();
-    selection = [];
-    index = only()?.index ?? { byLocalId: new Map(), byExpressId: new Map() };
+    // Selection and cached colours belonging to *this* model referred to geometry that no longer exists. Dropping
+    // them is not tidiness: a stale expressId would recolour whichever element later happens to reuse that number.
+    // Other models' entries survive, because unloading the structural file must not clear an architectural
+    // selection — the bug the old blanket `clear()` had, invisible while only one model could be loaded.
+    const dropped = selected.some((ref) => ref.modelId === modelId);
+    selected = selected.filter((ref) => ref.modelId !== modelId);
+    // Deleting from a Map while iterating its keys is well-defined, so no snapshot copy is needed. The prefix is
+    // built the same way `colorKey` builds it, so a model id containing the separator cannot alias another model's.
+    const prefix = `${JSON.stringify(modelId)}:`;
+    for (const key of originalColors.keys()) {
+      if (key.startsWith(prefix)) originalColors.delete(key);
+    }
+    if (dropped) for (const fn of selectListeners) fn(selectedIds());
     return true;
   }
 
@@ -459,22 +486,50 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     };
   }
 
-  function select(expressIds: readonly number[]) {
+  /** The mesh an `(modelId, expressId)` pair names, or null if that model has no such element. */
+  function elementOf(ref: ElementRef): { object: THREE.Mesh } | null {
+    return models.get(ref.modelId)?.index.byExpressId.get(ref.expressId) ?? null;
+  }
+
+  /**
+   * Resolve bare expressIds to model-qualified refs.
+   *
+   * With `modelId` given — which is what `pick()` returns, so precise selection is always available — only that model
+   * is consulted. Without it, *every* model containing the id matches. That is the deliberate reading of an ambiguous
+   * request: "select element 7" with no model named cannot mean one of two equally-valid elements, and highlighting
+   * both is visible, whereas picking one arbitrarily is a coin toss the user cannot see. With a single model loaded —
+   * every caller before federation — the two paths are identical.
+   */
+  function resolveRefs(expressIds: readonly number[], modelId?: ModelId): ElementRef[] {
+    const ids = modelId === undefined ? [...models.keys()] : models.has(modelId) ? [modelId] : [];
+    const refs: ElementRef[] = [];
+    for (const expressId of expressIds) {
+      for (const id of ids) {
+        if (models.get(id)!.index.byExpressId.has(expressId)) refs.push({ modelId: id, expressId });
+      }
+    }
+    return refs;
+  }
+
+  const selectedIds = (): number[] => selected.map((ref) => ref.expressId);
+
+  function select(expressIds: readonly number[], modelId?: ModelId) {
     // Restore previous selection colours first, so overlapping selections do not leave a stuck highlight.
-    for (const id of selection) {
-      const el = index.byExpressId.get(id);
-      const original = originalColors.get(id);
+    for (const ref of selected) {
+      const el = elementOf(ref);
+      const original = originalColors.get(colorKey(ref));
       if (el && original) (el.object.material as THREE.MeshLambertMaterial).color.copy(original);
     }
-    selection = [...expressIds];
-    for (const id of selection) {
-      const el = index.byExpressId.get(id);
+    selected = resolveRefs(expressIds, modelId);
+    for (const ref of selected) {
+      const el = elementOf(ref);
       if (!el) continue;
       const material = el.object.material as THREE.MeshLambertMaterial;
-      if (!originalColors.has(id)) originalColors.set(id, material.color.clone());
+      const key = colorKey(ref);
+      if (!originalColors.has(key)) originalColors.set(key, material.color.clone());
       material.color.copy(SELECTION_COLOR);
     }
-    for (const fn of selectListeners) fn(selection);
+    for (const fn of selectListeners) fn(selectedIds());
   }
 
   return {
@@ -495,7 +550,10 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
     pick,
     select,
     get selection() {
-      return selection;
+      // expressIds, so a single-model host sees exactly what it saw before federation. Only ids that actually resolved
+      // appear: reporting a selection of geometry that is not loaded is the same class of lie as highlighting nothing
+      // and saying it worked.
+      return selectedIds();
     },
     onSelect(fn) {
       selectListeners.add(fn);

@@ -1,4 +1,4 @@
-import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type UnitSystem } from "@massing/core";
+import { asModelId, formatLength, IMPERIAL, METRIC, toGuid, type Guid, type ModelId, type UnitSystem } from "@massing/core";
 import { createViewport } from "@massing/viewport";
 import { browserWorkerTransport, createLocalKernel } from "@massing/kernel-local";
 import {
@@ -303,8 +303,11 @@ function unionBox(expressId: number): THREE.Box3 | null {
  */
 let selectedGuid: string | null = null;
 
-function applySelection(hit: { expressId: number; guid: string | null } | null): void {
-  viewport.select(hit ? [hit.expressId] : []);
+function applySelection(hit: { expressId: number; guid: string | null; modelId?: ModelId | null } | null): void {
+  // `modelId` is passed through even though the demo loads one model: an expressId is unique only within a file, so a
+  // host that later loads two would silently highlight the id in both. Threading what `pick()` already returns costs
+  // nothing and removes the trap rather than documenting it.
+  viewport.select(hit ? [hit.expressId] : [], hit?.modelId ?? undefined);
   selectedGuid = hit?.guid ?? null;
   // 3D → plan, and 3D → ribbon. Kept in this one function for the same reason the panel is: two places holding
   // an opinion about what is selected is how they end up disagreeing.

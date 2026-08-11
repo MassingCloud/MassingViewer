@@ -602,7 +602,9 @@ export async function createMassingViewer(options: MassingViewerOptions): Promis
 
     select(guid) {
       const match = [...guids.entries()].find(([, value]) => value === guid);
-      viewport.select(match === undefined ? [] : [match[0]]);
+      // Named explicitly: `guids` is this facade's single model, so resolving the id anywhere else would be wrong
+      // rather than merely ambiguous once the facade grows a second one.
+      viewport.select(match === undefined ? [] : [match[0]], modelId);
       selection = match === undefined ? null : guid;
     },
 

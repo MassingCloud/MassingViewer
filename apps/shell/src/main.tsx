@@ -140,7 +140,9 @@ function Viewport3D(props: { readonly onSelect: (guid: Guid | null) => void }): 
     const onClick = (event: MouseEvent): void => {
       if (viewport === null) return;
       const hit = viewport.pick(event);
-      viewport.select(hit === null ? [] : [hit.expressId]);
+      // Pass the model back with the id: expressIds are per-file, so without it a federated scene highlights the
+      // same number in every loaded discipline.
+      viewport.select(hit === null ? [] : [hit.expressId], hit?.modelId ?? undefined);
     };
     node.addEventListener("click", onClick);
 
