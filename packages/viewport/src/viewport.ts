@@ -60,12 +60,44 @@ export interface Viewport {
    * engaged."* A host is expected to show `reason` and count `backend`.
    */
   readonly backend: RendererChoice;
-  /** Replace the model. Disposes the previous one — see the note in `meshes.ts` about GPU allocations. */
+  /**
+   * Replace the whole scene with one model. Disposes the previous ones — see the note in `meshes.ts` about GPU
+   * allocations.
+   *
+   * Kept for hosts that only ever hold one model. For federation use {@link Viewport.addModel}.
+   */
   showModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId): BuildResult;
-  /** Frame the whole model, or the current selection when there is one. */
+
+  /**
+   * Add a model, leaving the others alone — ADR-0013's federation.
+   *
+   * Re-adding the same `modelId` replaces **that** model only, which is what a consultant reissuing their
+   * structural file needs: it must not clear the architectural model beside it.
+   */
+  addModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId): BuildResult;
+  /** Remove one model and free its GPU buffers. False if there was nothing by that id. */
+  removeModel(modelId: ModelId): boolean;
+  /** Loaded model ids, in the order they were added. */
+  readonly models: readonly ModelId[];
+  /** Hide or show one model. Hidden means hidden to the pointer too. */
+  setModelVisible(modelId: ModelId, visible: boolean): boolean;
+  /** Site-to-project alignment, per model, as a group matrix rather than baked into geometry. */
+  setModelTransform(modelId: ModelId, matrix: THREE.Matrix4): boolean;
+  /** Whether a model is currently visible. `null` if there is no such model. */
+  isModelVisible(modelId: ModelId): boolean | null;
+
+  /** Frame every visible model, or the given box. */
   fit(target?: THREE.Box3): void;
-  /** Pick the element under a pointer event, or null. */
-  pick(event: { clientX: number; clientY: number }): { expressId: number; guid: string | null } | null;
+  /**
+   * Pick the element under a pointer event, or null.
+   *
+   * `modelId` comes back because with several models loaded an expressId alone no longer identifies an element —
+   * ADR-0013 keys cross-boundary identity on `(modelId, guid)`.
+   */
+  pick(event: {
+    clientX: number;
+    clientY: number;
+  }): { expressId: number; guid: string | null; modelId: ModelId | null } | null;
   select(expressIds: readonly number[]): void;
   /**
    * Interactive clipping — a plane or a box.
@@ -258,31 +290,126 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
 
   // --- model ----------------------------------------------------------------------------------------
 
-  let current: BuildResult | null = null;
+  /**
+   * The model registry — ADR-0013's federation, as a keyed map rather than one `current`.
+   *
+   * A `Map` keyed by `ModelId`, insertion-ordered, so "architectural then structural" survives round-tripping and a
+   * host is not forced to re-sort for display. Per-model state lives **beside the build** rather than being inferred
+   * from the scene graph, which is the ADR's point: *"avoid naive layering via generic scene groups alone."*
+   * "Is this model hidden" is then a lookup, not a traversal.
+   */
+  interface Loaded {
+    readonly build: BuildResult;
+    readonly index: ReturnType<typeof elementIndex>;
+    visible: boolean;
+  }
+  const models = new Map<ModelId, Loaded>();
+
+  /** The single-model conveniences below read through these, so one model behaves exactly as it did before. */
+  const only = (): Loaded | null => (models.size === 1 ? [...models.values()][0]! : null);
   let index = { byLocalId: new Map(), byExpressId: new Map() } as ReturnType<typeof elementIndex>;
   let selection: number[] = [];
   const originalColors = new Map<number, THREE.Color>();
   const selectListeners = new Set<(ids: readonly number[]) => void>();
 
-  function showModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId) {
-    if (current) {
-      modelRoot.remove(current.group);
-      disposeScene(current);
-      originalColors.clear();
-      selection = [];
+  /** Union of every *visible* model's bounds — what `fit()` frames when nothing is selected. */
+  function federatedBounds(): THREE.Box3 {
+    const box = new THREE.Box3();
+    for (const loaded of models.values()) {
+      if (loaded.visible && !loaded.build.bounds.isEmpty()) box.union(loaded.build.bounds);
     }
-    current = buildScene(meshes, resolveGuid, { modelId });
-    index = elementIndex(current);
-    modelRoot.add(current.group);
+    return box;
+  }
+
+  /**
+   * Add a model without disturbing the others.
+   *
+   * Re-adding the same `modelId` **replaces** that one model and leaves the rest alone. That is deliberate: a
+   * consultant reissuing their structural file is the ordinary case, and it must not clear the architectural model
+   * beside it. `showModel` keeps the old whole-scene semantics for callers that only ever hold one.
+   */
+  function addModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId): BuildResult {
+    const existing = models.get(modelId);
+    if (existing !== undefined) removeModel(modelId);
+
+    const build = buildScene(meshes, resolveGuid, { modelId });
+    const loaded: Loaded = { build, index: elementIndex(build), visible: existing?.visible ?? true };
+    models.set(modelId, loaded);
+    build.group.visible = loaded.visible;
+    modelRoot.add(build.group);
     // A rebuild creates new materials, and new materials carry no clipping planes. Without this the first edit
     // after setting a section would silently clear it — and the user would blame the edit, not the reload.
-    section.reapply(current.group);
-    fit(current.bounds);
-    return current;
+    section.reapply(build.group);
+
+    index = loaded.index;
+    return build;
+  }
+
+  /** Remove one model and free its GPU buffers. Returns false if there was nothing by that id. */
+  function removeModel(modelId: ModelId): boolean {
+    const loaded = models.get(modelId);
+    if (loaded === undefined) return false;
+    modelRoot.remove(loaded.build.group);
+    disposeScene(loaded.build);
+    models.delete(modelId);
+
+    // Selection and cached colours belonged to geometry that no longer exists. Clearing them is not tidiness: a
+    // stale expressId would recolour whichever element later happens to reuse that number.
+    originalColors.clear();
+    selection = [];
+    index = only()?.index ?? { byLocalId: new Map(), byExpressId: new Map() };
+    return true;
+  }
+
+  /**
+   * Per-model visibility.
+   *
+   * Sets `group.visible`, which also removes it from picking — `intersectObjects` skips invisible objects — so
+   * "hidden" means hidden to the pointer too. A federation where you could select through a hidden discipline would
+   * be worse than one without visibility at all.
+   */
+  function setModelVisible(modelId: ModelId, visible: boolean): boolean {
+    const loaded = models.get(modelId);
+    if (loaded === undefined) return false;
+    loaded.visible = visible;
+    loaded.build.group.visible = visible;
+    return true;
+  }
+
+  /**
+   * Per-model transform — site-to-project alignment, which is per model by definition.
+   *
+   * Applied to the model's own group rather than baked into geometry, so re-aligning is free and reversible and the
+   * GlobalIds keep pointing at the same vertices. Getting alignment wrong is the classic federation bug; making it a
+   * group matrix means it is also the classic federation *fix*.
+   */
+  function setModelTransform(modelId: ModelId, matrix: THREE.Matrix4): boolean {
+    const loaded = models.get(modelId);
+    if (loaded === undefined) return false;
+    loaded.build.group.matrixAutoUpdate = false;
+    loaded.build.group.matrix.copy(matrix);
+    loaded.build.group.matrixWorld.copy(matrix);
+    loaded.build.group.updateMatrixWorld(true);
+    return true;
+  }
+
+  /**
+   * Replace the whole scene with one model — the pre-federation behaviour, kept exactly.
+   *
+   * Retained rather than removed because every current caller holds a single model, and changing their semantics in
+   * the same release as making the constructor async would be two breaking changes wearing one coat.
+   */
+  function showModel(meshes: readonly SourceMesh[], resolveGuid: GuidResolver, modelId: ModelId) {
+    for (const id of [...models.keys()]) removeModel(id);
+    const build = addModel(meshes, resolveGuid, modelId);
+    fit(build.bounds);
+    return build;
   }
 
   function fit(target?: THREE.Box3) {
-    const box = target ?? current?.bounds;
+    // Federated: the union of every *visible* model. Framing only the last one loaded would zoom to the structural
+    // file and leave the building it belongs to off screen.
+    const box = target ?? federatedBounds();
     if (!box || box.isEmpty()) return;
     const centre = box.getCenter(new THREE.Vector3());
     const radius = box.getBoundingSphere(new THREE.Sphere()).radius || 1;
@@ -299,19 +426,37 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
 
   const raycaster = new THREE.Raycaster();
   function pick(event: { clientX: number; clientY: number }) {
-    if (!current) return null;
+    if (models.size === 0) return null;
     const rect = renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -(((event.clientY - rect.top) / rect.height) * 2 - 1),
     );
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(current.group.children, false);
+    /**
+     * Every visible model, in one raycast, so the nearest hit wins across disciplines rather than within one.
+     *
+     * `intersectObjects` skips invisible objects, so a hidden model is hidden to the pointer too — a federation you
+     * could select through would be worse than one with no visibility control at all. Flattened rather than
+     * recursive: element meshes are direct children of each model group, and `recursive: true` would also hit the
+     * gizmo and preview helpers that live elsewhere in the scene.
+     */
+    const candidates: THREE.Object3D[] = [];
+    for (const loaded of models.values()) {
+      if (loaded.visible) candidates.push(...loaded.build.group.children);
+    }
+    const hits = raycaster.intersectObjects(candidates, false);
     const hit = hits[0];
     if (!hit) return null;
     const expressId = hit.object.userData.expressId as number | undefined;
     if (typeof expressId !== "number") return null;
-    return { expressId, guid: (hit.object.userData.guid as string | null) ?? null };
+    // `modelId` comes back too: with several models loaded, an expressId alone no longer identifies an element, and
+    // ADR-0013 keys identity on `(modelId, guid)` for exactly that reason.
+    return {
+      expressId,
+      guid: (hit.object.userData.guid as string | null) ?? null,
+      modelId: (hit.object.userData.modelId as ModelId | undefined) ?? null,
+    };
   }
 
   function select(expressIds: readonly number[]) {
@@ -334,6 +479,14 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
 
   return {
     backend,
+    addModel,
+    removeModel,
+    setModelVisible,
+    setModelTransform,
+    isModelVisible: (modelId: ModelId) => models.get(modelId)?.visible ?? null,
+    get models() {
+      return [...models.keys()];
+    },
     scene,
     camera,
     renderer,
@@ -349,7 +502,9 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
       return () => selectListeners.delete(fn);
     },
     stats: () => ({
-      triangles: current?.triangles ?? 0,
+      // Summed across every loaded model, visible or not: the triangles exist on the GPU either way, and a
+      // stats panel that under-reports because a discipline is hidden is a stats panel that hides a leak.
+      triangles: [...models.values()].reduce((n, m) => n + m.build.triangles, 0),
       drawCalls: renderer.info.render.calls,
       geometries: renderer.info.memory.geometries,
       textures: renderer.info.memory.textures,
@@ -369,11 +524,9 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
       detachGovernor();
       stopObserving();
       controls.dispose();
-      if (current) {
-        modelRoot.remove(current.group);
-        disposeScene(current);
-        current = null;
-      }
+      // Every model, not just the last one. With a registry, disposing `current` alone would leak the GPU buffers
+      // of every other loaded discipline — which is precisely what `e2e/memory.spec.ts` asserts cannot happen.
+      for (const id of [...models.keys()]) removeModel(id);
       grid.geometry.dispose();
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
