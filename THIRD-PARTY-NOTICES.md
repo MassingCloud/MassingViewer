@@ -238,7 +238,7 @@ installed on whichever host happened to run the generator.
 - `micromatch` 4.0.8
 - `mri` 1.2.0
 - `ms` 2.1.3
-- `nanoid` 3.3.17
+- `nanoid` 3.3.18
 - `natural-compare` 1.4.0
 - `node-fetch` 2.7.0
 - `node-releases` 2.0.53
