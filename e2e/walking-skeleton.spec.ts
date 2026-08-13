@@ -1134,6 +1134,32 @@ test("survives a reload with the network gone, not just a session", async ({ pag
   await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 20_000 });
 
+  /**
+   * Wait for the precache to actually hold the document, not merely for a controller to exist.
+   *
+   * A controller is a *proxy* for "the worker is ready", and the two come apart: the page can be claimed while the
+   * precache is still filling, and going offline in that window leaves the reload with no cached shell — the app
+   * does not boot and the failure reads as "the offline feature is broken" rather than "the test went offline too
+   * early".
+   *
+   * This was latent. The test passed 3/3 before the bundle grew by a kilobyte and 1/3 after, which is the shape of
+   * a race being *revealed* rather than introduced. Asserting the real precondition fixes it for whatever the
+   * bundle weighs next.
+   */
+  await page.waitForFunction(
+    async () => {
+      for (const key of await caches.keys()) {
+        const cache = await caches.open(key);
+        if ((await cache.match(location.href)) ?? (await cache.match("/index.html")) ?? (await cache.match("/"))) {
+          return true;
+        }
+      }
+      return false;
+    },
+    undefined,
+    { timeout: 20_000 },
+  );
+
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
