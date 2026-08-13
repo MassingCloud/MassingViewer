@@ -35,3 +35,4 @@ apps/web/src/viewer/raf.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	package
 apps/web/src/viewer/pixelGovernor.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/pixelGovernor.ts	move	2026-08-06
 apps/web/src/viewer/pixelGovernor.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/pixelGovernor.test.ts	move	2026-08-06
 apps/web/src/viewer/canvasResize.test.ts	29de54fb580c8e5718b4f9763ccdf654c024b1a6	packages/viewport/src/canvasResize.test.ts	move	2026-08-06
+apps/web/src/viewer/canvasMode.ts	57ca47a0aad2cd33f340507cc90860231aec2f38	packages/ui-model/src/canvasMode.ts	port	2026-08-13

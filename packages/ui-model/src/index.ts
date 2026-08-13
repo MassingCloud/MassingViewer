@@ -63,3 +63,6 @@ export type {
   GallerySearchOptions,
   GalleryTile,
 } from "./gallery.js";
+
+export { createCanvasModeSwitch, visibility, MODE_ORDER } from "./canvasMode.js";
+export type { CanvasMode, CanvasModeSwitch, ModeDef, SwitchResult } from "./canvasMode.js";

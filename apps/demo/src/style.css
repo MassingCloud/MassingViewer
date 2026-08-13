@@ -261,3 +261,27 @@ button.tool.armed { border-color: var(--accent); background: #2b3a4d; }
 .fam-proxy .fam-meta { color: var(--warn); }
 
 .fam-note { font-size: 10px; margin: 10px 0 0; line-height: 1.4; }
+
+/* --- canvas modes ------------------------------------------------------------------------------
+ *
+ * The mode is the state and visibility is derived from it, so these rules are the *only* place that
+ * decides which surface is the canvas. Nothing sets `hidden` on the viewport by hand.
+ */
+.mode-tab {
+  padding: 3px 10px; font-size: 12px; cursor: pointer;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+.mode-tab:first-child { border-radius: 4px 0 0 4px; }
+.mode-tab:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
+.mode-tab:hover { color: var(--text); }
+.mode-tab.mode-on { color: var(--text); border-color: var(--accent); background: #22303f; }
+#canvas-modes { display: flex; margin-right: 8px; }
+
+/* Sheet mode: the drawing takes the whole canvas. The 3D surface is not merely covered — it is out
+ * of the grid, so nothing is rendering behind it. */
+body[data-canvas-mode="sheets"] #viewport { display: none; }
+body[data-canvas-mode="sheets"] main { grid-template-columns: 1fr 290px; }
+body[data-canvas-mode="sheets"] #plan-pane { padding: 16px; overflow: auto; }
+/* The sheet is paper: centred, on a ground that is not the page, so its edge is visible. */
+body[data-canvas-mode="sheets"] #plan-svg svg { max-height: none; box-shadow: 0 2px 18px #0009; }

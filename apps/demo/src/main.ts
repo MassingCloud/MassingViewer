@@ -43,7 +43,7 @@ import {
 import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/observability";
 import { browserEnvironment, isolationStatus } from "@massing/pwa";
 import { DE, createTranslator } from "@massing/i18n";
-import { TOOLS } from "@massing/ui-model";
+import { createCanvasModeSwitch, TOOLS } from "@massing/ui-model";
 import { createRibbon } from "@massing/ribbon";
 import "@massing/ribbon/ribbon.css";
 import type * as THREE from "three";
@@ -84,6 +84,7 @@ app.innerHTML = `
       <span class="muted" id="file">sample.ifc</span>
       <button id="open" title="Open an IFC — or just drop one on the model">Open…</button>
       <span class="spacer"></span>
+      <div id="canvas-modes" role="tablist" aria-label="Canvas"></div>
       <button id="fit" title="Frame the model (F)">Fit</button>
       <button id="author" title="Author a wall offline, in a Worker, with no network">+ Wall</button>
       <button id="plan" title="Cut a plan from the model at 1.2 m">Plan</button>
@@ -909,6 +910,81 @@ function paintPlan(): void {
   });
   highlightPlan();
 }
+
+// --- the canvas is one thing at a time ----------------------------------------------------------
+/**
+ * 3D and the sheet as peers, not a model with a 38% strip stuck to it.
+ *
+ * `@massing/ui-model`'s `createCanvasModeSwitch` owns the state, so "exactly one surface is the canvas" holds by
+ * construction. Two independent `hidden` flags would have four states and two of them are wrong.
+ *
+ * **The side-by-side stays**, and that is a deliberate departure from taking the upstream design wholesale. The
+ * plan pane beside the model is what makes plan-to-3D selection observable — clicking a line in the plan selects
+ * the element in the viewport, which is the loop this product is *for*, and an E2E test asserts it. So the split is
+ * the model mode's companion pane, and `sheets` is the mode where the drawing takes the whole canvas at a scale you
+ * can measure off. A partial beside the model, with an option to open it full.
+ */
+const modeSwitch = createCanvasModeSwitch(
+  [
+    {
+      key: "model",
+      label: "3D Model",
+      title: "The model, with the plan beside it when one is cut",
+      enter: () => document.body.setAttribute("data-canvas-mode", "model"),
+      leave: () => {},
+    },
+    {
+      key: "sheets",
+      label: "Sheet",
+      title: "The drawing, full width, as an issued sheet",
+      // Re-evaluated per switch, not captured: this becomes true the moment a plan is cut, while the tab is
+      // already on screen.
+      blocked: () => (drawing === null ? "Cut a plan first — there is no sheet to show." : null),
+      enter: () => {
+        document.body.setAttribute("data-canvas-mode", "sheets");
+        el("#plan-pane").hidden = false;
+  // The Sheet tab was blocked until this moment; its tooltip says why, so it has to be re-rendered.
+  renderCanvasModes();
+        // A sheet gets the sheet treatment. In the pane the furniture is noise; filling the canvas, its absence is
+        // what looks wrong.
+        asSheet = true;
+        el("#sheet").setAttribute("aria-pressed", "true");
+        paintPlan();
+      },
+      leave: () => {},
+    },
+  ],
+  () => renderCanvasModes(),
+);
+
+function renderCanvasModes(): void {
+  const strip = el("#canvas-modes");
+  strip.innerHTML = "";
+  for (const key of modeSwitch.modes) {
+    const def = modeSwitch.def(key)!;
+    const button = document.createElement("button");
+    button.className = `mode-tab${key === modeSwitch.active ? " mode-on" : ""}`;
+    button.textContent = def.label;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", String(key === modeSwitch.active));
+    button.dataset.mode = key;
+    // The reason a blocked tab cannot be entered, on the tab itself — a tab that swallows a click is
+    // indistinguishable from a broken one.
+    const why = def.blocked?.() ?? null;
+    button.title = why ?? def.title ?? def.label;
+    button.addEventListener("click", () => {
+      const result = modeSwitch.switchTo(key);
+      if (!result.ok) {
+        el("#status").textContent = result.reason ?? "";
+        el("#status").className = "warn";
+        return;
+      }
+      renderCanvasModes();
+    });
+    strip.appendChild(button);
+  }
+}
+renderCanvasModes();
 
 function generate(): void {
   drawing = generatePlan(planInput(), { kind: "plan", cutHeight: 1.2 });

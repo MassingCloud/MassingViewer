@@ -1307,3 +1307,36 @@ test("the family gallery searches the whole library and switches discipline", as
   await expect(page.locator('.fam-tab[data-discipline="Structural"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".fam-note")).toContainText("in Structural");
 });
+
+test("the canvas is one thing at a time, and a blocked mode says why", async ({ page }) => {
+  /**
+   * 3D and the sheet as peers. The invariant a pair of `hidden` flags cannot give you is that exactly one surface is
+   * the canvas — so this asserts the *other* one is genuinely gone, not merely covered.
+   */
+  await page.locator("#kernel").filter({ hasText: "ready" }).waitFor({ timeout: 30_000 });
+
+  // Sheet is blocked until something is cut. A tab that swallows the click is indistinguishable from a broken one.
+  await expect(page.locator('.mode-tab[data-mode="sheets"]')).toHaveAttribute("title", /Cut a plan first/);
+  await page.locator('.mode-tab[data-mode="sheets"]').click();
+  await expect(page.locator("#status")).toContainText("Cut a plan first");
+  await expect(page.locator("body")).toHaveAttribute("data-canvas-mode", "model");
+
+  await cutPlan(page);
+
+  // In model mode the plan sits *beside* the model — that is what makes plan-to-3D selection observable, and it is
+  // deliberately kept rather than replaced by the full-canvas sheet.
+  await expect(page.locator("#viewport")).toBeVisible();
+  await expect(page.locator("#plan-pane")).toBeVisible();
+
+  await page.locator('.mode-tab[data-mode="sheets"]').click();
+  await expect(page.locator("body")).toHaveAttribute("data-canvas-mode", "sheets");
+  await expect(page.locator("#viewport"), "the 3D surface is still rendering behind the sheet").toBeHidden();
+  await expect(page.locator("#plan-pane")).toBeVisible();
+  // Filling the canvas, a drawing without its title block is what looks wrong — so sheet mode turns it on.
+  await expect(page.locator("#plan-svg")).toContainText("PROJECT");
+
+  // And back, with the model returning.
+  await page.locator('.mode-tab[data-mode="model"]').click();
+  await expect(page.locator("body")).toHaveAttribute("data-canvas-mode", "model");
+  await expect(page.locator("#viewport")).toBeVisible();
+});
