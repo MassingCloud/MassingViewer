@@ -1148,13 +1148,28 @@ test("survives a reload with the network gone, not just a session", async ({ pag
    */
   await page.waitForFunction(
     async () => {
-      for (const key of await caches.keys()) {
-        const cache = await caches.open(key);
-        if ((await cache.match(location.href)) ?? (await cache.match("/index.html")) ?? (await cache.match("/"))) {
-          return true;
+      // Everything the shell actually loads, not just the shell. Waiting for the document alone was still a proxy:
+      // the app cannot boot from a cached index.html whose entry chunk and Workers are still being fetched, which
+      // is what kept failing on a slower CI runner while passing here.
+      const wanted = [
+        location.href,
+        ...[...document.querySelectorAll("script[src]")].map((n) => (n as HTMLScriptElement).src),
+        ...[...document.querySelectorAll('link[rel="stylesheet"], link[rel="modulepreload"]')].map(
+          (n) => (n as HTMLLinkElement).href,
+        ),
+      ];
+      const keys = await caches.keys();
+      for (const url of wanted) {
+        let found = false;
+        for (const key of keys) {
+          if (await (await caches.open(key)).match(url)) {
+            found = true;
+            break;
+          }
         }
+        if (!found) return false;
       }
-      return false;
+      return keys.length > 0;
     },
     undefined,
     { timeout: 20_000 },
