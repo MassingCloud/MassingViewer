@@ -210,7 +210,7 @@ for (const pkg of packages) {
     continue; // no src/ — a plugin dir or a placeholder
   }
 
-  let manifest = {};
+  let manifest;
   try {
     manifest = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
   } catch {

@@ -87,7 +87,7 @@ function toPublish() {
   }
   const publishable = [];
   for (const entry of manifests) {
-    let published = [];
+    let published;
     try {
       // Through `npm_execpath` and this Node, with no shell. Node 24's DEP0190 fires for args passed alongside
       // `shell: true`, and the fix is to not need a shell rather than to silence the warning — the same change

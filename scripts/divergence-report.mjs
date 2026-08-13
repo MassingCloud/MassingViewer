@@ -57,7 +57,7 @@ function gh(args) {
     });
   } catch (e) {
     const stderr = (e.stderr ?? "").toString().trim();
-    throw new Error(`gh ${args.slice(0, 2).join(" ")} failed: ${stderr || e.message}`);
+    throw new Error(`gh ${args.slice(0, 2).join(" ")} failed: ${stderr || e.message}`, { cause: e });
   }
 }
 
@@ -118,7 +118,7 @@ function compareUpstream(baseline) {
   const files = [];
   const commits = [];
   let page = 1;
-  let totalCommits = 0;
+  let totalCommits;
   let totalFiles = null;
 
   // The compare endpoint caps `files` at 300 and `commits` at 250 per response, and paginates both.
@@ -201,7 +201,7 @@ for (const [path, { sha, dests }] of byPath) {
   // Narrow the commit list to those that actually touched this path. The commit set from `compare` is the
   // exact set between the two SHAs, so intersecting against a per-path listing stays SHA-based throughout —
   // no dates anywhere in this path of the logic.
-  let commits = [];
+  let commits;
   try {
     const jq = String.raw`.[] | "\(.sha)\t\(.commit.committer.date)\t\(.commit.message | split("\n")[0])"`;
     const inRange = new Set(cmp.commits.map((c) => c.sha));

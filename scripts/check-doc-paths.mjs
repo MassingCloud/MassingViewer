@@ -94,7 +94,7 @@ function declaredPackages() {
   };
   read("package.json");
   for (const group of ["packages", "apps"]) {
-    let entries = [];
+    let entries;
     try {
       entries = readdirSync(join(ROOT, group));
     } catch {

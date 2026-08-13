@@ -25,6 +25,22 @@ export default tseslint.config(
       eqeqeq: ["error", "always", { null: "ignore" }],
       "no-console": ["error", { allow: ["warn", "error"] }],
 
+      /**
+       * Enabled here rather than inherited, so a linter bump cannot introduce them as a surprise.
+       *
+       * Both arrived as *new* failures the moment Dependabot's tooling group could install: nine violations across
+       * six files, none of which this repository's own lint had ever run. Turning them on deliberately means the
+       * bump lands green and, more usefully, that the next violation is caught by `npm run lint` on a laptop rather
+       * than by a dependency update three weeks later.
+       *
+       * Neither is style. `no-useless-assignment` found six dead initialisers sitting in front of a `try` whose
+       * `catch` already handled the failure — harmless, but each one is a reader being told a default matters when
+       * it cannot be read. `preserve-caught-error` found a rethrow that discarded the original error, which is the
+       * difference between a diagnosable cron failure and a one-line message.
+       */
+      "no-useless-assignment": "error",
+      "preserve-caught-error": "error",
+
       // A published library must not reach for globals that don't exist in every host. `window` and
       // `document` are legal only in the presentation packages, enforced structurally below rather
       // than by convention, because "don't touch the DOM in core" is exactly the rule that erodes.

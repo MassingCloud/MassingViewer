@@ -127,19 +127,28 @@ export function smallBuilding() {
   const meshes = [];
   let id = 100;
 
+  /**
+   * Push one element, taking the next expressId.
+   *
+   * A helper rather than a repeated `mesh(id++, …)`: the trailing `id++` was a dead increment, and the obvious fix —
+   * dropping the `++` on the last line only — makes adding a seventh element a silent duplicate-id bug. Owning the
+   * counter here means a caller cannot get it wrong, and the increment stays genuinely live.
+   */
+  const add = (ifcType, geometry, color) => void meshes.push(mesh(id++, ifcType, geometry, color));
+
   // South wall (z=0) with a door: 0.9 m wide at 3.0 m along, head 2.1 m, no sill.
-  meshes.push(mesh(id++, "IfcWall", wallWithOpening([0, 0], [8, 0], T, H, { at: 3.0, width: 0.9, sill: 0, head: 2.1 })));
+  add("IfcWall", wallWithOpening([0, 0], [8, 0], T, H, { at: 3.0, width: 0.9, sill: 0, head: 2.1 }));
   // North wall (z=6) with a window: 1.5 m wide at 2.0 m along, sill 0.9 m, head 2.1 m.
-  meshes.push(mesh(id++, "IfcWall", wallWithOpening([0, 6], [8, 6], T, H, { at: 2.0, width: 1.5, sill: 0.9, head: 2.1 })));
+  add("IfcWall", wallWithOpening([0, 6], [8, 6], T, H, { at: 2.0, width: 1.5, sill: 0.9, head: 2.1 }));
   // West and east walls, solid.
-  meshes.push(mesh(id++, "IfcWall", wallWithOpening([0, 0], [0, 6], T, H, null)));
-  meshes.push(mesh(id++, "IfcWall", wallWithOpening([8, 0], [8, 6], T, H, null)));
+  add("IfcWall", wallWithOpening([0, 0], [0, 6], T, H, null));
+  add("IfcWall", wallWithOpening([8, 0], [8, 6], T, H, null));
 
   // Slab, 200 mm, entirely below the cut plane.
-  meshes.push(mesh(id++, "IfcSlab", box([-0.2, -0.2, -0.2], [8.2, 0, 6.2]), [0.6, 0.6, 0.6, 1]));
+  add("IfcSlab", box([-0.2, -0.2, -0.2], [8.2, 0, 6.2]), [0.6, 0.6, 0.6, 1]);
 
   // A 300 mm square column mid-floor — a dot in plan, and a good test of small-feature survival.
-  meshes.push(mesh(id++, "IfcColumn", box([3.85, 0, 2.85], [4.15, H, 3.15])));
+  add("IfcColumn", box([3.85, 0, 2.85], [4.15, H, 3.15]));
 
   return meshes;
 }

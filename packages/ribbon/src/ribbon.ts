@@ -326,7 +326,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     const current = order.findIndex((b) => b === document.activeElement);
     if (current === -1) return;
 
-    let next = current;
+    let next: number;
     switch (event.key) {
       case "ArrowRight":
       case "ArrowDown":
@@ -362,7 +362,7 @@ export function createRibbon(container: HTMLElement, options: RibbonOptions): Ri
     const order = [...tabButtons.values()];
     const current = order.findIndex((b) => b === document.activeElement);
     if (current === -1) return;
-    let next = current;
+    let next: number;
     if (event.key === "ArrowRight") next = (current + 1) % order.length;
     else if (event.key === "ArrowLeft") next = (current - 1 + order.length) % order.length;
     else if (event.key === "Home") next = 0;
