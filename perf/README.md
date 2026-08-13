@@ -75,3 +75,20 @@ nobody can read six months later — which is exactly when slow drift becomes vi
   `renderer.info.memory` back to baseline, `THREE.Cache` empty, zero pending animation-frame callbacks. It calls
   this the most-neglected gate for a long-lived three.js app. It does not exist. Recorded in
   `.github/workflows/nightly.yml`.
+
+## Main-thread blocking, measured 2026-08-13
+
+`e2e/longtask.spec.ts` (run it with `LONGTASK=1`) observes the Long Tasks API across the golden path — load, author,
+cut, sheet, export — and prints every task over 50 ms with the step it landed in.
+
+**Finding: cutting a plan blocks the main thread for roughly 450 ms.** `generatePlan` runs synchronously in the demo,
+and sectioning is exactly the work the plan expects to live in a Worker (risk #5, *main-thread stalls*). Boot lands a
+further ~300–700 ms in script evaluation, which is a bundle-size question rather than a threading one.
+
+It is a report and not a gate, deliberately. Two thresholds were tried and both were dishonest: 250 ms fired about one
+run in four, because the cut clears the bar on a warm JIT; excluding the cut, boot alone exceeds it. No number
+available from this API separates "the architecture regressed" from "V8 was cold", and inventing one would be the
+fourth guessed budget this file already warns about.
+
+The number is how anyone checks whether sectioning has moved off the main thread. It should fall to nothing when it
+does.
