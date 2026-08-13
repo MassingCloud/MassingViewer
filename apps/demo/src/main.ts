@@ -8,7 +8,6 @@ import {
   type Drawing,
   type DrawingInput,
   fitToPaper,
-  generatePlan,
   dxfLimitations,
   pdfLimitations,
   toDxf,
@@ -52,6 +51,7 @@ import { Cache as THREE_CACHE } from "three";
 import { tessellate } from "./tessellate";
 import { wireDraft, type DraftController } from "./draft";
 import { mountFamilies, type FamiliesPanel } from "./families";
+import type { CutRequest, CutResponse } from "./drawings.worker";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
 // paint the demo makes zero network requests, so it is provably working without a backend. massing's own Pages
@@ -600,6 +600,26 @@ const kernelWorker = new Worker(new URL("./kernel.worker.ts", import.meta.url), 
   name: "massingviewer-local-kernel",
 });
 const kernel = createLocalKernel(browserWorkerTransport(kernelWorker));
+
+/**
+ * The sectioning Worker. Same construction rule as the kernel's — `new URL` here, in the app, so the bundler emits
+ * a chunk for it.
+ */
+const drawingsWorker = new Worker(new URL("./drawings.worker.ts", import.meta.url), {
+  type: "module",
+  name: "massingviewer-drawings",
+});
+drawingsWorker.addEventListener("message", (event: MessageEvent<CutResponse>) => {
+  const reply = event.data;
+  // A reply for a cut that has been superseded is dropped, not painted. See `generate`.
+  if (reply.id !== cutSeq) return;
+  if (!reply.ok) {
+    el("#status").textContent = `plan: ${reply.why}`;
+    el("#status").className = "warn";
+    return;
+  }
+  applyDrawing(reply.drawing);
+});
 // `open` is not part of KernelProvider — it is how a model gets into a kernel — so it is reached through the
 // concrete type rather than the interface.
 const openable = kernel as typeof kernel & {
@@ -986,8 +1006,29 @@ function renderCanvasModes(): void {
 }
 renderCanvasModes();
 
+/**
+ * Cut a plan, in a Worker.
+ *
+ * It used to call `generatePlan` here, and `e2e/longtask.spec.ts` measured that blocking the main thread for about
+ * 450 ms — a quarter of a second of dropped frames on a six-element fixture, and risk #5 in the plan. Sectioning is
+ * pure, so nothing kept it on this thread except that it was easier.
+ *
+ * **Stale replies are discarded by sequence number.** Cutting twice quickly — the ribbon verb and the header button
+ * are one click apart, and `reloadFromKernel` re-cuts after every edit — would otherwise let a slow first reply
+ * land after a fast second one and paint the older drawing over the newer. That is the "reports success while
+ * showing the wrong thing" shape this repository keeps finding, and going async is exactly what introduces it.
+ */
+let cutSeq = 0;
+
 function generate(): void {
-  drawing = generatePlan(planInput(), { kind: "plan", cutHeight: 1.2 });
+  const seq = ++cutSeq;
+  const request: CutRequest = { id: seq, input: planInput(), view: { kind: "plan", cutHeight: 1.2 } };
+  drawingsWorker.postMessage(request);
+}
+
+/** Paint a finished cut. Split from `generate` so the reply handler and the request have one shape between them. */
+function applyDrawing(next: Drawing): void {
+  drawing = next;
   el("#plan-pane").hidden = false;
   el<HTMLButtonElement>("#theme").disabled = false;
   el<HTMLButtonElement>("#sheet").disabled = false;
