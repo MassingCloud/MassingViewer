@@ -96,6 +96,28 @@ export const TOOLS: ToolSpec[] = [
   { title: "Draw a wall between two points (W)", label: "Wall", group: "author" },
   { title: "Draw a slab from a closed outline", label: "Slab", group: "author" },
   { title: "Place a column at a point", label: "Column", group: "author" },
+
+  /**
+   * The 2D and markup verbs, which are **this repository's**, not inherited.
+   *
+   * Everything above this point came from massing's toolbar and is matched to it by title. These are the ones
+   * MassingViewer adds because its 2D story is a product claim rather than a side pane: cutting a sheet, giving it
+   * the whole canvas, restyling it, issuing it, and marking it up. Without them the Sheet tab held a single
+   * control — a tab that exists and has nothing in it.
+   *
+   * `group: "look"` for the view verbs and `"collaborate"` for the markup ones keeps the floating-bar grouping
+   * meaningful for massing's vanilla shell, which reads the same table. None of them is `primary`, deliberately:
+   * the floating bar has a hard cap, and promoting a new verb into it demotes an inherited one — the exact failure
+   * `railToolbox` already shipped once. These live in the ribbon, which has no cap.
+   */
+  { title: "Cut a plan at the current level", label: "Cut plan", group: "look" },
+  { title: "Show the sheet full width — border, title block, revision table", label: "Sheet", group: "look" },
+  { title: "Repaint the sheet with another discipline theme — no regeneration", label: "Theme", group: "look" },
+  { title: "Fit the drawing to paper at a standard scale", label: "Paper", group: "look" },
+  { title: "Export the sheet as PDF, with layers and a GlobalId index", label: "PDF", group: "collaborate" },
+  { title: "Export the sheet as DXF R12", label: "DXF", group: "collaborate" },
+  { title: "Raise an issue on the selected element", label: "Issue", group: "collaborate" },
+  { title: "Export every markup as BCF 3.0", label: "BCF", group: "collaborate" },
   { title: "Edit in place — drag the gizmo to move the selected element", label: "Edit in place",
     group: "author", primary: onEditableSelection },
   // R38-PUSHPULL — shipped v0.3.821 and NOT registered here, so the bar logged
@@ -191,6 +213,16 @@ export const TOOL_ICON: Record<string, string> = {
   "Wall": "box",
   "Slab": "layers",
   "Column": "box",
+  // The 2D and markup verbs. `pencil-ruler` for cutting a drawing, `panel-top` for a sheet with a title block
+  // across its head, `file-text` for the PDF and `download` for the DXF — nearest honest matches, nothing invented.
+  "Cut plan": "pencil-ruler",
+  "Sheet": "panel-top",
+  "Theme": "palette",
+  "Paper": "ruler",
+  "PDF": "file-text",
+  "DXF": "download",
+  "Issue": "flag",
+  "BCF": "share-2",
   "Guide underlay": "scan",     // A29-GUIDE-UNDERLAY — a scanned plan, traced over
   "Levels": "layers",
   "Show all": "eye",

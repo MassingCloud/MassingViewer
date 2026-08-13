@@ -16,13 +16,55 @@
  * The third is the one that would actually rot. The other two are cheap insurance.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
 const notes = [];
+
+/**
+ * Refuse to check a build older than the source it was built from.
+ *
+ * This gate reads `dist`, not `src`, because it needs the evaluated tables rather than a parse of TypeScript. That
+ * is fine right up until `dist` is stale, and then every number below describes a different tree — which is exactly
+ * what happened while eight tools were being added: the gate reported "99 keys, de 100%" against a 33-tool build
+ * while the source had 41 tools and twenty untranslated keys. It passed, twice, on yesterday's answer.
+ *
+ * CI builds immediately before running gates, so this only ever bites locally — which is precisely where someone
+ * decides whether a green gate means anything. `scripts/bundle-budget.mjs` carries the same guard for the same
+ * reason, discovered the same way.
+ */
+function assertFresh(pkg) {
+  const src = join(root, "packages", pkg, "src");
+  const dist = join(root, "packages", pkg, "dist");
+  if (!existsSync(dist)) {
+    problems.push(`packages/${pkg}/dist does not exist — run \`npm run build\` first.`);
+    return;
+  }
+  const newest = (dir) => {
+    let latest = 0;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      latest = Math.max(latest, entry.isDirectory() ? newest(full) : statSync(full).mtimeMs);
+    }
+    return latest;
+  };
+  if (newest(src) > newest(dist)) {
+    problems.push(
+      `packages/${pkg}/dist is older than its src. Every count below would describe a different tree.\n` +
+        `          Run: npm run build`,
+    );
+  }
+}
+assertFresh("ui-model");
+assertFresh("i18n");
+if (problems.length > 0) {
+  console.error(`\nMessage gate failed — ${problems.length} problem(s):\n`);
+  for (const p of problems) console.error(`  • ${p}`);
+  process.exit(1);
+}
 
 const { EN, DE } = await import(`file://${join(root, "packages/i18n/dist/index.js")}`);
 const { TOOLS } = await import(`file://${join(root, "packages/ui-model/dist/toolbarLayout.js")}`);

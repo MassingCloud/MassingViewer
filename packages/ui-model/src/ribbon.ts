@@ -137,7 +137,20 @@ const HOMES: Record<string, { tab: TabId; group: string; size?: ItemSize }> = {
   },
 
   // ── Sheet ──
+  //
+  // The 2D tab. It held one control before — a tab that exists and has nothing in it, which is the same failure
+  // this file's own `unhomed()` check exists to catch from the other direction.
+  "Cut a plan at the current level": { tab: "sheet", group: "drawing", size: "large" },
   "Plan beside model": { tab: "sheet", group: "views", size: "large" },
+  "Show the sheet full width — border, title block, revision table": { tab: "sheet", group: "views", size: "large" },
+  "Repaint the sheet with another discipline theme — no regeneration": {
+    tab: "sheet",
+    group: "style",
+    size: "medium",
+  },
+  "Fit the drawing to paper at a standard scale": { tab: "sheet", group: "style", size: "medium" },
+  "Export the sheet as PDF, with layers and a GlobalId index": { tab: "sheet", group: "issue", size: "medium" },
+  "Export the sheet as DXF R12": { tab: "sheet", group: "issue", size: "medium" },
 
   // ── Analyse ──
   "Sun & shadow study (date · time · location)": { tab: "analyse", group: "environment", size: "large" },
@@ -146,6 +159,14 @@ const HOMES: Record<string, { tab: TabId; group: string; size?: ItemSize }> = {
     group: "environment",
     size: "medium",
   },
+
+  // ── Review: markup ──
+  //
+  // Anchored to a GlobalId by `@massing/markup`, so an issue raised on a sheet resolves to the element rather than
+  // to a page coordinate. That is the loop the market research says nobody has closed, and it belongs on the tab
+  // where a reviewer already is.
+  "Raise an issue on the selected element": { tab: "review", group: "markup", size: "large" },
+  "Export every markup as BCF 3.0": { tab: "review", group: "markup", size: "medium" },
 
   // ── Review: collaboration ──
   "Live presence": { tab: "review", group: "collaborate", size: "medium" },
@@ -175,6 +196,10 @@ const GROUP_LABELS: Record<string, string> = {
   data: "Data",
   reference: "Reference",
   views: "Views",
+  drawing: "Drawing",
+  style: "Style",
+  issue: "Issue",
+  markup: "Markup",
   environment: "Environment",
   collaborate: "Collaborate",
   section: "Section",
@@ -190,6 +215,12 @@ const GROUP_LABELS: Record<string, string> = {
 const GROUP_PRIORITY: Record<string, number> = {
   select: 100,
   modify: 100,
+  // The 2D tab's own groups. Drawing outranks Style and Issue for the same reason Select outranks Collaborate:
+  // on a narrow screen, cutting the drawing is what the tab is still for.
+  drawing: 95,
+  style: 60,
+  issue: 50,
+  markup: 85,
   measure: 90,
   draw: 95,
   openings: 85,

@@ -1277,8 +1277,52 @@ function explainGizmo(which: "move" | "rotate" | "push/pull"): void {
   el("#status").textContent = `${which} — ${where}`;
 }
 
+/**
+ * Ribbon item id from a tool title — the same slug `commandIdFor` uses, minus the plugin namespace.
+ *
+ * Computed rather than written out, so the eight 2D and markup verbs cannot drift from their titles. A key typed by
+ * hand that no longer matches its title does not fail: the button simply falls through to "not implemented in this
+ * demo", which reads as a deliberate gap rather than a broken wire.
+ */
+const idFor = (title: string): string =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const RIBBON_ACTIONS: Record<string, () => void> = {
   "measure-distance-m": () => ribbon.announce("Measure is not wired up in this demo yet"),
+
+  // ── the 2D tab ──
+  // Each of these already exists as a header button; the ribbon drives the same handler rather than a second copy.
+  [idFor("Cut a plan at the current level")]: () => generate(),
+  [idFor("Show the sheet full width — border, title block, revision table")]: () => {
+    const result = modeSwitch.switchTo("sheets");
+    if (!result.ok) {
+      ribbon.announce(result.reason ?? "");
+      el("#status").textContent = result.reason ?? "";
+      el("#status").className = "warn";
+      return;
+    }
+    renderCanvasModes();
+  },
+  [idFor("Repaint the sheet with another discipline theme — no regeneration")]: () => el("#theme").click(),
+  [idFor("Export the sheet as PDF, with layers and a GlobalId index")]: () => el("#pdf").click(),
+  [idFor("Export the sheet as DXF R12")]: () => el("#dxf").click(),
+
+  // ── markup ──
+  [idFor("Export every markup as BCF 3.0")]: () => el("#bcf").click(),
+  [idFor("Raise an issue on the selected element")]: () => {
+    // The markup palette is the tool-set idea: the tool carries the issue type, so arming one and clicking an
+    // element produces a correctly typed topic. Pointing the ribbon verb at the first tool keeps one path.
+    const first = document.querySelector<HTMLButtonElement>("#tools button.tool");
+    if (first === null) {
+      ribbon.announce("No markup tools loaded");
+      return;
+    }
+    first.click();
+    ribbon.announce("Markup armed — click an element to raise an issue on its GlobalId");
+  },
   "show-all-h": () => applySelection(null),
   "isolate-selection": () => ribbon.announce("Isolate is not wired up in this demo yet"),
   "plan-beside-model": () => generate(),
