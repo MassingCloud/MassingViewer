@@ -104,6 +104,34 @@ describe("which tiles reach the ribbon", () => {
     expect(new Set(keys).size, `duplicates in ${keys.join(", ")}`).toBe(keys.length);
   });
 
+  it("leads with what the host can act on, and still shows the rest", () => {
+    /**
+     * Found by looking at the rendered panel, not at the code.
+     *
+     * Breadth-first promotion filled the row from the alphabetically-first category, which in the demo library is
+     * `Circulation` — so the ribbon led with a balustrade that is both a placeholder and unplaceable offline, while
+     * walls and slabs were pushed into the flyout. Correct by the rule as written, and a worse tool.
+     */
+    const unplaceable = (e: GalleryEntry): boolean => e.ifcClass === "IfcDoor" || e.ifcClass === "IfcWindow";
+    const g = galleryFor(LIBRARY, "Architectural", { visible: 3, demote: unplaceable });
+
+    // An *ordering* assertion, not an exclusion one. This library has a single placeable Architectural entry, so with
+    // three slots the row is necessarily mostly demoted entries — asserting none appear failed against correct
+    // behaviour. What must hold is that every usable tile comes first.
+    const flags = g.promoted.map((t) => unplaceable(t.entry));
+    expect(flags, `promoted ${g.promoted.map((t) => t.entry.key).join(", ")}`).toEqual(
+      [...flags].sort((a, b) => Number(a) - Number(b)),
+    );
+    expect(unplaceable(g.promoted[0]!.entry), "the row still leads with something unplaceable").toBe(false);
+  });
+
+  it("still promotes demoted entries when there is nothing better", () => {
+    // A discipline where nothing is placeable should show its tiles, not an empty row. `demote` reorders; it never
+    // filters.
+    const g = galleryFor(LIBRARY, "Architectural", { visible: 4, demote: () => true });
+    expect(g.promoted).toHaveLength(4);
+  });
+
   it("is deterministic, so a ribbon does not reshuffle between renders", () => {
     const a = keysOf(galleryFor(LIBRARY, "Architectural", { visible: 4 }).promoted);
     const b = keysOf(galleryFor([...LIBRARY].reverse(), "Architectural", { visible: 4 }).promoted);

@@ -72,6 +72,20 @@ export interface GalleryOptions {
    * keys are ignored rather than reserving an empty slot.
    */
   readonly preferred?: readonly string[];
+  /**
+   * Entries to push to the back of the promotion queue — typically the ones the host cannot currently act on.
+   *
+   * Added after looking at the rendered panel rather than at the code. Breadth-first promotion filled the ribbon row
+   * with the alphabetically-first category, which in the demo library is `Circulation` — so the row led with a
+   * balustrade that is both a placeholder and unplaceable offline, while walls and slabs were pushed into the
+   * flyout. Correct by the rule as written, and a worse tool.
+   *
+   * A predicate rather than a filter, because these entries are still promoted if there is nothing better: a
+   * discipline where *nothing* is placeable should still show its tiles rather than an empty row. And a predicate
+   * rather than kernel awareness inside this package, because which operations exist is a kernel fact — the host
+   * joins the two.
+   */
+  readonly demote?: (entry: GalleryEntry) => boolean;
 }
 
 const DEFAULT_VISIBLE = 6;
@@ -132,18 +146,25 @@ export function galleryFor<T extends GalleryEntry>(
       taken.add(found.key);
     }
   }
-  const queues = [...byCategory.values()].map((list) => list.filter((e) => !taken.has(e.key)));
-  let round = 0;
-  while (promoted.length < visible && queues.some((q) => q.length > round)) {
-    for (const queue of queues) {
-      if (promoted.length >= visible) break;
-      const entry = queue[round];
-      if (entry !== undefined && !taken.has(entry.key)) {
-        promoted.push(tile(entry));
-        taken.add(entry.key);
+  const demote = options.demote ?? (() => false);
+  // Two passes over the same round-robin: everything the host can act on, then everything else. Within each pass the
+  // breadth-first rule is unchanged, so the row still summarises *kinds* — it just leads with usable ones.
+  for (const pass of [false, true]) {
+    const queues = [...byCategory.values()].map((list) =>
+      list.filter((e) => !taken.has(e.key) && demote(e) === pass),
+    );
+    let round = 0;
+    while (promoted.length < visible && queues.some((q) => q.length > round)) {
+      for (const queue of queues) {
+        if (promoted.length >= visible) break;
+        const entry = queue[round];
+        if (entry !== undefined && !taken.has(entry.key)) {
+          promoted.push(tile(entry));
+          taken.add(entry.key);
+        }
       }
+      round++;
     }
-    round++;
   }
 
   return {

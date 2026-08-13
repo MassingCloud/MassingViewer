@@ -1234,3 +1234,76 @@ test("the Sheet toggle turns a plan into an issued sheet, without re-cutting it"
   await expect(page.locator("#sheet")).toHaveAttribute("aria-pressed", "false");
   expect(await page.locator("#plan-svg text").count(), "the furniture did not come off again").toBe(0);
 });
+
+/**
+ * The family gallery, and the drop that places one.
+ *
+ * In the E2E suite rather than a unit test because the interesting part needs a **real viewport**: a drop resolves to
+ * a ground point by raycasting through the camera, and a canvas with no size resolves every point to "past the
+ * horizon". Driving it in the preview pane, whose canvas measured 0x20, produced exactly that message — correct
+ * behaviour, and useless as verification.
+ */
+test("the family gallery places what the kernel supports and explains what it does not", async ({ page }) => {
+  await page.locator("#kernel").filter({ hasText: "ready" }).waitFor({ timeout: 30_000 });
+  await page.locator(".fam-tile").first().waitFor();
+
+  // The whole library is present, not just the placeable part. Availability is stated on the tile.
+  const tiles = page.locator(".fam-tile");
+  expect(await tiles.count(), "the gallery is empty").toBeGreaterThan(10);
+  const dimmed = page.locator('.fam-tile[aria-disabled="true"]');
+  expect(await dimmed.count(), "nothing is dimmed, so availability is not being shown").toBeGreaterThan(0);
+  // Every dimmed tile says why. A dimmed control with no reason is worse than a missing one.
+  for (const title of await dimmed.evaluateAll((ns) => ns.map((n) => n.getAttribute("title") ?? ""))) {
+    expect(title.length, "a dimmed tile carries no reason").toBeGreaterThan(20);
+  }
+
+  /** Synthesise a drop of a family key onto the canvas. */
+  const dropFamily = async (key: string): Promise<void> => {
+    await page.evaluate((k) => {
+      const canvas = document.querySelector("canvas")!;
+      const rect = canvas.getBoundingClientRect();
+      const dt = new DataTransfer();
+      dt.setData("application/x-massing-family", k);
+      canvas.dispatchEvent(
+        new DragEvent("drop", {
+          dataTransfer: dt,
+          bubbles: true,
+          cancelable: true,
+          // Below centre, so the ray meets the ground plane in front of the camera rather than the sky.
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height * 0.68,
+        }),
+      );
+    }, key);
+  };
+
+  // A column: `add_column` is one of the fifteen operations the offline kernel has.
+  const elementsBefore = await page.locator("#model").innerText();
+  await dropFamily("column-shs");
+  await expect(page.locator("#kernel")).toContainText("placed", { timeout: 20_000 });
+  expect(await page.locator("#model").innerText(), "the model did not change after a placement").not.toBe(
+    elementsBefore,
+  );
+
+  // Ductwork: no offline operation exists, so it is refused *by name* rather than silently ignored.
+  await dropFamily("duct-rectangular");
+  await expect(page.locator("#kernel")).toContainText("IfcDuctSegment");
+});
+
+test("the family gallery searches the whole library and switches discipline", async ({ page }) => {
+  await page.locator("#kernel").filter({ hasText: "ready" }).waitFor({ timeout: 30_000 });
+  await page.locator(".fam-tile").first().waitFor();
+
+  // Search spans every discipline, because a user looking for a duct should not have to know it is MEP first.
+  await page.locator("#fam-search").fill("duct");
+  await expect(page.locator(".fam-tile")).toHaveCount(2);
+  await expect(page.locator(".fam-tile").first()).toContainText("duct", { ignoreCase: true });
+
+  // Typing keeps focus, which a naive re-render loses — the second keystroke would go nowhere.
+  await expect(page.locator("#fam-search")).toBeFocused();
+
+  await page.locator("#fam-search").fill("");
+  await page.locator('.fam-tab[data-discipline="Structural"]').click();
+  await expect(page.locator('.fam-tab[data-discipline="Structural"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".fam-note")).toContainText("in Structural");
+});

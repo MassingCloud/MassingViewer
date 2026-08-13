@@ -51,6 +51,7 @@ import type * as THREE from "three";
 import { Cache as THREE_CACHE } from "three";
 import { tessellate } from "./tessellate";
 import { wireDraft, type DraftController } from "./draft";
+import { mountFamilies, type FamiliesPanel } from "./families";
 
 // The fixture is inlined at build time, not fetched. That is the point of the walking skeleton: after first
 // paint the demo makes zero network requests, so it is provably working without a backend. massing's own Pages
@@ -110,6 +111,8 @@ app.innerHTML = `
         <dl id="markup-info"><dt>Status</dt><dd class="muted">Pick a tool, then click an element</dd></dl>
         <div id="tools"></div>
         <ul id="topics"></ul>
+        <h2>Families <span class="muted" id="fam-count"></span></h2>
+        <div id="families"></div>
         <h2>Selection</h2>
         <dl id="sel"><dt>Status</dt><dd class="muted">Click an element</dd></dl>
         <h2 id="skipped-h" hidden>Not rendered</h2>
@@ -622,6 +625,7 @@ let kernelOps = 0;
  * exist first.
  */
 let draft: DraftController | null = null;
+let families: FamiliesPanel | null = null;
 let kernelReady = false;
 
 async function startKernel(): Promise<void> {
@@ -652,6 +656,28 @@ async function startKernel(): Promise<void> {
     },
     canEdit: () => true,
   });
+  /**
+   * The family gallery.
+   *
+   * Mounted after the kernel is up, because every tile's state depends on `kernel.supports` — mounting first would
+   * dim the whole library for a second and then silently un-dim it, which reads as a glitch rather than as loading.
+   */
+  families = mountFamilies({
+    panel: el("#families"),
+    canvas: viewport.renderer.domElement,
+    camera: viewport.camera,
+    supports: (op) => kernel.supports(op),
+    place: async (op, params, label) => {
+      const applied = await kernel.apply(MODEL, op, params as never);
+      if (!applied.ok) return `${applied.error.code}: ${applied.error.message}`;
+      await reloadFromKernel();
+      renderKernelPanel(`placed ${label} · v${applied.value.modelVersion}`, "ok");
+      return null;
+    },
+    status: (message, kind) => renderKernelPanel(message, kind),
+  });
+  el("#fam-count").textContent = String(families.total);
+
   // The ribbon re-evaluates availability, so the three draw verbs stop being dimmed the moment the kernel is up.
   ribbon.update({ selection: false, canEdit: true });
 }

@@ -198,3 +198,66 @@ button.tool.armed { border-color: var(--accent); background: #2b3a4d; }
 .shell {
   position: relative;
 }
+
+/* --- family gallery ---------------------------------------------------------------------------
+ *
+ * A grid of small tiles rather than a list: a library of hundreds is scanned, not read, and two
+ * columns of short labels fit roughly twice as many in a 290px rail as one column of long rows.
+ *
+ * Dimmed tiles stay in the flow and keep their text legible — `opacity: .45` on the whole tile
+ * would drop the label below the 4.5:1 contrast the rest of this file holds to, so the dimming is
+ * a border and background change with the label only slightly muted. A tile you cannot read is not
+ * a dimmed tile, it is a hidden one with extra steps.
+ */
+.fam-tabs { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.fam-tab {
+  flex: 1 1 auto; padding: 4px 6px; font-size: 11px; cursor: pointer;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+.fam-tab:hover { color: var(--text); }
+.fam-tab.fam-on { color: var(--text); border-color: var(--accent); background: #22303f; }
+.fam-tab:focus-visible, .fam-search:focus-visible, .fam-tile:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
+.fam-search {
+  width: 100%; margin-bottom: 8px; padding: 5px 7px; font-size: 12px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+
+.fam-h {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin: 10px 0 4px; font-weight: 600;
+}
+
+.fam-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  list-style: none; margin: 0; padding: 0;
+}
+
+.fam-tile {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 6px; cursor: grab;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  /* Long family names are the norm, not the exception. Wrapping to two lines keeps the grid even. */
+  overflow: hidden;
+}
+.fam-tile:hover { border-color: var(--accent); }
+.fam-tile:active { cursor: grabbing; }
+.fam-label { font-size: 11px; line-height: 1.25; color: var(--text); }
+.fam-meta { font-size: 9px; color: var(--muted); }
+
+/* Not placeable by this kernel. Border and ground change; the label stays readable, and `title`
+ * plus `aria-disabled` carry the reason. */
+.fam-tile[aria-disabled="true"] {
+  cursor: not-allowed; border-style: dashed; background: transparent;
+}
+.fam-tile[aria-disabled="true"] .fam-label { color: var(--muted); }
+
+/* The library grades some families as placeholders. Said on the tile, because a user who places one
+ * expecting a detailed component and gets a box has been misled by the tool. */
+.fam-proxy .fam-meta { color: var(--warn); }
+
+.fam-note { font-size: 10px; margin: 10px 0 0; line-height: 1.4; }
