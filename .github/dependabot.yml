@@ -15,6 +15,18 @@ updates:
       # @thatopen/* and web-ifc move as one verified set, never individually.
       - dependency-name: "three"
         update-types: ["version-update:semver-major"]
+      # TypeScript's major is coupled to typescript-eslint, which caps its peer range hard.
+      #
+      # Not a guess: the 2026-08-13 `dev-tooling` PR proposed typescript 7.0.2 and every job failed in
+      # `npm ci` with `peer typescript@">=4.8.4 <6.1.0" from typescript-eslint@8.66.0`. At the time of
+      # writing the latest typescript-eslint (8.67.0) still declares that same range, so *no* released
+      # version accepts TypeScript 7 — the group could not have merged in any ordering.
+      #
+      # This entry stops one incompatible member from failing the whole group: the other seven tooling
+      # updates land, and the TypeScript major is taken deliberately, once typescript-eslint supports it.
+      # Remove this when `npm view typescript-eslint peerDependencies` admits the major we are moving to.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for the whole coupled 3D stack. These five versions move as a set — see
       # scripts/check-fragments-version.mjs — so five separate PRs would each fail the parity gate and
