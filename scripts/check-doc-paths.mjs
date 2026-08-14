@@ -268,6 +268,43 @@ if (UPDATE) {
 }
 
 
+/**
+ * Package names, which the path check above cannot see.
+ *
+ * `@massing/markup-ui` sat in the README's package table and has never existed — the package is `@massing/markup`.
+ * Every gate stayed green, because a package name is not a path and this file only resolved paths. The same table
+ * listed 11 of 24 packages, so a reader was handed a wrong name and a partial map at once.
+ *
+ * Checked against the workspace manifests rather than a hand-kept list, for the reason the path check already
+ * gives: a list maintained beside the thing it describes drifts from it, and the drift is invisible.
+ */
+const workspaceNames = new Set(
+  readdirSync(join(ROOT, "packages"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      try {
+        return [JSON.parse(readFileSync(join(ROOT, "packages", entry.name, "package.json"), "utf8")).name];
+      } catch {
+        return [];
+      }
+    }),
+);
+
+let packageCitations = 0;
+for (const docPath of GATED) {
+  const full = join(ROOT, docPath);
+  if (!existsSync(full)) continue;
+  for (const [, name] of readFileSync(full, "utf8").matchAll(/`(@massing\/[a-z0-9-]+)`/g)) {
+    packageCitations += 1;
+    if (!workspaceNames.has(name)) {
+      problems.push(
+        `${docPath}: cites \`${name}\`, which is not a package in this repository. ` +
+          `Backticks are reserved for things that exist.`,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(`\nDoc-path gate failed — ${problems.length} problem(s):\n`);
   for (const p of problems) console.error(`  • ${p}`);
@@ -276,5 +313,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `Doc-path gate passed: ${GATED.length} doc(s), ${totalCitations} path citation(s), all resolvable.`,
+  `Doc-path gate passed: ${GATED.length} doc(s), ${totalCitations} path citation(s), ${packageCitations} package name(s), all resolvable.`,
 );
