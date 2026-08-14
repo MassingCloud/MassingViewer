@@ -269,6 +269,23 @@ Each of these came out of a defect found while doing something else, which is th
   delivery and names what was not served.** The next failure arrives with its cause attached instead of
   `element(s) not found`. None of this is claimed as the fix; the local harness also dies intermittently with
   `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood.
+
+  **The diagnostic paid for itself immediately.** It failed again on 2026-08-14 and reported, instead of
+  `element(s) not found`: `controlled: true`, with the document, the stylesheet and `sw-register.js` all served
+  and exactly one asset missing — `/assets/index-DnnvlkEi.js`, the entry chunk (four on the retry). So the
+  worker *was* running, controlling and serving, and missed specific assets the precondition had just confirmed
+  were in Cache Storage. That rules out the previous reading, which was "the worker never started".
+
+  The leading candidate is now `Vary`. `cache.match` honours it, and the two halves match differently: the
+  precondition matches a **URL string**, while the worker matches the browser's real `Request`. Those disagree
+  precisely when a stored response carries a `Vary` header, which would make the precondition pass on an entry
+  the worker cannot then find. Not confirmed — it is a hypothesis with a mechanism, which is one more than the
+  previous two rounds had, and it is checkable locally by comparing `cache.match(url)` against
+  `cache.match(new Request(url))` after install.
+
+  A second candidate worth eliminating in the same sitting: the precondition searches **every** cache
+  (`for (const key of keys)`), and `activate` deletes all but the current one — so matching in a cache that is
+  about to be deleted is a false positive by construction.
 - The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
   to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
   a real race.
