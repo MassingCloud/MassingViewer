@@ -272,7 +272,7 @@ Each of these came out of a defect found while doing something else, which is th
 
   **The diagnostic paid for itself immediately.** It failed again on 2026-08-14 and reported, instead of
   `element(s) not found`: `controlled: true`, with the document, the stylesheet and `sw-register.js` all served
-  and exactly one asset missing — `/assets/index-DnnvlkEi.js`, the entry chunk (four on the retry). So the
+  and exactly one asset missing — the hashed entry chunk under assets/ (four on the retry). So the
   worker *was* running, controlling and serving, and missed specific assets the precondition had just confirmed
   were in Cache Storage. That rules out the previous reading, which was "the worker never started".
 
