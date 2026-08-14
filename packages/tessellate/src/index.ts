@@ -1,7 +1,20 @@
-import type { SourceMesh } from "@massing/viewport";
+import type { SourceMesh } from "@massing/core";
+import { bandsForVoids, type Point2, type VoidCut } from "@massing/geometry-math";
 
 /**
  * A minimal IFC tessellator: `IfcExtrudedAreaSolid` over `IfcArbitraryClosedProfileDef` only.
+ *
+ * ## Why this is a package rather than a file in the demo
+ *
+ * It was a file in the demo, and the shell had **a copy** — which had drifted, in the way a copy always does and
+ * silently. The shell's version had no `refDirection`, so a rotated wall drew unrotated and `rotate_element`
+ * appeared to do nothing; and no `IfcRelVoidsElement` handling, so a wall with a door drew solid. Neither is a
+ * crash. Both are a viewer disagreeing with the file it is claiming to show, which is the failure this
+ * repository writes its gates against, and it had shipped twice over.
+ *
+ * `fixtures/` imported the demo's copy across an app boundary to get the good one, which is the tell that this
+ * was always library code wearing an app's clothes. One copy now, at layer 2, imported by both apps and by the
+ * fixtures — and the architecture gate refuses a second.
  *
  * ## Why this exists when `@ifc-lite/geometry` is the chosen geometry layer
  *
@@ -15,11 +28,17 @@ import type { SourceMesh } from "@massing/viewport";
  *
  * ## What it deliberately does not do
  *
- * No booleans, so **openings are ignored** — a wall with a door tessellates as solid. No CSG, no swept solids,
- * no BREPs, no mapped representations, no placement hierarchies beyond a single translation. Those are why
- * ifc-lite exists. This handles precisely the subset `fixtures/sample.ifc` is built from, and it reports what
- * it skipped rather than silently producing a partial model — a viewer missing half a building with no
- * indication is the failure mode this whole codebase keeps designing against.
+ * No CSG, no swept solids, no BREPs, no mapped representations. Those are why ifc-lite exists. This handles
+ * precisely the subset `fixtures/sample.ifc` is built from, and it reports what it skipped rather than silently
+ * producing a partial model — a viewer missing half a building with no indication is the failure mode this whole
+ * codebase keeps designing against.
+ *
+ * Openings **are** subtracted, and that line used to read "no booleans, so openings are ignored — a wall with a
+ * door tessellates as solid". It stopped being true when band splitting landed and nobody updated the sentence,
+ * which is worth noting rather than quietly deleting: a stale comment on the one function two apps and the
+ * fixture suite all call is how the shell's copy came to look correct while drawing something else. Voiding is
+ * done by splitting the profile into bands around each opening — not a general boolean, which is why the
+ * paragraph above still stands.
  */
 
 export interface TessellateResult {
@@ -129,6 +148,15 @@ function prism(
   profile: readonly [number, number][],
   depth: number,
   offset: readonly [number, number, number],
+  /**
+   * Rotation about the vertical axis, radians, from the placement's `refDirection`.
+   *
+   * Added because `rotate_element` was writing rotations into the file that this function silently discarded: the
+   * placement walk read only the origin point and ignored `refDirection` entirely. So the gizmo reported
+   * "rotate committed" — truthfully, the file *had* changed — and the wall on screen did not move. A renderer that
+   * drops part of the placement makes the viewport disagree with the file it is supposedly showing.
+   */
+  rotation = 0,
 ): { positions: Float32Array; normals: Float32Array; indices: Uint32Array } {
   const n = profile.length;
   const positions: number[] = [];
@@ -139,11 +167,16 @@ function prism(
   // IFC extrudes along local +Z; the viewport is Y-up. Map profile (x,y) -> world (x, z_profile, y_profile)
   // so the extrusion direction becomes world +Y. Doing this here rather than rotating the scene keeps the
   // geometry in the same coordinate convention as @massing/geometry-math (plan = world X/Z).
-  const at = (i: number, h: number): [number, number, number] => [
-    profile[i]![0] + ox,
-    h + oy,
-    profile[i]![1] + oz,
-  ];
+  // Rotation applied to the profile *before* the translation, because `refDirection` rotates the placement's own
+  // axes — so the element turns about its own origin, not about the world origin. Reversing the order swings it
+  // around the site instead of spinning it in place.
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const at = (i: number, h: number): [number, number, number] => {
+    const px = profile[i]![0];
+    const py = profile[i]![1];
+    return [px * cos - py * sin + ox, h + oy, px * sin + py * cos + oz];
+  };
 
   const push = (p: [number, number, number], nrm: [number, number, number]) => {
     positions.push(p[0], p[1], p[2]);
@@ -192,10 +225,18 @@ export function tessellate(ifcText: string): TessellateResult {
   const skipped: TessellateResult["skipped"] = [];
 
   /** Accumulated translation from a chain of IfcLocalPlacement / IfcAxis2Placement3D. */
-  function placementOffset(id: number | null): [number, number, number] {
+  /**
+   * Accumulated translation *and* rotation down the placement chain.
+   *
+   * Rotation accumulates the same way translation does: a wall rotated inside a storey that is itself rotated
+   * carries both. `refDirection` is `IFCAXIS2PLACEMENT3D`'s third argument, and reading only the first — the
+   * origin — is what made `rotate_element` invisible.
+   */
+  function placementOffset(id: number | null): [number, number, number, number] {
     let x = 0;
     let y = 0;
     let z = 0;
+    let rotation = 0;
     let cursor = id;
     const guard = new Set<number>();
     while (cursor !== null && !guard.has(cursor)) {
@@ -213,10 +254,19 @@ export function tessellate(ifcText: string): TessellateResult {
           z += num(c[1] ?? "0");
           y += num(c[2] ?? "0");
         }
+        // `refDirection` — the third argument, and the one that was being thrown away. An absent one means the
+        // local x axis is world x, which is a rotation of zero rather than a missing value.
+        const refDir = ents.get(refId(splitArgs(ax.args)[2] ?? "") ?? -1);
+        if (refDir?.type === "IFCDIRECTION") {
+          const d = splitArgs(refDir.args[0] === "(" ? refDir.args.slice(1, -1) : refDir.args.replace(/^\(|\)$/g, ""));
+          const dx = num(d[0] ?? "1");
+          const dy = num(d[1] ?? "0");
+          if (dx !== 0 || dy !== 0) rotation += Math.atan2(dy, dx);
+        }
       }
       cursor = refId(rel ?? "");
     }
-    return [x, y, z];
+    return [x, y, z, rotation];
   }
 
   /** The first IfcExtrudedAreaSolid reachable from a product's representation. */
@@ -265,6 +315,31 @@ export function tessellate(ifcText: string): TessellateResult {
     return null;
   }
 
+  /**
+   * Host element → the openings that void it, from `IfcRelVoidsElement`.
+   *
+   * Indexed once. A per-element scan over every relationship is the quadratic mistake that is invisible on a
+   * six-element fixture and makes a real model feel broken.
+   */
+  const voidsByHost = new Map<number, number[]>();
+  for (const ent of ents.values()) {
+    if (ent.type !== "IFCRELVOIDSELEMENT") continue;
+    const [, , , , host, opening] = splitArgs(ent.args);
+    const hostId = refId(host ?? "");
+    const openingId = refId(opening ?? "");
+    if (hostId === null || openingId === null) continue;
+    const bucket = voidsByHost.get(hostId);
+    if (bucket) bucket.push(openingId);
+    else voidsByHost.set(hostId, [openingId]);
+  }
+
+  /** A profile in storey coordinates: the placement's rotation, then its translation. */
+  function toWorld(profile: readonly [number, number][], ox: number, oz: number, rotation: number): Point2[] {
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    return profile.map(([px, py]) => [px * cos - py * sin + ox, px * sin + py * cos + oz] as Point2);
+  }
+
   for (const ent of ents.values()) {
     if (!DRAWN.has(ent.type)) continue;
     const a = splitArgs(ent.args);
@@ -281,17 +356,79 @@ export function tessellate(ifcText: string): TessellateResult {
       continue;
     }
 
-    const [ox, oy, oz] = placementOffset(refId(a[5] ?? ""));
-    const g = prism(solid.profile, solid.depth, [ox, oy + solid.localZ, oz]);
-    meshes.push({
-      expressId: ent.id,
-      ifcType: ent.type,
-      modelIndex: 0,
-      positions: g.positions,
-      normals: g.normals,
-      indices: g.indices,
-      color: CLASS_COLOR[ent.type] ?? [0.75, 0.75, 0.75, 1],
-    });
+    const [ox, oy, oz, rotation] = placementOffset(refId(a[5] ?? ""));
+
+    /**
+     * The openings through this element, in storey coordinates.
+     *
+     * Both profiles are transformed into a **common frame** rather than compared in their own local ones. In this
+     * fixture every placement is relative to the storey with no offset, so the local frames happen to coincide —
+     * which is exactly the coincidence that would make a local-frame implementation look correct here and be wrong
+     * on the first model whose walls carry their own placements.
+     */
+    const hostBase = oy + solid.localZ;
+    const cuts: VoidCut[] = [];
+    for (const openingId of voidsByHost.get(ent.id) ?? []) {
+      const opening = ents.get(openingId);
+      if (!opening) continue;
+      const openingSolid = solidOf(refId(splitArgs(opening.args)[6] ?? ""));
+      if (!openingSolid) {
+        skipped.push({
+          expressId: openingId,
+          type: opening.type,
+          reason: `voids ${ent.type} #${ent.id} but has no extrusion to subtract`,
+        });
+        continue;
+      }
+      const [oox, ooy, ooz, orot] = placementOffset(refId(splitArgs(opening.args)[5] ?? ""));
+      const sill = ooy + openingSolid.localZ - hostBase;
+      cuts.push({
+        sill,
+        head: sill + openingSolid.depth,
+        profile: toWorld(openingSolid.profile, oox, ooz, orot),
+      });
+    }
+
+    const world = toWorld(solid.profile, ox, oz, rotation);
+    const { bands, refused } = bandsForVoids(world, solid.depth, cuts);
+
+    /**
+     * A refused void is reported, never swallowed.
+     *
+     * This is the whole difference between a limitation and a lie. A wall whose opening could not be subtracted
+     * renders perfectly — no error, no gap, nothing to notice — and the person who finds out is reading the drawing
+     * on site. `DrawingProvenance.incomplete` is seeded from these, so the plan says which walls are missing holes.
+     */
+    if (refused > 0) {
+      skipped.push({
+        expressId: ent.id,
+        type: ent.type,
+        reason: `${refused} opening(s) could not be subtracted — the profile is not a rectangle, so the wall is drawn solid`,
+      });
+    }
+
+    /**
+     * One mesh per band, all carrying the host's expressID.
+     *
+     * Deliberately not merged into one buffer: `showModel` keys selection and GlobalId resolution off `expressId`,
+     * so several meshes sharing one id all select together and all resolve to the same GlobalId — which is the
+     * behaviour a wall-with-a-hole needs. Merging would work too and would make the *plan* wrong, because the
+     * sectioner walks triangles and a single soup spanning a gap still has no gap in its silhouette.
+     */
+    for (const band of bands) {
+      const depth = band.to - band.from;
+      if (depth <= 0) continue;
+      const g = prism(band.profile as readonly [number, number][], depth, [0, hostBase + band.from, 0], 0);
+      meshes.push({
+        expressId: ent.id,
+        ifcType: ent.type,
+        modelIndex: 0,
+        positions: g.positions,
+        normals: g.normals,
+        indices: g.indices,
+        color: CLASS_COLOR[ent.type] ?? [0.75, 0.75, 0.75, 1],
+      });
+    }
   }
 
   return { meshes, guids, skipped };

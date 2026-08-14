@@ -43,7 +43,7 @@ const LAYERS = [
   // which is the definition of this layer. Leaving it at 2 would have forced a same-layer exception for
   // `kernel-local -> ifc`, papering over a classification that had simply become wrong.
   ["geometry-math", "ui-model", "catalog", "jobs", "ifc", "observability", "pwa"],
-  ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory"],
+  ["geometry-worker", "kernel-local", "kernel-remote", "kernel-memory", "tessellate"],
   ["drawings2d", "markup", "markup-ui", "commands", "plugin-host", "assets"],
   // `authoring` gets a layer of its own, between the command bus and presentation, and the reason is that it
   // genuinely sits there: it consumes `commands` and `geometry-math` and is consumed by `viewport`-side hosts and

@@ -197,6 +197,7 @@ from any host, including massing's own vanilla-DOM app. React appears only in th
 | `@massing/kernel-local` | `LocalKernel` — writes IFC in a Worker, offline |
 | `@massing/kernel-remote` | `RemoteKernel` — the same contract over massing's authoring service |
 | `@massing/ifc` | STEP entity table with byte-preserving emit |
+| `@massing/tessellate` | IFC extruded solids to typed arrays — placement, rotation, opening subtraction |
 | `@massing/geometry-math` | Object snapping, polar tracking, dynamic input, CAD command grammar |
 | `@massing/ui-model` | Ribbon, gallery and canvas-mode models — pure data, no DOM |
 | `@massing/catalog` | The parametric element palette |

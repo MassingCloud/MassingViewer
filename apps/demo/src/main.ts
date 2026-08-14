@@ -48,7 +48,7 @@ import "@massing/ribbon/ribbon.css";
 import type * as THREE from "three";
 // `Cache` is a runtime value, not a type — imported separately so the type-only import above stays type-only.
 import { Cache as THREE_CACHE } from "three";
-import { tessellate } from "./tessellate";
+import { tessellate } from "@massing/tessellate";
 import { wireDraft, type DraftController } from "./draft";
 import { mountFamilies, type FamiliesPanel } from "./families";
 import type { CutRequest, CutResponse } from "./drawings.worker";

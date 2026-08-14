@@ -1,0 +1,44 @@
+{
+  "name": "@massing/tessellate",
+  "version": "0.1.0",
+  "description": "A minimal IFC tessellator: extruded-area solids with placement, rotation and opening subtraction, from STEP text to typed arrays. No DOM, no three.js, no WASM.",
+  "license": "MIT",
+  "keywords": [
+    "ifc",
+    "step",
+    "tessellation",
+    "geometry",
+    "bim",
+    "aec"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassingCloud/MassingViewer.git",
+    "directory": "packages/tessellate"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@massing/core": "0.1.0",
+    "@massing/geometry-math": "0.1.0"
+  }
+}

@@ -1,24 +1,18 @@
 import * as THREE from "three";
-import type { Guid, LocalId, ModelId } from "@massing/core";
+import type { Guid, LocalId, ModelId, SourceMesh } from "@massing/core";
+
+/**
+ * Re-exported, not redefined.
+ *
+ * `SourceMesh` moved to `@massing/core` so a tessellator can produce one without depending on a renderer — see
+ * that file for why. It is still exported from here because this is where every existing consumer imports it
+ * from, and a type that has not changed shape is not worth a breaking change to the facade.
+ */
+export type { SourceMesh } from "@massing/core";
 
 /**
  * Turning tessellated element geometry into a three.js scene, without losing element identity.
- *
- * The input shape is deliberately `@ifc-lite/geometry`'s `MeshData` rather than an invention of ours: it is
- * what the parse layer produces (see `docs/adr/0004-2d-drawing-engine.md`), and re-shaping it here would
- * mean a copy of every vertex buffer for no gain.
  */
-export interface SourceMesh {
-  /** IFC expressID. The parse layer's key for everything. */
-  readonly expressId: number;
-  readonly ifcType?: string;
-  readonly modelIndex?: number;
-  readonly positions: Float32Array;
-  readonly normals: Float32Array;
-  readonly indices: Uint32Array;
-  /** RGBA 0..1. */
-  readonly color: readonly [number, number, number, number];
-}
 
 /**
  * One element in the scene, with the identity needed to select it and to anchor anything to it.

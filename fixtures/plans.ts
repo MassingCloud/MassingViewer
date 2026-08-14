@@ -15,7 +15,7 @@ import {
 // the same one the product uses or it is testing a different pipeline. Imported by relative path rather than
 // duplicated — a second tessellator is how the digest ends up asserting the wrong geometry confidently. Moving it
 // into `@massing/ifc` is recorded in docs/testing.md as outstanding.
-import { tessellate } from "../apps/demo/src/tessellate.js";
+import { tessellate } from "@massing/tessellate";
 
 /**
  * The fixture → drawing pipeline, shared by every golden tier.

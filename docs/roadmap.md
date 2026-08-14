@@ -246,9 +246,11 @@ Each of these came out of a defect found while doing something else, which is th
    nothing technical stands in front of the first one.
 2. **massing consumes the packages, and deletes its own viewer.** This is risk #1, the only one the plan says can
    end the project, and it is the one item where every week of delay costs something.
-3. **Tessellator out of `apps/demo`.** Two *divergent* copies exist, in the demo and the shell, and `fixtures/`
-   imports one of them from an app. Blocked on moving `SourceMesh` out of `@massing/viewport` — an L4 package — into
-   `@massing/core`, or the layer DAG rejects the new package.
+3. ~~**Tessellator out of `apps/demo`.**~~ **Done.** `@massing/tessellate` at layer 2, imported by both apps and by
+   `fixtures/`; `SourceMesh` moved to `@massing/core` so a producer need not depend on a renderer. The divergence
+   was worse than "two copies": the shell's had no `refDirection` and no `IfcRelVoidsElement`, so a rotated wall
+   drew unrotated and a wall with a door drew solid — both silent, both shipped. Each is now pinned by a test
+   verified by removing the behaviour and watching that test fail.
 4. **The p95 frame-time gate.** Expect the same threshold problem the long-task measurement hit.
 5. **Boot cost.** 148–182 ms of script evaluation, and `three` is not code-split. The trap is the service worker:
    changing the chunk graph is what broke the offline test twice on 2026-08-13.

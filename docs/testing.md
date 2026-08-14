@@ -161,7 +161,8 @@ it asks, and it is the clearest illustration of why neither replaces the other.
    short reported `incomplete: []` and full coverage. That is precisely the failure the field was added to prevent,
    relocated one stage upstream where nothing was looking. `DrawingInput.skipped` is the channel; `generatePlan`
    seeds `incomplete` from it, prefixed `before generation:` so a reader knows which stage lost it.
-2. **Doors and windows were not cut into plans.** `apps/demo/src/tessellate.ts` had no handling of
+2. **Doors and windows were not cut into plans.** The tessellator (then in the demo, now
+   `packages/tessellate/src/index.ts`) had no handling of
    `IFCRELVOIDSELEMENT` at all, so `IfcOpeningElement` voids were never subtracted and a plan showed an unbroken
    wall where the door is. `build-sample.mjs` authors both as real voids and states the expectation — six wall loops
    at a 1.2 m cut — which the pipeline did not meet. **Fixed.** The suite carried a test asserting the defect on
@@ -170,11 +171,22 @@ it asks, and it is the clearest illustration of why neither replaces the other.
    The digests now split the south wall at 3.0 m and 3.9 m and the north wall at 2.0 m and 3.5 m — exactly the
    intervals the fixture authors.
 
-### Known wart
+### The wart that was here, and what it cost
 
-The IFC → mesh tessellator lives in `apps/demo/src/tessellate.ts`. It is not app code, and both the golden suite
-and any future consumer need it, so `fixtures/golden.test.ts` imports it by relative path rather than growing a
-second copy. Its home is `@massing/ifc`. Unscheduled.
+This section used to read: *"The IFC → mesh tessellator lives in apps/demo/src/tessellate.ts. It is not app
+code, and both the golden suite and any future consumer need it, so `fixtures/golden.test.ts` imports it by
+relative path rather than growing a second copy. Unscheduled."* (The path is unbackticked because it no longer
+exists, which is the doc-path gate's rule and the reason this paragraph is accurate rather than aspirational.)
+
+It had already grown a second copy by then. `apps/shell` had its own, and it had drifted in two ways that a
+reader would not notice: no `refDirection`, so a rotated wall drew unrotated and the transform gizmo appeared to
+do nothing; and no `IfcRelVoidsElement`, so a wall with a door drew solid — the same defect item 2 above records
+being fixed in the demo's copy, still live in the shell's.
+
+It is now `@massing/tessellate` at layer 2, imported by both apps and by the fixtures, and the architecture gate
+refuses a third copy. Both lost behaviours are pinned by tests that were checked by removing each one and
+watching the matching test fail. The general lesson is worth more than the fix: *"unscheduled"* on a known
+duplication is a decision to let it drift, and the drift is silent by construction.
 
 ### Updating a golden safely
 
