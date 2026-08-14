@@ -209,3 +209,56 @@ remaining step on this side is publishing**, which is deliberately not automated
 What this does *not* prove: that massing's application code compiles against these packages, or that deleting
 `apps/web/src/viewer` leaves its test suite green. Those need the other repository and are the actual M9 work; this
 removes the packaging unknown from in front of them.
+
+
+---
+
+# Reconciliation, 2026-08-14 — what shipped, what did not, and what is blocked
+
+The programme above was written on 2026-08-09 and is still the plan. This section states, item by item, what is
+actually true of the repository now, because a roadmap whose items are never marked off becomes a wish list that
+reads like a status report.
+
+## The five programme items
+
+| # | Item | State |
+|---|---|---|
+| 1 | Renderer seam + federation | **Done**, and both halves needed fixing afterwards. The WebGPU fallback was not transparent — twice. Selection silently stopped highlighting the moment a second model loaded. See ADR-0012 and ADR-0013. |
+| 2 | Families — `@massing/assets` + a Build-ribbon gallery | **Done.** Library parsing, `galleryFor` layout, a rendered panel with discipline tabs, search, drag-to-place, and availability dimmed with a reason. |
+| 3 | Sheets, title blocks, review desk | **Half done.** Sheet furniture — border, title block, revision table, scale bar — ships across SVG, DXF and PDF, and 2D is now a peer surface rather than a side pane (ADR-0015). The **review desk is blocked**: it needs `@massingcloud/pdf-viewer` on npm. |
+| 4 | Benchmarks at scale | **Done**, and extended: the drawing benchmark is joined by a main-thread measurement that found sectioning blocking for ~450 ms and is now the check that it stays fixed. |
+| 5 | Rust, version diffing, capture overlays | **Not started, and correctly so.** Nothing measured says the TypeScript parser is the ceiling. |
+
+## What shipped since the plan was written, that the plan did not ask for
+
+Each of these came out of a defect found while doing something else, which is the honest reason they exist:
+
+- **2D as a peer of 3D** — a canvas-mode reducer ported from upstream, because the plan pane was a strip.
+- **Sectioning in a Worker** — the main-thread measurement asked for it.
+- **A long-task measurement**, deliberately a report rather than a gate.
+- **Three gate repairs**: the bundle budget, the message gate and the doc-path gate were each passing on stale or
+  incomplete data. All three now refuse rather than reassure.
+
+## Not done, in the order I would take them
+
+1. **The two publishes.** `@massing/*` unblocks M9, and `@massingcloud/pdf-viewer` unblocks the review desk. Both
+   are outside this repository's control. The packaging half of M9 is proven — see the tarball run above — so
+   nothing technical stands in front of the first one.
+2. **massing consumes the packages, and deletes its own viewer.** This is risk #1, the only one the plan says can
+   end the project, and it is the one item where every week of delay costs something.
+3. **Tessellator out of `apps/demo`.** Two *divergent* copies exist, in the demo and the shell, and `fixtures/`
+   imports one of them from an app. Blocked on moving `SourceMesh` out of `@massing/viewport` — an L4 package — into
+   `@massing/core`, or the layer DAG rejects the new package.
+4. **The p95 frame-time gate.** Expect the same threshold problem the long-task measurement hit.
+5. **Boot cost.** 148–182 ms of script evaluation, and `three` is not code-split. The trap is the service worker:
+   changing the chunk graph is what broke the offline test twice on 2026-08-13.
+
+## Known and unexplained
+
+- The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
+  to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
+  a real race.
+- German is 119/119 translated and **not native-reviewed**.
+- `AA_TOLERANCE` in the raster suite has never run on Linux.
+- The seam ledger in `@massing/embed` reports `ready` against 24 capabilities, and has not grown to cover the
+  federation and sheet surface added since. It is measuring an older shape of the facade.
