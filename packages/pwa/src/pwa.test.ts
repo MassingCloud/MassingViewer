@@ -318,6 +318,41 @@ describe("the generated worker, actually run", () => {
     expect(await served.text()).toContain("app");
   });
 
+  it("opens from cache when the network hangs rather than fails", async () => {
+    /**
+     * The case "the network is gone" above does **not** cover, and the more common one in the field.
+     *
+     * `fetch` rejects when the stack gives up. On a dead-but-connected link — a captive portal, hotel wifi, a
+     * train entering a tunnel — that takes tens of seconds, and until it happens the worker is holding
+     * `respondWith` open with a complete copy of the app sitting in the cache beside it. The user sees a white
+     * page and concludes the app does not work offline, which is the exact claim this worker exists to make.
+     *
+     * Written after a CI failure whose signature was a shell that never arrived. That failure is *not* proven to
+     * be this — see docs/roadmap.md — but the unbounded wait was real regardless of what caused that run.
+     */
+    const source = swSource({ cacheName: "c1", precache: ["index.html"] });
+    let hang = false;
+    const { listeners, cache } = harness(source, async () => {
+      // Only the navigation hangs. The install must still complete, or the test proves nothing about a populated
+      // cache being reachable.
+      if (hang) return new Promise<Response>(() => {});
+      return new Response("<html>app</html>", { status: 200 });
+    });
+
+    waits.length = 0;
+    listeners.get("install")!(installEvent);
+    await Promise.all(waits);
+    expect(cache.store.has("index.html")).toBe(true);
+
+    hang = true;
+    const started = Date.now();
+    const served = await respond(listeners, request("/", { mode: "navigate" }));
+    expect(await served.text()).toContain("app");
+    // Bounded, not merely eventual. Without the race this never settles and the assertion above times out — but
+    // an elapsed check is what distinguishes "served from cache promptly" from "the hang happened to be short".
+    expect(Date.now() - started, "the shell was not served within the navigation timeout").toBeLessThan(5000);
+  });
+
   it("does not cache a partial or errored response", async () => {
     const source = swSource({ cacheName: "c1", precache: [] });
     const { listeners, cache } = harness(source, async () => new Response("half", { status: 206 }));

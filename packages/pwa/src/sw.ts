@@ -86,6 +86,15 @@ const CACHE = ${embed(cacheName)};
 const PRECACHE = ${embed([...precache])};
 const SHELL = ${embed(shell)};
 const ISOLATE = ${crossOriginIsolation ? "true" : "false"};
+/**
+ * How long a navigation waits for the network before the cached shell wins.
+ *
+ * Two seconds is chosen against the *user*, not the network: below it a fast connection still serves fresh, above
+ * it the app is visibly slower to open than the cache could have made it. The cost is that a deploy made while
+ * the network is this slow is picked up one navigation later than it would have been — which is the right trade,
+ * because the assets are content-hashed and the stale shell references the same ones.
+ */
+const NAV_TIMEOUT_MS = 2000;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -157,13 +166,27 @@ self.addEventListener("fetch", (event) => {
       // only a session.
       if (request.mode === "navigate") {
         try {
-          const fresh = await fetch(request);
+          /**
+           * Bounded, and the bound is the point.
+           *
+           * \`fetch\` only rejects when the network stack gives up, which on a dead-but-connected link — a captive
+           * portal, hotel wifi, a train entering a tunnel — is tens of seconds rather than immediate. Until then
+           * this handler holds \`respondWith\` open and the user sees nothing, despite a complete, content-hashed
+           * copy of the app sitting in the cache. "Offline" as a browser state is not the same as "no network as
+           * far as this request is concerned", and only the second one is what the user is living in.
+           */
+          const fresh = await Promise.race([
+            fetch(request),
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error("shell fetch exceeded NAV_TIMEOUT_MS")), NAV_TIMEOUT_MS);
+            }),
+          ]);
           if (fresh.ok) {
             await cache.put(SHELL, fresh.clone());
             return isolate(fresh);
           }
         } catch {
-          /* offline — fall through to the cache */
+          /* offline, or slower than the cache is worth waiting for — fall through to the cache */
         }
         const cached = (await cache.match(request)) ?? (await cache.match(SHELL));
         if (cached) return isolate(cached);

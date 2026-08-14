@@ -1175,9 +1175,54 @@ test("survives a reload with the network gone, not just a session", async ({ pag
     { timeout: 20_000 },
   );
 
+  /**
+   * Wake the worker on the way out.
+   *
+   * A service worker is terminated when idle and restarted on demand, and a restart is the one moment where
+   * "the registration is active" and "the worker can answer this fetch" come apart. Going offline immediately
+   * after a request the worker has just handled removes that variable from the measurement.
+   *
+   * Honest about its standing: this is not established as the cause of the CI failures. It costs one request and
+   * closes a mechanism that is known to produce exactly the observed signature, so it is worth doing — but the
+   * assertion above, not this line, is what will identify the cause if it recurs.
+   */
+  await page.evaluate(async () => {
+    await fetch("/sw-register.js", { cache: "no-store" }).catch(() => undefined);
+  });
+
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
+
+    /**
+     * Say *why* before asserting what.
+     *
+     * This test has failed on CI three times and been "fixed" twice on preconditions that turned out to be
+     * proxies, and both rounds were spent guessing because the only evidence was `expect(#viewport canvas)
+     * .toBeVisible() failed — element(s) not found`. That sentence is true of a precache race, of a worker that
+     * never started, and of an app that threw on boot, and it distinguishes none of them.
+     *
+     * The trace from the third failure did distinguish them: every subresource had `ERR_FAILED` while the
+     * assets were provably in Cache Storage, which is the signature of the worker not serving rather than of
+     * anything being uncached. `responseStatus === 0` is that signature, checked here rather than reconstructed
+     * from a downloaded artifact next time — verified to discriminate, by forcing a run in which the worker
+     * genuinely could not serve and watching this list fill with exactly those four entries.
+     */
+    const delivery = await page
+      .evaluate(() => ({
+        controlled: navigator.serviceWorker.controller !== null,
+        failed: performance
+          .getEntriesByType("resource")
+          .filter((entry) => (entry as PerformanceResourceTiming).responseStatus === 0)
+          .map((entry) => new URL(entry.name).pathname),
+      }))
+      .catch((error: unknown) => ({ controlled: false, failed: [`<page unreachable: ${String(error)}>`] }));
+
+    expect(
+      delivery.failed,
+      `the reloaded document did not get these from the service worker (controlled: ${delivery.controlled}). ` +
+        `The precache is asserted complete above, so this is the worker not serving rather than a cache miss`,
+    ).toEqual([]);
 
     // The whole app, from cache: the shell, the bundle, and the kernel's own worker script — which is a separate
     // request and therefore a separate chance to fail.

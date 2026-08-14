@@ -255,6 +255,18 @@ Each of these came out of a defect found while doing something else, which is th
 
 ## Known and unexplained
 
+- **The offline-reload test, still.** It failed a fourth time on 2026-08-14, on a commit that changed only
+  markdown — which is proof on its own that no code change caused it. What the trace from that run *did* establish:
+  the navigation and every subresource failed while the precache provably held all of them, so the worker was not
+  serving. That is a materially narrower statement than the two previous diagnoses, both of which were
+  preconditions that turned out to be proxies, and neither of which this evidence supports.
+
+  What has changed since: the worker now bounds its navigation fetch (a real defect on its own — an unbounded
+  network-first shell hangs on a captive portal instead of opening from cache, unit-tested and sabotage-checked),
+  the test wakes the worker before cutting the network, and — the part that matters — **the test now asserts
+  delivery and names what was not served.** The next failure arrives with its cause attached instead of
+  `element(s) not found`. None of this is claimed as the fix; the local harness also dies intermittently with
+  `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood.
 - The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
   to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
   a real race.
