@@ -187,3 +187,25 @@ whether a Rust core is justified, so it comes before it.
   streams ".frag"; `showMeshes` (added 2026-08-09) is how such a host feeds this viewer with no IFC text.
 - It does not restore the 2D differential oracle. One engine compares against its own previous output, which
   cannot catch a shared wrong assumption. `bench/` still runs both on demand — see `docs/testing.md`.
+
+## M9 seam: validated from tarballs, 2026-08-14
+
+The plan's risk #1 is divergence — every week both repositories hold a copy of the engine is debt at compound
+interest — and M9 closes it by having massing consume `@massing/*` instead of its own `apps/web/src/viewer`. Nothing
+had exercised that path, so "the seam is ready" rested on a ledger rather than on a consumer.
+
+It has now been exercised without publishing anything. `npm pack --workspaces` produced 26 tarballs; installing them
+as a set into an empty project — one with no access to `@massing/*` on any registry — resolved cleanly, and from
+there:
+
+- `@massing/embed` exports `createMassingViewer` as a function, plus the seam ledger
+- `seamCoverage()` reports `ready: true`, `ratio: 1`, `gaps: []`
+- `@massing/kernel-local` exports `createLocalKernel`; `@massing/drawings2d` exports `generatePlan`, `toSvg` and
+  `sheetFurniture`
+
+So the packaging, the dependency closure and the public surface all hold for a real outside consumer. **The only
+remaining step on this side is publishing**, which is deliberately not automated here.
+
+What this does *not* prove: that massing's application code compiles against these packages, or that deleting
+`apps/web/src/viewer` leaves its test suite green. Those need the other repository and are the actual M9 work; this
+removes the packaging unknown from in front of them.
