@@ -130,6 +130,23 @@ That remaining path is **not proven transparent** — it cannot be reached on an
 the seam is injectable in the first place. If the visual gate ever moves again without a geometry change, this is
 the first thing to suspect.
 
+### Second amendment, same day: the remaining path *was* reachable, and it was not transparent
+
+The paragraph above was wrong, and wrong in a way worth keeping: it treated "no hardware here can do this" as "this
+cannot be tested here". Stubbing `navigator.gpu.requestAdapter` to return a non-null adapter forces the path in an
+ordinary browser, and doing so reproduced the original defect **exactly** — the same 64 occupancy cells, the same
+nine over an eighth. Having an adapter does not avoid the mutation. Only never reaching `init()` does.
+
+So the probe now also requires a **device**. `adapter.requestDevice()` is what actually fails on a machine
+advertising WebGPU it cannot deliver, and it fails before `three/webgpu` is imported. Re-run against two forced
+shapes — an adapter with no `requestDevice`, and one whose `requestDevice` rejects — both now produce **zero**
+silhouette change where the same experiment previously produced the full defect.
+
+Still unguarded: an `init()` that fails despite a working device. That is a materially narrower window than the one
+just closed, and it remains the first thing to suspect if the visual gate moves without a geometry change. The honest
+summary is that this fallback is now transparent for every failure mode reproducible without a real GPU, and unproven
+for the one that is not.
+
 The general lesson is the one the bundle-budget entry above already records in a different costume: a fallback is a
 behaviour, and an untested behaviour that only runs on hardware you do not have is an assumption wearing a
 implementation's clothes.

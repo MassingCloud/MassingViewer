@@ -93,10 +93,26 @@ export function browserWebGpuProbe(): WebGpuProbe {
        * advertised-but-unusable case. It does not *prove* transparency when an adapter exists and `init()` still
        * fails — that path remains reported as `degraded`, and is the one to suspect if this ever recurs.
        */
-      const adapter = await (
-        navigator as unknown as { gpu: { requestAdapter(): Promise<unknown | null> } }
-      ).gpu.requestAdapter();
+      const adapter = (await (
+        navigator as unknown as { gpu: { requestAdapter(): Promise<{ requestDevice?: () => Promise<unknown> } | null> } }
+      ).gpu.requestAdapter()) as { requestDevice?: () => Promise<unknown> } | null;
       if (adapter === null || adapter === undefined) throw new NoWebGpuAdapter();
+
+      /**
+       * And a **device**, not merely an adapter.
+       *
+       * Measured, after the adapter check above turned out to be only half the guard. Forcing the
+       * adapter-exists-but-init-fails path — a stubbed `requestAdapter` returning something non-null — reproduced
+       * the original silhouette shift exactly: 64 occupancy cells, the same ones. So `WebGPURenderer.init()`
+       * mutating shared state is not avoided by having an adapter; it is avoided by never reaching `init()`.
+       *
+       * `requestDevice()` is what actually fails on a machine that advertises WebGPU it cannot deliver, and it
+       * fails *before* three is imported. What remains unguarded is an init that fails despite a working device,
+       * which is a narrower window than the one this closes and still carries the same caveat in ADR-0012.
+       */
+      if (typeof adapter.requestDevice !== "function") throw new NoWebGpuAdapter();
+      const device = await adapter.requestDevice();
+      if (device === null || device === undefined) throw new NoWebGpuAdapter();
 
       // Imported lazily, and this is load-bearing rather than tidy: `three/webgpu` is a separate ~1 MB entry
       // point, and a static import would ship it to every WebGL-only visitor — the exact cost the bundle budget

@@ -187,3 +187,123 @@ whether a Rust core is justified, so it comes before it.
   streams ".frag"; `showMeshes` (added 2026-08-09) is how such a host feeds this viewer with no IFC text.
 - It does not restore the 2D differential oracle. One engine compares against its own previous output, which
   cannot catch a shared wrong assumption. `bench/` still runs both on demand — see `docs/testing.md`.
+
+## M9 seam: validated from tarballs, 2026-08-14
+
+The plan's risk #1 is divergence — every week both repositories hold a copy of the engine is debt at compound
+interest — and M9 closes it by having massing consume `@massing/*` instead of its own `apps/web/src/viewer`. Nothing
+had exercised that path, so "the seam is ready" rested on a ledger rather than on a consumer.
+
+It has now been exercised without publishing anything. `npm pack --workspaces` produced 26 tarballs; installing them
+as a set into an empty project — one with no access to `@massing/*` on any registry — resolved cleanly, and from
+there:
+
+- `@massing/embed` exports `createMassingViewer` as a function, plus the seam ledger
+- `seamCoverage()` reports `ready: true`, `ratio: 1`, `gaps: []`
+- `@massing/kernel-local` exports `createLocalKernel`; `@massing/drawings2d` exports `generatePlan`, `toSvg` and
+  `sheetFurniture`
+
+So the packaging, the dependency closure and the public surface all hold for a real outside consumer. **The only
+remaining step on this side is publishing**, which is deliberately not automated here.
+
+What this does *not* prove: that massing's application code compiles against these packages, or that deleting
+`apps/web/src/viewer` leaves its test suite green. Those need the other repository and are the actual M9 work; this
+removes the packaging unknown from in front of them.
+
+
+---
+
+# Reconciliation, 2026-08-14 — what shipped, what did not, and what is blocked
+
+The programme above was written on 2026-08-09 and is still the plan. This section states, item by item, what is
+actually true of the repository now, because a roadmap whose items are never marked off becomes a wish list that
+reads like a status report.
+
+## The five programme items
+
+| # | Item | State |
+|---|---|---|
+| 1 | Renderer seam + federation | **Done**, and both halves needed fixing afterwards. The WebGPU fallback was not transparent — twice. Selection silently stopped highlighting the moment a second model loaded. See ADR-0012 and ADR-0013. |
+| 2 | Families — `@massing/assets` + a Build-ribbon gallery | **Done.** Library parsing, `galleryFor` layout, a rendered panel with discipline tabs, search, drag-to-place, and availability dimmed with a reason. |
+| 3 | Sheets, title blocks, review desk | **Half done.** Sheet furniture — border, title block, revision table, scale bar — ships across SVG, DXF and PDF, and 2D is now a peer surface rather than a side pane (ADR-0015). The **review desk is blocked**: it needs `@massingcloud/pdf-viewer` on npm. |
+| 4 | Benchmarks at scale | **Done**, and extended: the drawing benchmark is joined by a main-thread measurement that found sectioning blocking for ~450 ms and is now the check that it stays fixed. |
+| 5 | Rust, version diffing, capture overlays | **Not started, and correctly so.** Nothing measured says the TypeScript parser is the ceiling. |
+
+## What shipped since the plan was written, that the plan did not ask for
+
+Each of these came out of a defect found while doing something else, which is the honest reason they exist:
+
+- **2D as a peer of 3D** — a canvas-mode reducer ported from upstream, because the plan pane was a strip.
+- **Sectioning in a Worker** — the main-thread measurement asked for it.
+- **A long-task measurement**, deliberately a report rather than a gate.
+- **Three gate repairs**: the bundle budget, the message gate and the doc-path gate were each passing on stale or
+  incomplete data. All three now refuse rather than reassure.
+
+## Not done, in the order I would take them
+
+1. **The two publishes.** `@massing/*` unblocks M9, and `@massingcloud/pdf-viewer` unblocks the review desk. Both
+   are outside this repository's control. The packaging half of M9 is proven — see the tarball run above — so
+   nothing technical stands in front of the first one.
+2. **massing consumes the packages, and deletes its own viewer.** This is risk #1, the only one the plan says can
+   end the project, and it is the one item where every week of delay costs something.
+3. ~~**Tessellator out of `apps/demo`.**~~ **Done.** `@massing/tessellate` at layer 2, imported by both apps and by
+   `fixtures/`; `SourceMesh` moved to `@massing/core` so a producer need not depend on a renderer. The divergence
+   was worse than "two copies": the shell's had no `refDirection` and no `IfcRelVoidsElement`, so a rotated wall
+   drew unrotated and a wall with a door drew solid — both silent, both shipped. Each is now pinned by a test
+   verified by removing the behaviour and watching that test fail.
+4. **The p95 frame-time gate.** Expect the same threshold problem the long-task measurement hit.
+5. **Boot cost.** 148–182 ms of script evaluation, and `three` is not code-split. The trap is the service worker:
+   changing the chunk graph is what broke the offline test twice on 2026-08-13.
+
+## Known and unexplained
+
+- **The offline-reload test, still.** It failed a fourth time on 2026-08-14, on a commit that changed only
+  markdown — which is proof on its own that no code change caused it. What the trace from that run *did* establish:
+  the navigation and every subresource failed while the precache provably held all of them, so the worker was not
+  serving. That is a materially narrower statement than the two previous diagnoses, both of which were
+  preconditions that turned out to be proxies, and neither of which this evidence supports.
+
+  What has changed since: the worker now bounds its navigation fetch (a real defect on its own — an unbounded
+  network-first shell hangs on a captive portal instead of opening from cache, unit-tested and sabotage-checked),
+  the test wakes the worker before cutting the network, and — the part that matters — **the test now asserts
+  delivery and names what was not served.** The next failure arrives with its cause attached instead of
+  `element(s) not found`. None of this is claimed as the fix; the local harness also dies intermittently with
+  `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood.
+
+  **The diagnostic paid for itself immediately.** It failed again on 2026-08-14 and reported, instead of
+  `element(s) not found`: `controlled: true`, with the document, the stylesheet and the generated registration
+  script all served
+  and exactly one asset missing — the hashed entry chunk under assets/ (four on the retry). So the
+  worker *was* running, controlling and serving, and missed specific assets the precondition had just confirmed
+  were in Cache Storage. That rules out the previous reading, which was "the worker never started".
+
+  **Found, on 2026-08-14: `Vary: Origin`.** Measured in the browser rather than reasoned about — the served
+  responses carry that header, and `cache.match` honours `Vary` by comparing the *stored* request's headers
+  against the incoming one's. The two sides are systematically different: the precache stores each entry under
+  `new Request(url, { cache: "reload" })`, which sends no `Origin`, while the browser fetches a module script and
+  a `modulepreload` in CORS mode, which does. So the lookup missed on exactly the assets the app cannot boot
+  without, and hit on everything no-cors — the document, the stylesheet, the classic registration script. That is
+  the reported signature, entry by entry.
+
+  (An aside with teeth: the first draft of this paragraph backticked the registration script's filename, and the
+  doc-path gate passed locally and failed on CI. That file is *generated* at build time, so the citation resolved
+  only because a build happened to be sitting in `apps/demo/dist`. A gate whose answer depends on uncommitted
+  build output is the same defect as the stale-`dist` bundle gate fixed on 2026-08-13, one directory along, and
+  it is still unfixed — see below.)
+
+  Online the miss is invisible: it falls through to the network and re-caches under the other key. Offline it is
+  fatal. Which key won that race is why this failed intermittently rather than always, and why it survived being
+  "fixed" twice — both earlier fixes made the *precondition* stricter, and the precondition was never the problem.
+
+  Fixed with `ignoreVary: true` on both cache lookups; the URLs are content-hashed, so identity is total and
+  `Vary` can only ever produce a spurious miss. The unit harness's fake cache now models `Vary` — it previously
+  could not express this failure, which is why 23 passing tests said nothing about it — and the new test was
+  checked by removing `ignoreVary` and watching it fail. It had to be asserted **offline**: with the network up
+  it passes either way, which is the bug's whole shape in one sentence.
+- The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
+  to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
+  a real race.
+- German is 119/119 translated and **not native-reviewed**.
+- `AA_TOLERANCE` in the raster suite has never run on Linux.
+- The seam ledger in `@massing/embed` reports `ready` against 24 capabilities, and has not grown to cover the
+  federation and sheet surface added since. It is measuring an older shape of the facade.

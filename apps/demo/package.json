@@ -23,6 +23,7 @@
     "@massing/plugin-host": "0.1.0",
     "@massing/pwa": "0.1.0",
     "@massing/ribbon": "0.1.0",
+    "@massing/tessellate": "0.1.0",
     "@massing/ui-model": "0.1.0",
     "@massing/viewport": "0.1.1",
     "three": "0.185.1"

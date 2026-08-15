@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // No DOM, and structurally so. This package is imported by two browser apps, by `fixtures/` under Node, and
+    // is the obvious thing to move into a Worker when parsing a large file stops fitting in a frame. A stray
+    // `document` reference should be a type error here rather than a runtime failure in one of those three.
+    "lib": ["ES2023"]
+  },
+  "references": [{ "path": "../core" }, { "path": "../geometry-math" }],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

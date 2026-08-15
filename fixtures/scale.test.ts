@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { generatePlan, type ElementMesh } from "@massing/drawings2d";
 import { toGuid, type Guid } from "@massing/core";
-import { tessellate } from "../apps/demo/src/tessellate.js";
+import { tessellate } from "@massing/tessellate";
 import { SCALES, generate, type ScaleSpec } from "./scale.js";
 
 /**

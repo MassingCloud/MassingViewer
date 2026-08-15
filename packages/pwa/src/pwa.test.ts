@@ -198,36 +198,70 @@ describe("the generated worker, actually run", () => {
     readonly url: string;
     readonly method: string;
     readonly mode: string;
+    /** Modelled because `Vary` matching reads them, and a miss there is what broke the offline reload. */
+    readonly headers: Headers;
   }
-  const request = (url: string, init: { method?: string; mode?: string } = {}): FakeRequest => ({
+  const request = (
+    url: string,
+    init: { method?: string; mode?: string; headers?: Record<string, string> } = {},
+  ): FakeRequest => ({
     url: new URL(url, `${ORIGIN}/`).href,
     method: init.method ?? "GET",
     mode: init.mode ?? "cors",
+    headers: new Headers(init.headers ?? {}),
   });
 
   interface FakeCache {
     store: Map<string, Response>;
     add(r: FakeRequest): Promise<void>;
-    match(r: FakeRequest | string): Promise<Response | undefined>;
+    match(r: FakeRequest | string, options?: { ignoreVary?: boolean }): Promise<Response | undefined>;
     put(key: FakeRequest | string, response: Response): Promise<void>;
   }
 
   function harness(source: string, fetchImpl: (r: FakeRequest) => Promise<Response>) {
     const store = new Map<string, Response>();
+    /**
+     * The request each entry was stored *under*, which is what `Vary` matching compares against.
+     *
+     * Modelled because the real `CacheStorage` does, and not modelling it is what let a `Vary: Origin` miss go
+     * unnoticed: every test here stored and matched with header-less requests, so the two sides always agreed
+     * and the fake reported a hit where a browser reported a miss. A fake that cannot express the failure
+     * cannot be used to rule it out.
+     */
+    const storedUnder = new Map<string, FakeRequest | string>();
     const keyOf = (k: FakeRequest | string): string =>
       typeof k === "string" ? k : new URL(k.url).pathname.replace(/^\//, "") || "index.html";
+
+    const headersOf = (k: FakeRequest | string): Headers => (typeof k === "string" ? new Headers() : k.headers);
+
+    /** `Vary` matching: every named header must agree between the stored request and the incoming one. */
+    const varyAgrees = (stored: FakeRequest | string, incoming: FakeRequest | string, response: Response): boolean => {
+      const vary = response.headers.get("vary");
+      if (vary === null) return true;
+      if (vary.trim() === "*") return false;
+      for (const name of vary.split(",").map((n) => n.trim().toLowerCase())) {
+        if (headersOf(stored).get(name) !== headersOf(incoming).get(name)) return false;
+      }
+      return true;
+    };
+
     const cache: FakeCache = {
       store,
       async add(r) {
         const response = await fetchImpl(r);
         if (!response.ok) throw new Error(`bad status ${response.status}`);
         store.set(keyOf(r), response);
+        storedUnder.set(keyOf(r), r);
       },
-      async match(r) {
-        return store.get(keyOf(r));
+      async match(r, options) {
+        const response = store.get(keyOf(r));
+        if (response === undefined) return undefined;
+        if (options?.ignoreVary === true) return response;
+        return varyAgrees(storedUnder.get(keyOf(r)) ?? keyOf(r), r, response) ? response : undefined;
       },
       async put(key, response) {
         store.set(keyOf(key), response);
+        storedUnder.set(keyOf(key), key);
       },
     };
 
@@ -316,6 +350,80 @@ describe("the generated worker, actually run", () => {
     const served = await respond(listeners, request("/", { mode: "navigate" }));
     // The offline claim, and specifically that it survives a *reload* rather than only a session.
     expect(await served.text()).toContain("app");
+  });
+
+  it("serves a precached asset to a request the precache was not stored with", async () => {
+    /**
+     * The offline reload's actual defect, found after two wrong diagnoses and measured rather than reasoned.
+     *
+     * The server answers with `Vary: Origin` — the dev preview does, and so does Pages. `cache.match` honours
+     * `Vary` by comparing the *stored* request's headers against the incoming one's, and the two sides here are
+     * systematically different: the precache stores under `new Request(url, { cache: "reload" })`, which sends no
+     * `Origin`, while the browser fetches a module script and a `modulepreload` in CORS mode, which does.
+     *
+     * So the lookup missed on exactly the assets the app cannot boot without, and hit on everything no-cors —
+     * the document, the stylesheet, the classic registration script. Online that miss is invisible, because it
+     * falls through to the network and re-caches under the other key; offline it is fatal. Which key won the
+     * race is why this failed intermittently instead of always, and why it survived being "fixed" twice.
+     *
+     * Asserted through the fetch handler rather than on the emitted source, so it is the behaviour that is
+     * pinned and not the spelling of an option.
+     */
+    const source = swSource({ cacheName: "c1", precache: ["assets/app.js"] });
+    let online = true;
+    const { listeners } = harness(source, async () => {
+      // Offline **after** install, because that is the whole shape of the bug: while the network is up a Vary
+      // miss falls straight through to `fetch` and re-caches, so it costs a request and nothing else. Asserting
+      // with the network available passes whether or not the lookup hit, which is how this stayed invisible.
+      if (!online) throw new TypeError("Failed to fetch");
+      return new Response("export const app = 1;", { status: 200, headers: { Vary: "Origin" } });
+    });
+
+    waits.length = 0;
+    listeners.get("install")!(installEvent);
+    await Promise.all(waits);
+
+    online = false;
+    // How the browser asks for a module script: CORS mode, and therefore carrying an Origin the precache's own
+    // request never had.
+    const asModule = request("/assets/app.js", { mode: "cors", headers: { Origin: ORIGIN } });
+    const served = await respond(listeners, asModule);
+    expect(await served.text(), "a precached module script was not served to a CORS-mode request").toContain("app");
+  });
+
+  it("opens from cache when the network hangs rather than fails", async () => {
+    /**
+     * The case "the network is gone" above does **not** cover, and the more common one in the field.
+     *
+     * `fetch` rejects when the stack gives up. On a dead-but-connected link — a captive portal, hotel wifi, a
+     * train entering a tunnel — that takes tens of seconds, and until it happens the worker is holding
+     * `respondWith` open with a complete copy of the app sitting in the cache beside it. The user sees a white
+     * page and concludes the app does not work offline, which is the exact claim this worker exists to make.
+     *
+     * Written after a CI failure whose signature was a shell that never arrived. That failure is *not* proven to
+     * be this — see docs/roadmap.md — but the unbounded wait was real regardless of what caused that run.
+     */
+    const source = swSource({ cacheName: "c1", precache: ["index.html"] });
+    let hang = false;
+    const { listeners, cache } = harness(source, async () => {
+      // Only the navigation hangs. The install must still complete, or the test proves nothing about a populated
+      // cache being reachable.
+      if (hang) return new Promise<Response>(() => {});
+      return new Response("<html>app</html>", { status: 200 });
+    });
+
+    waits.length = 0;
+    listeners.get("install")!(installEvent);
+    await Promise.all(waits);
+    expect(cache.store.has("index.html")).toBe(true);
+
+    hang = true;
+    const started = Date.now();
+    const served = await respond(listeners, request("/", { mode: "navigate" }));
+    expect(await served.text()).toContain("app");
+    // Bounded, not merely eventual. Without the race this never settles and the assertion above times out — but
+    // an elapsed check is what distinguishes "served from cache promptly" from "the hang happened to be short".
+    expect(Date.now() - started, "the shell was not served within the navigation timeout").toBeLessThan(5000);
   });
 
   it("does not cache a partial or errored response", async () => {

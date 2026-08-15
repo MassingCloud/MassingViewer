@@ -10,7 +10,7 @@ import { consoleSink, createCrashHandler, NOOP_CRASH_SINK } from "@massing/obser
 import "@massing/ribbon/ribbon.css";
 import "@massing/ui-react/ui-react.css";
 import "./shell.css";
-import { tessellate } from "./tessellate";
+import { tessellate } from "@massing/tessellate";
 import sampleIfc from "../../../fixtures/sample.ifc?raw";
 
 /**

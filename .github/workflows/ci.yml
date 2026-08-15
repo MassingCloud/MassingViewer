@@ -228,8 +228,19 @@ jobs:
             LGPL-2.0-only, LGPL-2.0-or-later, LGPL-2.1-only, LGPL-2.1-or-later,
             LGPL-3.0-only, LGPL-3.0-or-later,
             SSPL-1.0, BUSL-1.1, CC-BY-NC-4.0
+          # Package URLs, and every part of that is load-bearing. `npm/tldraw` was rejected with "package-url must
+          # start with \"pkg:\"" on every pull request since this job was added, so the deny list has never once
+          # been evaluated — a security gate that fails to parse is not a strict gate, it is an absent one that
+          # happens to be red. The scope needs `%40` rather than `@`: percent-encoding the namespace is the purl
+          # spec's canonical form, and `pkg:npm/@scope/name` is accepted by some parsers and not others.
+          #
+          # Kept identical to that gate's BANNED keys, and `gate:license` now fails if the two drift — because
+          # they had. Three names were missing here, so "the same list, so a dependency has to get past both"
+          # was describing an intention rather than the file.
           deny-packages: >-
-            npm/tldraw, npm/xeokit-sdk, npm/mupdf, npm/mupdf-js,
-            npm/@mlightcad/libredwg-web, npm/@mlightcad/libredwg-converter,
-            npm/web-ifc-three
+            pkg:npm/tldraw, pkg:npm/%40tldraw/tldraw, pkg:npm/xeokit-sdk,
+            pkg:npm/mupdf, pkg:npm/mupdf-js,
+            pkg:npm/libredwg, pkg:npm/%40mlightcad/libredwg-web,
+            pkg:npm/%40mlightcad/libredwg-converter,
+            pkg:npm/ifcopenshell, pkg:npm/web-ifc-three
           comment-summary-in-pr: on-failure

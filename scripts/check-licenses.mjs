@@ -359,6 +359,61 @@ if (WRITE) {
 
 // ---------------------------------------------------------------------------------------------------
 
+/**
+ * The second line of defence has to be checking the same thing as the first.
+ *
+ * `ci.yml`'s `dependency-review` job carries its own copy of this list, and its comment says the duplication is
+ * deliberate: *"the deny list here is deliberately the same one as scripts/check-licenses.mjs, so a dependency
+ * has to get past both."* On 2026-08-14 that sentence was false — three names were missing there, and every one
+ * of the seven that remained was written as `npm/tldraw` rather than as a package URL, so the action rejected
+ * the input and the deny list had never been evaluated at all.
+ *
+ * Two failure modes, one cause: a list maintained in two files with nothing comparing them. A red check nobody
+ * reads is how the first went unnoticed for weeks; the second is invisible even when you do read it, because
+ * the workflow looks right until you know that purls need their scheme.
+ */
+const CI_WORKFLOW = "ci.yml";
+const workflow = readFileSync(join(ROOT, ".github", "workflows", CI_WORKFLOW), "utf8");
+const denyBlock = /deny-packages:\s*>-\n((?:\s+.*\n)+?)\s*comment-summary-in-pr:/.exec(workflow);
+if (denyBlock === null) {
+  problems.push(
+    `DENY LIST  could not find \`deny-packages\` in .github/workflows/${CI_WORKFLOW}\n` +
+      `          The mirror check cannot run, so the two lists are free to drift. Restore the block or update this gate.`,
+  );
+} else {
+  // purl for an npm package: `pkg:npm/name`, with the scope percent-encoded per the spec's canonical form.
+  const purlFor = (name) => `pkg:npm/${name.replace(/^@/, "%40")}`;
+  const declared = new Set(
+    denyBlock[1]
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0),
+  );
+  const expected = new Set(Object.keys(BANNED).map(purlFor));
+
+  for (const entry of declared) {
+    if (!entry.startsWith("pkg:")) {
+      problems.push(
+        `DENY LIST  \`${entry}\` in ${CI_WORKFLOW} is not a package URL\n` +
+          `          dependency-review-action rejects the whole input, so nothing is denied. Write it as \`${purlFor(entry.replace(/^npm\//, ""))}\`.`,
+      );
+    } else if (!expected.has(entry)) {
+      problems.push(
+        `DENY LIST  ${CI_WORKFLOW} denies \`${entry}\`, which is not in BANNED\n` +
+          `          Add it here with a reason, or drop it there. The two lists are asserted identical.`,
+      );
+    }
+  }
+  for (const entry of expected) {
+    if (!declared.has(entry)) {
+      problems.push(
+        `DENY LIST  BANNED carries \`${entry}\` and ${CI_WORKFLOW} does not\n` +
+          `          The GitHub-native check would let it through, so "it has to get past both" is not true of it.`,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(`\nLicense gate failed — ${problems.length} problem(s):\n`);
   for (const p of problems) console.error(`  • ${p}`);

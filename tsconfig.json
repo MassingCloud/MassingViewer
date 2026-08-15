@@ -21,6 +21,9 @@
       "path": "./packages/catalog"
     },
     {
+      "path": "./packages/tessellate"
+    },
+    {
       "path": "./packages/viewport"
     },
     {

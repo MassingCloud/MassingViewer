@@ -75,6 +75,26 @@ rebuilding its shell around a ribbon UI and a pluggable geometry kernel.
   typed BCF topic anchored to the element's GlobalId. Delete that element and the topic does not quietly survive
   looking fine — it is struck through as **orphaned**, with a reason naming the missing GlobalId. Export is
   BCF 3.0, written entirely in the page, so topics open in Solibri, BIMcollab, Revizto and Bonsai.
+- **2D is a peer of 3D, not a strip of it.** A tab strip switches what the canvas *is*: the model with the plan
+  beside it, or the drawing full width as an issued sheet — border, title block, revision table and a graphic scale
+  bar whose segments are a round number of metres. The mode is the state, so "exactly one surface is the canvas"
+  holds by construction rather than by two `hidden` flags nobody keeps in sync, and a mode that cannot be entered
+  refuses with a sentence instead of swallowing the click. See
+  [ADR-0015](docs/adr/0015-2d-as-a-peer-of-3d.md).
+- **Sectioning runs in a Worker.** Cutting a plan used to block the main thread for about 450 ms; it now blocks
+  nothing, measured by [`e2e/longtask.spec.ts`](e2e/longtask.spec.ts) rather than assumed. Nothing needed a
+  serializer in either direction, because entities live in model space and paper is a render-time transform.
+- **A family gallery, with availability stated rather than hidden.** The whole library is browsable by discipline
+  and category, searchable, and draggable onto the model. An entry this kernel cannot place offline is **dimmed
+  with the reason on the tile** — never removed — and geometry the library grades as an L200 placeholder says so
+  before you place it.
+- **Several models at once.** `addModel` loads a consultant's file beside the architectural one with its own
+  visibility and transform, and a plan cut across the federation labels each element with its *own* GlobalId.
+  Identity needed no `(model, guid)` pair — an IFC GlobalId is globally unique — and duplicates across files are
+  reported rather than silently resolved.
+- **WebGPU when the machine can, WebGL2 otherwise, and it says which.** The fallback is transparent: choosing
+  WebGL2 renders identically to never having tried, which took two rounds of measurement to make true. See
+  [ADR-0012](docs/adr/0012-webgpu-first-webgl-fallback.md).
 - **A guide for writing your own kernel** ([docs/kernels/authoring.md](docs/kernels/authoring.md)), plus a
   reference implementation that passes the same suite — so a third-party kernel is a supported thing to write.
 
@@ -174,13 +194,27 @@ from any host, including massing's own vanilla-DOM app. React appears only in th
 | `@massing/kernel-api` | The `KernelProvider` contract |
 | `@massing/kernel-conformance` | The contract suite every kernel must pass |
 | `@massing/kernel-memory` | A reference kernel that passes it — the template for writing your own |
+| `@massing/kernel-local` | `LocalKernel` — writes IFC in a Worker, offline |
+| `@massing/kernel-remote` | `RemoteKernel` — the same contract over massing's authoring service |
+| `@massing/ifc` | STEP entity table with byte-preserving emit |
+| `@massing/tessellate` | IFC extruded solids to typed arrays — placement, rotation, opening subtraction |
 | `@massing/geometry-math` | Object snapping, polar tracking, dynamic input, CAD command grammar |
-| `@massing/ui-model` | Ribbon and palette layout model — pure data, no DOM |
+| `@massing/ui-model` | Ribbon, gallery and canvas-mode models — pure data, no DOM |
 | `@massing/catalog` | The parametric element palette |
-| `@massing/viewport` | three.js + `@thatopen` rendering (the only package that imports three) |
-| `@massing/drawings2d` | Plan/section generation, SVG + DXF + PDF output |
-| `@massing/markup-ui` | BCF-native issues, pins, and Tool Sets |
+| `@massing/assets` | Family libraries as data — parse, index, search |
+| `@massing/viewport` | three.js rendering, WebGPU-first with a WebGL2 fallback (the only package that imports three) |
+| `@massing/drawings2d` | Plan/section generation, sheet furniture, SVG + DXF + PDF output |
+| `@massing/markup` | BCF-native issues and pins, anchored to GlobalIds |
+| `@massing/authoring` | The interactive prompt-loop session |
+| `@massing/commands` | Command bus, keybindings, palette index |
+| `@massing/plugin-host` | Contribution manifests and lazy activation |
+| `@massing/fileio` | Drag-and-drop and file-picker opening |
+| `@massing/observability` | Crash sinks, telemetry, audit — all no-op by default |
+| `@massing/pwa` | The unified service worker: COOP/COEP plus precaching |
+| `@massing/i18n` | Message catalogues and the units grammar |
+| `@massing/ribbon` | The vanilla-DOM ribbon renderer |
 | `@massing/ui-react` | Ribbon, command palette, command line, docking |
+| `@massing/embed` | `createMassingViewer()` — the facade massing imports |
 
 `@massing/geometry-math` is deliberately useful on its own:
 

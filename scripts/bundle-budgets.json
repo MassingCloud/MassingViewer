@@ -1,8 +1,8 @@
 {
   "demo shell": {
-    "entryJs": 199.7,
-    "entryCss": 2,
-    "totalJsCss": 214.2,
+    "entryJs": 199.2,
+    "entryCss": 2.1,
+    "totalJsCss": 216.4,
     "alternates": [
       "^three.webgpu"
     ],

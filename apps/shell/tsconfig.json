@@ -11,6 +11,7 @@
   },
   "references": [
     { "path": "../../packages/core" },
+    { "path": "../../packages/tessellate" },
     { "path": "../../packages/viewport" },
     { "path": "../../packages/plugin-host" },
     { "path": "../../packages/ui-react" },

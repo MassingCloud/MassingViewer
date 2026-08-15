@@ -80,7 +80,7 @@ L0  core · kernel-api · kernel-conformance                    vocabulary and c
 | `@massing/geometry-math` | Object snapping with priority ties, polar tracking, dynamic input, drawing inference, placement validation, the CAD command grammar |
 | `@massing/ui-model` | Ribbon and palette layout as data. Exists so massing's vanilla DOM and the React shell read **one** table — see `docs/adr/0006-react-shell-vanilla-core.md` |
 | `@massing/catalog` | The parametric element palette: what can be drawn, which IFC class it becomes, which operation authors it |
-| `@massing/jobs` | The cancellable job queue |
+| @massing/jobs | The cancellable job queue — **planned, not built.** Unbackticked deliberately: backticks are reserved for things that exist, and this table read as an inventory of shipped packages while naming one that never shipped. |
 
 These omit the `DOM` lib from `tsconfig.json` entirely, so a stray `document` is a type error here rather
 than a runtime failure in someone else's environment.
