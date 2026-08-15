@@ -32,10 +32,29 @@ async function ready(page: Page): Promise<void> {
   await expect(page.locator("#kernel")).toContainText("ready — no network", { timeout: 20_000 });
 }
 
-/** Arm a draw verb from the ribbon, the way a user does. */
+/**
+ * Arm a draw verb from the ribbon, the way a user does.
+ *
+ * The wait is the interesting part. `ready()` above waits for the kernel panel's text, which is a *proxy* for
+ * "the draft controller is wired" — and the two were published in the wrong order in `apps/demo/src/main.ts`
+ * until 2026-08-15: the panel announced readiness, then `wireDraft` ran. A tool armed in that window has no
+ * controller and silently does not arm, which presents exactly as `#dyn-hud` never becoming visible.
+ *
+ * Both halves are fixed: the app publishes the signal after the wiring, and this asserts the real precondition
+ * rather than trusting the order. Two proxies for one fact is how the offline test cost three diagnoses.
+ *
+ * **Not claimed as the fix for the iPad flake.** It is unexplained, this was found looking for it, and the
+ * failure message below is what will identify it if it recurs.
+ */
 async function arm(page: Page, tool: string): Promise<void> {
-  await page.locator(`#ribbon button[data-tool="${tool}"]`).dispatchEvent("click");
-  await expect(page.locator("#dyn-hud")).toBeVisible();
+  await page.waitForFunction(() => window.__massingviewer?.draft != null, undefined, { timeout: 20_000 });
+  const button = page.locator(`#ribbon button[data-tool="${tool}"]`);
+  await expect(button, `the ribbon has no button for "${tool}"`).toHaveCount(1);
+  await button.dispatchEvent("click");
+  await expect(
+    page.locator("#dyn-hud"),
+    `arming "${tool}" did not show the prompt HUD, with the draft controller present and the button in the ribbon`,
+  ).toBeVisible();
 }
 
 /** The element count from the test hook, which reads through a getter and so cannot go stale. */

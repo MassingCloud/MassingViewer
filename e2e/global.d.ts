@@ -16,6 +16,13 @@ declare global {
       readonly topics: readonly { guid: string; title: string; type: string; pin?: { guids: readonly string[] } }[];
       kernelId: string;
       readonly toolCount: number;
+      /**
+       * The draft controller, or null before `wireDraft` has run.
+       *
+       * Declared so `arm()` can wait on the real precondition instead of on the kernel panel's text, which is a
+       * proxy for it. The two were published in the wrong order in the app until 2026-08-15.
+       */
+      readonly draft: unknown | null;
       remount(cycles: number): {
         geometries: number;
         textures: number;

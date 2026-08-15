@@ -658,9 +658,26 @@ async function startKernel(): Promise<void> {
   const ops = await kernel.ops();
   kernelOps = ops.ok ? ops.value.length : 0;
   kernelReady = ops.ok;
-  renderKernelPanel(kernelReady ? "ready — no network" : "worker did not answer", kernelReady ? "ok" : "warn");
+  if (!kernelReady) {
+    renderKernelPanel("worker did not answer", "warn");
+    return;
+  }
 
-  if (!kernelReady) return;
+  /**
+   * Wired **before** the panel says ready, and the order is the point.
+   *
+   * "ready — no network" is what every E2E test waits on before it does anything, so it is a public readiness
+   * signal whether or not it was meant as one. Publishing it above this line announced readiness while
+   * `draft` was still null — a tool armed in that window has no controller to arm.
+   *
+   * As written it was saved by JavaScript semantics rather than by design: nothing awaits between the panel
+   * update and this assignment, so a remote command cannot interleave. That is a guarantee about the current
+   * shape of this function, not about what it means, and one `await` added here for any reason would open the
+   * window silently. A signal should be published after the thing it signals.
+   *
+   * **Not claimed as the fix for the iPad `#dyn-hud` flake.** That flake is real and unexplained; this ordering
+   * was found looking for it and is worth correcting on its own terms.
+   */
   draft = wireDraft({
     viewport,
     kernel,
@@ -677,6 +694,10 @@ async function startKernel(): Promise<void> {
     },
     canEdit: () => true,
   });
+
+  // The readiness signal, now that the thing it signals exists. See the note above `wireDraft`.
+  renderKernelPanel("ready — no network", "ok");
+
   /**
    * The family gallery.
    *

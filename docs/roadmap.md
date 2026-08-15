@@ -329,6 +329,19 @@ Each of these came out of a defect found while doing something else, which is th
 - The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
   to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
   a real race.
+
+  **Still unexplained, and one real ordering defect was found looking for it** (2026-08-15). The app published
+  "ready — no network" — the signal every E2E test waits on — *before* `wireDraft` assigned the draft controller.
+  A tool armed in that window has no controller and silently does not arm, which presents precisely as
+  `#dyn-hud` never appearing. As written it was saved by JavaScript semantics rather than by design: nothing
+  awaited between the two, so no remote command could interleave. That is a property of the current shape of the
+  function, not of what it means, and one added `await` would have opened the window silently.
+
+  Both halves corrected: the app publishes the signal after the wiring, and `arm()` now waits on
+  `__massingviewer.draft` — the real precondition — instead of on the panel's text, which was a proxy for it.
+  Sabotage-checked by never wiring the controller; the wait times out naming it, where before the failure was an
+  invisible HUD. **Not claimed as the fix.** The flake predates this and has not recurred to confirm anything;
+  what has changed is that the next occurrence names which precondition was missing.
 - German is 119/119 translated and **not native-reviewed**.
 - `AA_TOLERANCE` in the raster suite has never run on Linux.
 - ~~The seam ledger measures an older shape of the facade.~~ **Fixed 2026-08-15.** It reported `ready` against 24
