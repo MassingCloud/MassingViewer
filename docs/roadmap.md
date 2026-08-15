@@ -177,11 +177,10 @@ fixtures — `small`, `medium`, `large`, `xlarge` (20 storeys, 8 bays) — run n
 for. A section that reads as wholly not-done while being three-quarters done is how the one genuinely missing
 piece stays invisible.
 
-**The genuinely missing piece is the federated case.** The original list named small / medium / large /
+**The genuinely missing piece was the federated case, and it landed the same day.** The original list named small / medium / large /
 *federated*; what shipped substituted `xlarge`. So every scale number in this repository is for a single model,
 while federation is a shipped feature with its own per-model visibility, per-model GUID resolution and a
-selection path that has to stay correct when two files share an expressID. None of that is measured at scale, and
-the costs that would show up there — per-model resolver maps, a scene graph with two roots, colour-key churn
+selection path that has to stay correct when two files share an expressID. It is measured now — see item 5 in the list below. The costs that show up there — per-model resolver maps, a scene graph with two roots, colour-key churn
 across models — are precisely the ones a single-model benchmark cannot see.
 
 This is the gate that decides whether a Rust core is justified, so it comes before it.
@@ -283,10 +282,20 @@ Each of these came out of a defect found while doing something else, which is th
    real main-thread stall rather than by lowering the threshold until it went red; the second proves the
    assertion is wired and nothing about whether the condition can occur. Both branches are now verified reachable
    with two different stall shapes.
-5. **A federated scale benchmark.** Every scale number here is single-model, while federation ships with
-   per-model visibility, per-model GUID resolution and a selection path that must survive two files sharing an
-   expressID. Found by re-reading 4b, which described the whole benchmark as deferred and so hid the one part
-   that actually is.
+5. ~~**A federated scale benchmark.**~~ **Done 2026-08-15.** Two buildings of the same size, so their expressIDs
+   collide *completely* — the realistic federated shape and the hazard `ElementRef` exists for — with distinct
+   GlobalIds as IFC4 requires. Both properties are asserted rather than assumed, because a generator change could
+   otherwise leave this quietly measuring two unrelated buildings.
+
+   The assertion worth having is that **both models reach the drawing**. A merge keyed by expressID rather than
+   by GlobalId keeps one model's element per colliding id and silently drops the other's; the plan still renders,
+   still looks plausible, and is missing an entire consultant's building. Sabotage-checked by resolving every GUID
+   from model 0, which fails with "model 1 contributed no cut geometry to the federated plan".
+
+   **What the numbers say, carefully:** 288 products across two models at 42 µs/element, against 111 for `medium`
+   (144) and 56 for `large` (640). No superlinear per-model cost is visible. That is a weak claim on purpose — the
+   absolute times are 3–16 ms, small enough that JIT warm-up and ordering dominate, so this establishes the shape
+   is not obviously wrong rather than that federation is free.
 6. **Boot cost.** 148–182 ms of script evaluation. The stated trap — *"changing the chunk graph is what broke the
    offline test twice on 2026-08-13"* — **was wrong**, and rested on the diagnosis overturned on 2026-08-14: the
    offline failure was `Vary: Origin`, not the chunk graph. A chunk-graph change shifted *which* assets were

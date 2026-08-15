@@ -61,6 +61,16 @@ export interface ScaleSpec {
   readonly storeys: number;
   /** Bays in each direction. Bays² columns and roughly 2·bays·(bays+1) partition walls per storey. */
   readonly bays: number;
+  /**
+   * Offsets the GlobalId sequence, so two models of the same size are two *different* buildings.
+   *
+   * Needed only for the federated case, and needed there precisely because `guid()` is a pure function of its
+   * index: generating the same size twice produces byte-identical GlobalIds, which is the one thing a federated
+   * fixture must not do. Two consultants' files collide on **expressID** — both number from #1 — while their
+   * GlobalIds are distinct by specification. A fixture with colliding GUIDs would be testing a corrupt project
+   * rather than a federated one, and would make `reportGuidCollisions` fire on the normal case.
+   */
+  readonly seed?: number;
 }
 
 /**
@@ -74,6 +84,21 @@ export const SCALES: readonly ScaleSpec[] = [
   { name: "medium", storeys: 4, bays: 4 },
   { name: "large", storeys: 10, bays: 6 },
   { name: "xlarge", storeys: 20, bays: 8 },
+];
+
+/**
+ * The federated pair: two buildings of the same size, loaded together.
+ *
+ * Same `storeys`/`bays`, so both number their entities from #1 and their **expressIDs collide completely** —
+ * which is the realistic shape of a federated project and the one a single-model benchmark cannot produce.
+ * Different `seed`, so their GlobalIds do not, exactly as IFC4 requires.
+ *
+ * Sized at `medium` rather than `large`: the question here is whether per-model bookkeeping is linear in models,
+ * not whether one model is fast, and that is answerable at any size that is not trivially small.
+ */
+export const FEDERATED: readonly ScaleSpec[] = [
+  { name: "federated-a", storeys: 4, bays: 4, seed: 0 },
+  { name: "federated-b", storeys: 4, bays: 4, seed: 1_000_000 },
 ];
 
 export interface Generated {
@@ -91,7 +116,7 @@ export interface Generated {
  */
 export function generate(spec: ScaleSpec): Generated {
   const out: Emitter = { lines: [], next: 1 };
-  let guidIndex = 0;
+  let guidIndex = spec.seed ?? 0;
 
   const owner = "$";
   const origin = emit(out, "IFCCARTESIANPOINT", L([N(0), N(0), N(0)]));
