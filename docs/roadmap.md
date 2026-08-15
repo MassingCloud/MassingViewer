@@ -170,9 +170,21 @@ the comparison to borrow rather than repeat — see ADR-0014.
 
 ### 4b. What the benchmark does not yet cover
 
-Two small fixtures today, scale explicitly deferred. Generate rather than commit: small / medium / large /
-federated, with budgets measured and not guessed (`perf/README.md`'s posture). This is the gate that decides
-whether a Rust core is justified, so it comes before it.
+**Mostly done, and re-read on 2026-08-15 rather than trusted.** The paragraph here said *"two small fixtures
+today, scale explicitly deferred"*, which stopped being true when `fixtures/scale.ts` landed: four **generated**
+fixtures — `small`, `medium`, `large`, `xlarge` (20 storeys, 8 bays) — run nightly through
+`fixtures/scale.test.ts`, with budgets measured rather than guessed, exactly the posture `perf/README.md` asks
+for. A section that reads as wholly not-done while being three-quarters done is how the one genuinely missing
+piece stays invisible.
+
+**The genuinely missing piece is the federated case.** The original list named small / medium / large /
+*federated*; what shipped substituted `xlarge`. So every scale number in this repository is for a single model,
+while federation is a shipped feature with its own per-model visibility, per-model GUID resolution and a
+selection path that has to stay correct when two files share an expressID. None of that is measured at scale, and
+the costs that would show up there — per-model resolver maps, a scene graph with two roots, colour-key churn
+across models — are precisely the ones a single-model benchmark cannot see.
+
+This is the gate that decides whether a Rust core is justified, so it comes before it.
 
 ### 5. Then, and only if the numbers say so: Rust, version diffing, capture overlays
 
@@ -226,7 +238,7 @@ reads like a status report.
 | 1 | Renderer seam + federation | **Done**, and both halves needed fixing afterwards. The WebGPU fallback was not transparent — twice. Selection silently stopped highlighting the moment a second model loaded. See ADR-0012 and ADR-0013. |
 | 2 | Families — `@massing/assets` + a Build-ribbon gallery | **Done.** Library parsing, `galleryFor` layout, a rendered panel with discipline tabs, search, drag-to-place, and availability dimmed with a reason. |
 | 3 | Sheets, title blocks, review desk | **Half done.** Sheet furniture — border, title block, revision table, scale bar — ships across SVG, DXF and PDF, and 2D is now a peer surface rather than a side pane (ADR-0015). The **review desk is blocked**: it needs `@massingcloud/pdf-viewer` on npm. |
-| 4 | Benchmarks at scale | **Done**, and extended: the drawing benchmark is joined by a main-thread measurement that found sectioning blocking for ~450 ms and is now the check that it stays fixed. |
+| 4 | Benchmarks at scale | **Done for a single model**, and extended: the drawing benchmark is joined by a main-thread measurement that found sectioning blocking for ~450 ms, and since 2026-08-15 by p95 frame time. Four generated fixtures run nightly. **The federated case is not measured** — see 4b, where "done" had been hiding it. |
 | 5 | Rust, version diffing, capture overlays | **Not started, and correctly so.** Nothing measured says the TypeScript parser is the ceiling. |
 
 ## What shipped since the plan was written, that the plan did not ask for
@@ -236,8 +248,17 @@ Each of these came out of a defect found while doing something else, which is th
 - **2D as a peer of 3D** — a canvas-mode reducer ported from upstream, because the plan pane was a strip.
 - **Sectioning in a Worker** — the main-thread measurement asked for it.
 - **A long-task measurement**, deliberately a report rather than a gate.
-- **Three gate repairs**: the bundle budget, the message gate and the doc-path gate were each passing on stale or
-  incomplete data. All three now refuse rather than reassure.
+- **Gate repairs, and the count keeps rising because each one is found the same way — by sabotaging the check
+  rather than reading it.** As of 2026-08-15 that is eight: the bundle budget counted a second build's compiler
+  output as shipped bytes; the message gate and the doc-path gate answered from stale or uncommitted build
+  output; `dependency-review`'s deny list had never parsed *and* had drifted from the list it claimed to mirror;
+  the seam ledger described a facade from before two of its features shipped; `longtask.spec.ts` ran in no
+  workflow; the readiness signal every E2E test waits on was published before the thing it signals; and the
+  frame-time gate shipped a first draft whose failing branch could not be reached.
+
+  The pattern worth carrying: **a gate that has never failed has not been shown to work.** Six of these were
+  green, one was red and unread, and one had never executed. Three of the fixes were themselves half-right until
+  the sabotage said so.
 
 ## Not done, in the order I would take them
 
@@ -251,8 +272,22 @@ Each of these came out of a defect found while doing something else, which is th
    was worse than "two copies": the shell's had no `refDirection` and no `IfcRelVoidsElement`, so a rotated wall
    drew unrotated and a wall with a door drew solid — both silent, both shipped. Each is now pinned by a test
    verified by removing the behaviour and watching that test fail.
-4. **The p95 frame-time gate.** Expect the same threshold problem the long-task measurement hit.
-5. **Boot cost.** 148–182 ms of script evaluation. The stated trap — *"changing the chunk graph is what broke the
+4. ~~**The p95 frame-time gate.**~~ **Done 2026-08-15**, in the nightly's `frames` job alongside the long-task
+   spec — which turned out to have run in no workflow at all since it was written, so it had never reported
+   anything. The predicted threshold problem arrived exactly as expected and was answered the same way: both fail
+   on **liveness** (a loop not producing frames, a quarter-second of main-thread work) and report timings to
+   `perf/frames.jsonl` rather than gating on a number a shared runner cannot hold still.
+
+   The frame-time gate's first draft had an **unreachable failing branch** — a fixed 180-frame sample meant any
+   stall large enough to hit the threshold also blew the test timeout, which fired first. Found by injecting a
+   real main-thread stall rather than by lowering the threshold until it went red; the second proves the
+   assertion is wired and nothing about whether the condition can occur. Both branches are now verified reachable
+   with two different stall shapes.
+5. **A federated scale benchmark.** Every scale number here is single-model, while federation ships with
+   per-model visibility, per-model GUID resolution and a selection path that must survive two files sharing an
+   expressID. Found by re-reading 4b, which described the whole benchmark as deferred and so hid the one part
+   that actually is.
+6. **Boot cost.** 148–182 ms of script evaluation. The stated trap — *"changing the chunk graph is what broke the
    offline test twice on 2026-08-13"* — **was wrong**, and rested on the diagnosis overturned on 2026-08-14: the
    offline failure was `Vary: Origin`, not the chunk graph. A chunk-graph change shifted *which* assets were
    fetched as CORS-mode module requests and so changed how often the race lost, which is why it looked causal.
