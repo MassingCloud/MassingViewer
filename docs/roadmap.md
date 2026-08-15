@@ -343,7 +343,14 @@ Each of these came out of a defect found while doing something else, which is th
   invisible HUD. **Not claimed as the fix.** The flake predates this and has not recurred to confirm anything;
   what has changed is that the next occurrence names which precondition was missing.
 - German is 119/119 translated and **not native-reviewed**.
-- `AA_TOLERANCE` in the raster suite has never run on Linux.
+- ~~`AA_TOLERANCE` in the raster suite has never run on Linux.~~ **Stale, checked 2026-08-15 rather than assumed.**
+  It runs on `ubuntu-latest` twice over: the comparator's own ten tests in `fixtures/raster-compare.test.ts` go
+  through `npm run test` in the per-PR `unit` job, and its real use against committed baselines runs nightly in
+  the `raster` job via `fixtures/raster.test.ts`. Both green, including in today's nightly.
+
+  Worth noting why the entry survived: it was true when written, and nothing re-read it when the jobs that
+  falsify it were added. An "unexplained" list is only useful if its entries are re-checked rather than
+  inherited — the same failure as the seam ledger describing a facade from before two of its features existed.
 - ~~The seam ledger measures an older shape of the facade.~~ **Fixed 2026-08-15.** It reported `ready` against 24
   capabilities while federation and sheet furniture had shipped weeks earlier and were never entered — the exact
   failure a ledger exists to prevent, committed by the ledger. Now 27 movable capabilities, each claim checked
