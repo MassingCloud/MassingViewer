@@ -188,14 +188,32 @@ self.addEventListener("fetch", (event) => {
         } catch {
           /* offline, or slower than the cache is worth waiting for — fall through to the cache */
         }
-        const cached = (await cache.match(request)) ?? (await cache.match(SHELL));
+        // \`ignoreVary\` for the same reason as the asset branch below: a navigation carries headers the precached
+        // shell was never stored with, and the shell has exactly one representation.
+        const cached =
+          (await cache.match(request, { ignoreVary: true })) ?? (await cache.match(SHELL, { ignoreVary: true }));
         if (cached) return isolate(cached);
         return isolate(await fetch(request));
       }
 
-      // Assets are content-hashed by the bundler, so a cache hit is definitionally current and going to the
-      // network would be pure latency.
-      const cached = await cache.match(request);
+      /**
+       * Assets are content-hashed by the bundler, so a cache hit is definitionally current and going to the
+       * network would be pure latency.
+       *
+       * \`ignoreVary\` is the load-bearing part, and it was missing. The preview and Pages both answer with
+       * \`Vary: Origin\`, and \`cache.match\` honours \`Vary\` by comparing the *stored* request's headers against
+       * the incoming one's. The precache stores each entry under \`new Request(url, { cache: "reload" })\`, which
+       * carries no \`Origin\` header — while the browser requests a module script and a \`modulepreload\` in CORS
+       * mode, which does send one. So the two disagree and the lookup misses on precisely the assets the app
+       * cannot boot without, while the document, the stylesheet and the classic \`sw-register.js\` script — all
+       * no-cors, all sending no \`Origin\` — hit normally.
+       *
+       * Online the miss is invisible: it falls through to the network and re-caches under the *other* key.
+       * Offline it is fatal, and which key won the race is why the offline reload failed intermittently rather
+       * than always. Content-hashed URLs make identity total, so \`Vary\` can only ever produce a spurious miss
+       * here — there is no second representation of \`index-<hash>.js\` to tell apart.
+       */
+      const cached = await cache.match(request, { ignoreVary: true });
       if (cached) return isolate(cached);
 
       const fresh = await fetch(request);

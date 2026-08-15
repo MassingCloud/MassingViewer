@@ -276,16 +276,23 @@ Each of these came out of a defect found while doing something else, which is th
   worker *was* running, controlling and serving, and missed specific assets the precondition had just confirmed
   were in Cache Storage. That rules out the previous reading, which was "the worker never started".
 
-  The leading candidate is now `Vary`. `cache.match` honours it, and the two halves match differently: the
-  precondition matches a **URL string**, while the worker matches the browser's real `Request`. Those disagree
-  precisely when a stored response carries a `Vary` header, which would make the precondition pass on an entry
-  the worker cannot then find. Not confirmed — it is a hypothesis with a mechanism, which is one more than the
-  previous two rounds had, and it is checkable locally by comparing `cache.match(url)` against
-  `cache.match(new Request(url))` after install.
+  **Found, on 2026-08-14: `Vary: Origin`.** Measured in the browser rather than reasoned about — the served
+  responses carry that header, and `cache.match` honours `Vary` by comparing the *stored* request's headers
+  against the incoming one's. The two sides are systematically different: the precache stores each entry under
+  `new Request(url, { cache: "reload" })`, which sends no `Origin`, while the browser fetches a module script and
+  a `modulepreload` in CORS mode, which does. So the lookup missed on exactly the assets the app cannot boot
+  without, and hit on everything no-cors — the document, the stylesheet, the classic registration script. That is
+  the reported signature, entry by entry.
 
-  A second candidate worth eliminating in the same sitting: the precondition searches **every** cache
-  (`for (const key of keys)`), and `activate` deletes all but the current one — so matching in a cache that is
-  about to be deleted is a false positive by construction.
+  Online the miss is invisible: it falls through to the network and re-caches under the other key. Offline it is
+  fatal. Which key won that race is why this failed intermittently rather than always, and why it survived being
+  "fixed" twice — both earlier fixes made the *precondition* stricter, and the precondition was never the problem.
+
+  Fixed with `ignoreVary: true` on both cache lookups; the URLs are content-hashed, so identity is total and
+  `Vary` can only ever produce a spurious miss. The unit harness's fake cache now models `Vary` — it previously
+  could not express this failure, which is why 23 passing tests said nothing about it — and the new test was
+  checked by removing `ignoreVary` and watching it fail. It had to be asserted **offline**: with the network up
+  it passes either way, which is the bug's whole shape in one sentence.
 - The iPad `#dyn-hud` draft test has flaked three times under load and passes in isolation every time. Attributed
   to contention on each occasion, never root-caused. The offline test looked exactly like this and turned out to be
   a real race.
