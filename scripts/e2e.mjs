@@ -234,8 +234,27 @@ for (const stream of [server.stdout, server.stderr]) {
 }
 
 let serverExit = null;
+let playwrightRunning = false;
 server.on("exit", (code, signal) => {
   serverExit = signal ?? code;
+  /**
+   * Say so **immediately** when it dies mid-run.
+   *
+   * The readiness reporting below only covers startup. If the server exits once Playwright is going, nothing
+   * mentioned it — every remaining test just failed at `page.goto` with `ERR_CONNECTION_REFUSED`, which reads as
+   * "the app is broken" rather than "the thing serving it is gone".
+   *
+   * That cost a diagnosis on 2026-08-14: the server died twice mid-run and the only evidence was a connection
+   * refused on the third test, so the cause had to be guessed at. Two guesses were then eliminated by experiment
+   * — aborted in-flight requests (six rounds, survived) and long idles (three 45 s rounds, survived) — and the
+   * real cause is still unknown. This line is what makes the *next* occurrence evidence instead of another
+   * guessing round: the exit code and the server's own last words, at the moment it happens.
+   */
+  if (playwrightRunning) {
+    console.error(`\ne2e: the server exited mid-run with ${serverExit}. Every test after this point will fail to connect.`);
+    const tail = serverOutput.join("").split(/\r?\n/).filter(Boolean).slice(-15);
+    if (tail.length > 0) console.error(`e2e: server's last output:\n${tail.map((l) => `  ${l}`).join("\n")}`);
+  }
 });
 
 const stopServer = () => {
@@ -291,6 +310,7 @@ if (!ready) {
   process.exit(1);
 }
 
+playwrightRunning = true;
 const playwright = spawn(process.execPath, [PW_CLI, "test", ...args], {
   stdio: "inherit",
 });

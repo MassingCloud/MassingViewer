@@ -277,7 +277,24 @@ Each of these came out of a defect found while doing something else, which is th
   the test wakes the worker before cutting the network, and — the part that matters — **the test now asserts
   delivery and names what was not served.** The next failure arrives with its cause attached instead of
   `element(s) not found`. None of this is claimed as the fix; the local harness also dies intermittently with
-  `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood.
+  `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood — see below.
+
+- **The local e2e server dying mid-run.** Observed twice on 2026-08-14: the third test of a run failed at
+  `page.goto` with `ERR_CONNECTION_REFUSED`, meaning the server had gone. **Two mechanisms have since been
+  eliminated by experiment, and the cause is still unknown**, which is a better state than the guess it replaces:
+
+  - *Aborted in-flight requests.* Six rounds of cutting the network mid-reload and aborting every route,
+    including service-worker-initiated ones — the server survived all six. So it is not an unhandled socket
+    error from a client that went away, which was the obvious candidate given no `uncaughtException` handler.
+  - *Long idles.* Three rounds of a 45 second idle then a request — survived all three. Both real failures
+    followed a 45 second idle, which is what made this worth testing and what makes ruling it out worth
+    recording.
+
+  No fix has been applied, deliberately: there is nothing established to fix, and a defensive handler for a
+  cause that has been ruled out is how a file accumulates code nobody can justify. What was added is a
+  **report** — `scripts/e2e.mjs` now says so, loudly and with the server's last output, the moment the child
+  exits while Playwright is running. Previously nothing mentioned it and every remaining test simply failed to
+  connect, which reads as "the app is broken" rather than "the thing serving it is gone".
 
   **The diagnostic paid for itself immediately.** It failed again on 2026-08-14 and reported, instead of
   `element(s) not found`: `controlled: true`, with the document, the stylesheet and the generated registration
