@@ -252,8 +252,17 @@ Each of these came out of a defect found while doing something else, which is th
    drew unrotated and a wall with a door drew solid — both silent, both shipped. Each is now pinned by a test
    verified by removing the behaviour and watching that test fail.
 4. **The p95 frame-time gate.** Expect the same threshold problem the long-task measurement hit.
-5. **Boot cost.** 148–182 ms of script evaluation, and `three` is not code-split. The trap is the service worker:
-   changing the chunk graph is what broke the offline test twice on 2026-08-13.
+5. **Boot cost.** 148–182 ms of script evaluation. The stated trap — *"changing the chunk graph is what broke the
+   offline test twice on 2026-08-13"* — **was wrong**, and rested on the diagnosis overturned on 2026-08-14: the
+   offline failure was `Vary: Origin`, not the chunk graph. A chunk-graph change shifted *which* assets were
+   fetched as CORS-mode module requests and so changed how often the race lost, which is why it looked causal.
+   With `ignoreVary` in place that coupling is gone and code-splitting is no longer blocked on it.
+
+   What is measured, on a clean build: entry JS 199.2 KB br (120.2 entry + 78.7 `three.core` + 0.3 registration),
+   total 217.4. `three` **is** already split into its own chunk — the note claiming otherwise predates the WebGPU
+   dynamic import that caused the split. The remaining candidates are the export paths (`toPdf`, `toDxf`,
+   `toBcfZip`), which are reachable only from a button and are currently in the entry. Not yet measured, so not
+   yet claimed as a saving.
 
 ## Known and unexplained
 

@@ -38,3 +38,7 @@ site/
 # Not committed — see perf/README.md for why that is a limitation rather than a preference.
 perf/trend.jsonl
 perf/frames.jsonl
+
+# TypeScript output for the apps, kept out of the bundler's dist/ so the two do not share a directory.
+# They did until 2026-08-15, and the bundle budget counted compiler output as shipped bytes.
+apps/*/dist-tsc/

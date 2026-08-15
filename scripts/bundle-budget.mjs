@@ -172,11 +172,29 @@ for (const target of targets) {
   const alternatePatterns = (budgets[target.name]?.alternates ?? []).map((p) => new RegExp(p));
   let total = 0;
   let alternates = 0;
+  /**
+   * Root-level scripts that are not the bundler's, which means this directory holds two builds.
+   *
+   * Found on 2026-08-15: the apps' `tsconfig.json` emitted to `dist/`, the same directory Vite writes, so a root
+   * `tsc --build` left `main.js`, `draft.js` and friends beside the bundle. This walk counted them, and reported
+   * `totalJsCss` 251 KB against a 216.4 budget — a **false red**, locally only, because the CI job runs the Vite
+   * build alone and never sees them.
+   *
+   * The collision is fixed at the source (`outDir` is `dist-tsc` now), so this is the guard against it returning,
+   * and it fails rather than silently correcting: a number that quietly excludes files is how `totalJsCss` would
+   * drift back into meaning "some of what a visitor downloads". `build-site.mjs` copies this directory into the
+   * published site and `pages.yml` greps it for external URLs, so a second build living here is not only a
+   * measurement problem.
+   */
+  const strays = [];
   const walk = (d) => {
     for (const e of readdirSync(d)) {
       const f = join(d, e);
       if (statSync(f).isDirectory()) walk(f);
       else if (/\.(js|css)$/.test(e)) {
+        // A root-level script the HTML does not reference, and that the bundler did not hash, is not ours.
+        const isReferenced = resolved.some((r) => r.rel === e);
+        if (d === dir && !isReferenced && !/-[A-Za-z0-9_]{8}\./.test(e) && e !== "sw.js") strays.push(e);
         const kb = brotliKB(readFileSync(f));
         if (alternatePatterns.some((re) => re.test(e))) alternates += kb;
         else total += kb;
@@ -184,6 +202,14 @@ for (const target of targets) {
     }
   };
   walk(dir);
+  if (strays.length > 0) {
+    problems.push(
+      `${target.name}: ${dir} holds ${strays.length} script(s) the bundler did not emit — ${strays.slice(0, 5).join(", ")}` +
+        `${strays.length > 5 ? ", …" : ""}\n` +
+        `          Two builds are writing to one directory, so this budget is measuring compiler output as shipped bytes.\n` +
+        `          Check the app's tsconfig \`outDir\`; it must not be the bundler's.`,
+    );
+  }
 
   measured[target.name] = {
     entryJs: +js.toFixed(1),
