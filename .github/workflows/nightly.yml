@@ -16,15 +16,14 @@ permissions:
 
 # ## Outstanding, and named here rather than left implicit
 #
-# Three jobs the plan asks for and this workflow does not yet run. Written down because a nightly that runs one job
-# reads, at a glance, like a nightly that runs everything — and `docs/testing.md` points here for the gap:
+# Written down because a nightly that runs one job reads, at a glance, like a nightly that runs everything — and
+# `docs/testing.md` points here for the gap.
 #
-#   - **p95 frame time.** The `perf` job below measures *drawing generation*, which is a pure function and belongs
-#     in Node. Frame time is a browser measurement and needs a rendering loop instrumented over many frames; the
-#     visual job renders single frames and cannot report it.
-#   - **The long-task gate.** Nothing over 50 ms during the golden path, which is what keeps the Worker boundary real
-#     rather than nominal. The perf job below measures drawing generation in Node, where there is no main thread to
-#     block, so this needs a browser trace.
+# **p95 frame time and the long-task gate are done** (2026-08-15) and run in the `frames` job below. Both report
+# rather than gate on a tuning number, and both fail on liveness — see each spec's header for why a threshold on a
+# shared runner is a gate people learn to re-run. Worth recording how the second one was found: `longtask.spec.ts`
+# had existed since 2026-08-12 and was referenced in no workflow, so it had never once executed. This header listed
+# it as outstanding, which was true, and the spec existing made it look done to anyone who grepped for it.
 #
 # **Tier-3 drawing rasterisation is done** and runs in the `raster` job below.
 #
@@ -129,6 +128,46 @@ jobs:
             playwright-report/
             test-results/
             e2e/visual/
+          retention-days: 14
+
+  frames:
+    name: p95 frame time and main-thread stalls
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # zizmor[artipacked]: the job token is not needed and must not sit in .git/config
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Frame time under orbit, and long tasks on the golden path
+        # Both are Chromium-only and both are nightly rather than per-PR, for the reason each spec's header gives:
+        # they measure *timing* on a shared runner, and a tight timing gate on a noisy runner is a gate people
+        # re-run rather than read. What they fail on is liveness — a loop not producing frames, or a quarter-second
+        # of uninterrupted main-thread work — which is a design regression rather than a slow machine.
+        #
+        # `longtask.spec.ts` existed since 2026-08-12 and ran in **no workflow at all** until this job was added,
+        # so it had never reported anything. A spec nobody runs is indistinguishable from a spec that always passes.
+        env:
+          FRAMETIME: "1"
+          LONGTASK: "1"
+        run: npm run e2e -- --project=chromium frametime longtask
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          # Uploaded on success too, because the *trend* is the output — the same reasoning as the perf job below.
+          # `perf/frames.jsonl` is what the 20% tolerance band gets set from once there is a week of it.
+          name: frame-trend
+          path: |
+            perf/frames.jsonl
+            playwright-report/
           retention-days: 14
 
   webgpu-probe:

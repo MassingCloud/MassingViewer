@@ -347,7 +347,7 @@ Flows:
 ### What is implemented
 
 **Drawing generation only**, via `scripts/perf-drawings.mjs` (`npm run perf`), run nightly. Five synthetic cases,
-p95 against `perf/budgets.json` with a +20% band, and an append-only committed trend in `perf/trend.jsonl`. Read
+p95 against `perf/budgets.json` with a +20% band, and an append-only trend uploaded as a nightly artifact (perf/trend.jsonl — described as committed until 2026-08-15, when it turned out never to have been tracked; see perf/README.md). Read
 `perf/README.md` before changing a budget — every entry currently carries `"baselined": false`, because the numbers
 are developer-machine measurements times three and three is a guess rather than a measurement.
 
@@ -392,8 +392,26 @@ added without a clear is noticed; `dispose()` leaves zero geometry, zero texture
 Sabotage-tested by deleting `disposeScene(current)` from `showModel`, which failed with
 *"geometry count grew over 20 re-shows: 23 → 34"*.
 
-**Still not implemented:** frame time (a browser measurement, and the visual job renders single frames) and the
-long-task gate. Both are named in `.github/workflows/nightly.yml`.
+**Both now implemented** (2026-08-15), in the `frames` job of `.github/workflows/nightly.yml`:
+`e2e/frametime.spec.ts` and `e2e/longtask.spec.ts`.
+
+Neither gates on a tuning number, and that is the settled posture rather than a shortcut. Both measure *timing* on
+a shared runner through a software rasteriser, so an absolute threshold fires on whichever CPU the job drew — and
+`docs/testing.md`'s own risk #11 is test-suite abandonment via reflexive re-runs. What they fail on is **liveness**:
+a render loop not producing frames, or a quarter-second of uninterrupted main-thread work. Both are design
+regressions rather than slow machines. p50/p95/worst go to `perf/frames.jsonl` so the 20% band described above can
+be set from a week of data instead of a guess.
+
+Two things worth keeping from building them:
+
+- **`longtask.spec.ts` had run in no workflow at all** since it was written on 2026-08-12. It was listed as
+  outstanding in the nightly's header, which was true — and the file existing made it look done to anyone who
+  grepped for it. A spec nobody runs is indistinguishable from a spec that always passes.
+- **The frame-time gate's first draft had an unreachable failing branch.** It sampled a fixed 180 frames, so any
+  stall large enough to reach the threshold also blew the 60-second test timeout, which fired first. Found by
+  injecting a real main-thread stall rather than by lowering the threshold until it went red — the second proves
+  the assertion is wired and nothing about whether a stall can reach it. Both branches are now verified reachable
+  with two different stall shapes; the spec header records which.
 
 ## 7. Accessibility
 

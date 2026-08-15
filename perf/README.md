@@ -57,14 +57,24 @@ number visible rather than to be optimised away.
 
 ## Reading the trend
 
-`trend.jsonl` is append-only and committed. One JSON object per nightly run:
+Two trend files, one per measurement: `trend.jsonl` for drawing generation, `frames.jsonl` for viewport frame time.
+One JSON object per nightly run:
 
 ```json
 {"commit":"abc123","at":"2026-08-08T02:00:00Z","results":[{"id":"small","p95":1.7,"perMeshUs":25,...}]}
 ```
 
-Committed rather than left as a CI artifact, because a trend that lives for 90 days in artifact storage is a trend
-nobody can read six months later — which is exactly when slow drift becomes visible.
+**They are uploaded as artifacts, not committed — and this paragraph used to say the opposite.** It read
+*"append-only and committed… because a trend that lives for 90 days in artifact storage is a trend nobody can read
+six months later"*, which is a good argument for a thing that was never set up: neither file has ever been tracked
+by git. The nightly has `contents: read` and cannot push, so "committed" would have meant a human downloading an
+artifact and committing it every morning, which nobody was ever asked to do.
+
+The reasoning still stands and is now a known limitation rather than a false claim: **the band described above has
+to be set within the artifact retention window** (14 days), or from a trend nobody kept. Making it true would mean
+either a job with write permission that commits its own results — which is a supply-chain surface for a number — or
+an external metrics store. Neither is worth it yet at one nightly run a day; what is worth it is not claiming the
+discipline exists.
 
 ## What is not measured here
 
