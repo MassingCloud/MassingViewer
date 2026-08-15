@@ -271,7 +271,8 @@ Each of these came out of a defect found while doing something else, which is th
   `ECONNREFUSED`, which is a second unexplained thing in the same neighbourhood.
 
   **The diagnostic paid for itself immediately.** It failed again on 2026-08-14 and reported, instead of
-  `element(s) not found`: `controlled: true`, with the document, the stylesheet and `sw-register.js` all served
+  `element(s) not found`: `controlled: true`, with the document, the stylesheet and the generated registration
+  script all served
   and exactly one asset missing — the hashed entry chunk under assets/ (four on the retry). So the
   worker *was* running, controlling and serving, and missed specific assets the precondition had just confirmed
   were in Cache Storage. That rules out the previous reading, which was "the worker never started".
@@ -283,6 +284,12 @@ Each of these came out of a defect found while doing something else, which is th
   a `modulepreload` in CORS mode, which does. So the lookup missed on exactly the assets the app cannot boot
   without, and hit on everything no-cors — the document, the stylesheet, the classic registration script. That is
   the reported signature, entry by entry.
+
+  (An aside with teeth: the first draft of this paragraph backticked the registration script's filename, and the
+  doc-path gate passed locally and failed on CI. That file is *generated* at build time, so the citation resolved
+  only because a build happened to be sitting in `apps/demo/dist`. A gate whose answer depends on uncommitted
+  build output is the same defect as the stale-`dist` bundle gate fixed on 2026-08-13, one directory along, and
+  it is still unfixed — see below.)
 
   Online the miss is invisible: it falls through to the network and re-caches under the other key. Offline it is
   fatal. Which key won that race is why this failed intermittently rather than always, and why it survived being

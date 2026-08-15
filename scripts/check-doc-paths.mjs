@@ -14,8 +14,9 @@
  * exist.** Use plain quotes for anything aspirational.
  */
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join, posix, relative } from "node:path";
+import { join, posix } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -174,21 +175,48 @@ let allFiles = null;
  * need it.
  */
 function findByBasename(name) {
-  if (allFiles === null) {
-    allFiles = [];
-    const walk = (dir) => {
-      if (!existsSync(dir)) return;
-      for (const entry of readdirSync(dir)) {
-        if (entry === "node_modules" || entry === "dist" || entry.startsWith(".")) continue;
-        const full = join(dir, entry);
-        if (statSync(full).isDirectory()) walk(full);
-        else allFiles.push(relative(ROOT, full).replace(/\\/g, "/"));
-      }
-    };
-    walk(ROOT);
-  }
+  /**
+   * Tracked files, not a filesystem walk — and this was the half of the fix that got missed first time.
+   *
+   * The walk excluded `node_modules`, `dist` and dotfiles, which reads like it excludes build output. It does
+   * not: `site/` is build output too, and `site/demo/sw-register.js` is a *generated* file that made a citation
+   * of that basename resolve on a machine that had run the site build and fail on CI, which had not. Correcting
+   * only the two direct lookups left this fallback still answering from whatever happened to be on disk — so the
+   * sabotage that was supposed to prove the fix passed instead, which is how this was found.
+   *
+   * Deriving both from `git ls-files` means there is one definition of "exists" in this gate rather than two,
+   * and it is the one the header has always claimed.
+   */
+  if (allFiles === null) allFiles = [...TRACKED];
   return allFiles.filter((f) => f.endsWith(`/${name}`) || f === name);
 }
+
+/**
+ * Tracked, not merely present on disk.
+ *
+ * This file's own header has always said "resolves to a real **tracked** path", and the implementation used
+ * `existsSync`, which is a different claim. The gap showed up on 2026-08-14: a citation of the generated
+ * service-worker registration script passed locally — because a build was sitting in `apps/demo/dist` — and
+ * failed on CI, where the gates job does not build. A gate whose answer depends on uncommitted build output
+ * tells each reader something different, and is exactly the defect fixed in `scripts/bundle-budget.mjs` a day
+ * earlier, one directory along.
+ *
+ * Directories count, because `packages/core/` is a legitimate citation and `git ls-files` lists only files.
+ */
+const TRACKED = new Set(
+  execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0),
+);
+const TRACKED_DIRS = new Set();
+for (const file of TRACKED) {
+  const parts = file.split("/");
+  for (let i = 1; i < parts.length; i += 1) TRACKED_DIRS.add(parts.slice(0, i).join("/"));
+}
+const isTracked = (rel) => {
+  const clean = rel.replace(/\/$/, "");
+  return TRACKED.has(clean) || TRACKED_DIRS.has(clean);
+};
 
 const observed = {};
 
@@ -236,8 +264,8 @@ for (const docPath of GATED) {
      * the way that actually works, and leaves the site builder as the stricter of the two.
      */
     const relativeToDoc = posix.normalize(posix.join(posix.dirname(docPath), bare));
-    if (existsSync(join(ROOT, relativeToDoc))) continue;
-    if (existsSync(join(ROOT, bare))) continue;
+    if (isTracked(relativeToDoc)) continue;
+    if (isTracked(bare)) continue;
 
     // Allow a bare basename if exactly one file in the repo has that name — docs often cite
     // `snapEngine.ts` rather than the full package path, and requiring the full path everywhere would
