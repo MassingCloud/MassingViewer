@@ -31,32 +31,29 @@ describe("the M9 seam ledger", () => {
   });
 
   it("points every `via` at something the facade actually exposes", async () => {
-    // A `via` naming a member that does not exist would be a claim nobody could check. These are the keys of
-    // `MassingViewer` plus the option names a host passes in.
-    const members = new Set([
-      "viewport",
-      "session",
-      "kernel",
-      "host",
-      "raise",
-      "topics",
-      "orphans",
-      "exportBcf",
-      "ribbon",
-      "modelId",
-      "open",
-      "cut",
-      "drawing",
-      "export",
-      "select",
-      "selection",
-      "dispose",
-      // Options rather than members, for capabilities a host wires up.
-      "onFiles",
-      "crashSink",
-    ]);
+    /**
+     * A `via` naming a member that does not exist would be a claim nobody could check.
+     *
+     * Read off a **constructed viewer**, not a hand-kept list. The list version was itself a second copy of the
+     * facade's surface with nothing comparing the two — the same shape as the `dependency-review` deny list that
+     * had silently drifted from `check-licenses.mjs` — so a member could be renamed and this test would keep
+     * passing against the old name, or a new capability could be added and the list would quietly need editing
+     * for a reason unrelated to the change.
+     *
+     * Deriving it means the only way to claim coverage is for the member to be there when the viewer is built.
+     */
+    const { viewer } = await mount();
+    const members = new Set<string>(Object.keys(viewer));
+    // Options rather than members: capabilities a host wires up by passing a callback in, which therefore never
+    // appear as keys on the returned object.
+    for (const option of ["onFiles", "crashSink"]) members.add(option);
+
     for (const entry of SEAM.filter((e) => e.state === "covered")) {
-      expect(members, `${entry.id} names "${entry.via}"`).toContain(entry.via!);
+      expect(
+        members,
+        `${entry.id} names "${entry.via}", which the constructed viewer does not expose. ` +
+          `Exposed: ${[...members].sort().join(", ")}`,
+      ).toContain(entry.via!);
     }
   });
 

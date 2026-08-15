@@ -305,5 +305,9 @@ Each of these came out of a defect found while doing something else, which is th
   a real race.
 - German is 119/119 translated and **not native-reviewed**.
 - `AA_TOLERANCE` in the raster suite has never run on Linux.
-- The seam ledger in `@massing/embed` reports `ready` against 24 capabilities, and has not grown to cover the
-  federation and sheet surface added since. It is measuring an older shape of the facade.
+- ~~The seam ledger measures an older shape of the facade.~~ **Fixed 2026-08-15.** It reported `ready` against 24
+  capabilities while federation and sheet furniture had shipped weeks earlier and were never entered — the exact
+  failure a ledger exists to prevent, committed by the ledger. Now 27 movable capabilities, each claim checked
+  against the facade rather than asserted: the `via` test derives its member list from a **constructed viewer**
+  instead of a hand-kept copy, so a renamed member fails rather than passing against the old name. The hand-kept
+  list was itself the same defect one layer along, and the same shape as the `dependency-review` deny list.

@@ -64,6 +64,47 @@ export const SEAM: readonly SeamCapability[] = [
   { id: "fileio.drop", description: "open a model by dropping it, sniffed by bytes", state: "covered", via: "onFiles" },
   { id: "crash.capture", description: "report a failure without shipping the model", state: "covered", via: "crashSink" },
 
+  /**
+   * Added 2026-08-15, and late.
+   *
+   * Federation and sheet furniture both shipped weeks earlier and neither was entered here, so the ledger went on
+   * reporting `ready` against 24 capabilities while describing an older shape of the facade. That is the precise
+   * failure a ledger exists to prevent, committed by the ledger — and it is only catchable by reading the facade
+   * against it, which is why the `via` check below now derives its member list from a constructed viewer rather
+   * than from a second hand-kept copy.
+   *
+   * These are separate entries rather than one "federation" line because massing consumes them separately: a
+   * federated tree needs add/remove, a discipline filter needs per-model visibility, and a GlobalId collision
+   * across two consultants' files is a different conversation from either.
+   */
+  { id: "models.add", description: "load a second model alongside the first, keeping both", state: "covered", via: "addModel" },
+  { id: "models.remove", description: "unload one model and release only its GPU allocations", state: "covered", via: "removeModel" },
+  { id: "models.list", description: "which models are loaded, for a federated project tree", state: "covered", via: "models" },
+  {
+    id: "models.visibility",
+    description: "show or hide one model without unloading it — the discipline filter",
+    state: "covered",
+    via: "setModelVisible",
+  },
+  {
+    id: "models.selection",
+    description: "selection that stays correct when two models share an expressID",
+    state: "covered",
+    via: "select",
+  },
+  {
+    id: "sheets.furniture",
+    description: "title block, border and revision table as drawing entities, in millimetres",
+    state: "covered",
+    via: "export",
+  },
+  {
+    id: "renderer.backend",
+    description: "which backend is live and whether the fast path was lost — for the status bar",
+    state: "covered",
+    via: "viewport",
+  },
+
   // --- genuine gaps, each a work item --------------------------------------------------------------
   {
     id: "snap.engine",
