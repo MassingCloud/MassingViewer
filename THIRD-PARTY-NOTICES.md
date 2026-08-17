@@ -9,9 +9,9 @@ Generated from `package-lock.json` rather than from an installed `node_modules`,
 same on every platform and covers all 58 platform-specific binaries — not only the handful
 installed on whichever host happened to run the generator.
 
-396 package(s) across 11 license(s).
+399 package(s) across 11 license(s).
 
-## MIT (301)
+## MIT (304)
 
 - `@babel/code-frame` 7.29.7
 - `@babel/compat-data` 7.29.7
@@ -56,7 +56,7 @@ installed on whichever host happened to run the generator.
 - `@changesets/write` 0.4.0
 - `@eslint-community/eslint-utils` 4.10.1
 - `@eslint-community/regexpp` 4.12.2
-- `@eslint/js` 9.39.5
+- `@eslint/js` 10.0.1
 - `@inquirer/external-editor` 1.0.3
 - `@jridgewell/gen-mapping` 0.3.13
 - `@jridgewell/remapping` 2.3.5
@@ -69,25 +69,25 @@ installed on whichever host happened to run the generator.
 - `@nodelib/fs.stat` 2.0.5
 - `@nodelib/fs.walk` 1.2.8
 - `@oxc-project/types` 0.143.0
-- `@oxlint/binding-android-arm-eabi` 1.76.0 _(android/arm)_
-- `@oxlint/binding-android-arm64` 1.76.0 _(android/arm64)_
-- `@oxlint/binding-darwin-arm64` 1.76.0 _(darwin/arm64)_
-- `@oxlint/binding-darwin-x64` 1.76.0 _(darwin/x64)_
-- `@oxlint/binding-freebsd-x64` 1.76.0 _(freebsd/x64)_
-- `@oxlint/binding-linux-arm-gnueabihf` 1.76.0 _(linux/arm)_
-- `@oxlint/binding-linux-arm-musleabihf` 1.76.0 _(linux/arm)_
-- `@oxlint/binding-linux-arm64-gnu` 1.76.0 _(linux/arm64)_
-- `@oxlint/binding-linux-arm64-musl` 1.76.0 _(linux/arm64)_
-- `@oxlint/binding-linux-ppc64-gnu` 1.76.0 _(linux/ppc64)_
-- `@oxlint/binding-linux-riscv64-gnu` 1.76.0 _(linux/riscv64)_
-- `@oxlint/binding-linux-riscv64-musl` 1.76.0 _(linux/riscv64)_
-- `@oxlint/binding-linux-s390x-gnu` 1.76.0 _(linux/s390x)_
-- `@oxlint/binding-linux-x64-gnu` 1.76.0 _(linux/x64)_
-- `@oxlint/binding-linux-x64-musl` 1.76.0 _(linux/x64)_
-- `@oxlint/binding-openharmony-arm64` 1.76.0 _(openharmony/arm64)_
-- `@oxlint/binding-win32-arm64-msvc` 1.76.0 _(win32/arm64)_
-- `@oxlint/binding-win32-ia32-msvc` 1.76.0 _(win32/ia32)_
-- `@oxlint/binding-win32-x64-msvc` 1.76.0 _(win32/x64)_
+- `@oxlint/binding-android-arm-eabi` 1.78.0 _(android/arm)_
+- `@oxlint/binding-android-arm64` 1.78.0 _(android/arm64)_
+- `@oxlint/binding-darwin-arm64` 1.78.0 _(darwin/arm64)_
+- `@oxlint/binding-darwin-x64` 1.78.0 _(darwin/x64)_
+- `@oxlint/binding-freebsd-x64` 1.78.0 _(freebsd/x64)_
+- `@oxlint/binding-linux-arm-gnueabihf` 1.78.0 _(linux/arm)_
+- `@oxlint/binding-linux-arm-musleabihf` 1.78.0 _(linux/arm)_
+- `@oxlint/binding-linux-arm64-gnu` 1.78.0 _(linux/arm64)_
+- `@oxlint/binding-linux-arm64-musl` 1.78.0 _(linux/arm64)_
+- `@oxlint/binding-linux-ppc64-gnu` 1.78.0 _(linux/ppc64)_
+- `@oxlint/binding-linux-riscv64-gnu` 1.78.0 _(linux/riscv64)_
+- `@oxlint/binding-linux-riscv64-musl` 1.78.0 _(linux/riscv64)_
+- `@oxlint/binding-linux-s390x-gnu` 1.78.0 _(linux/s390x)_
+- `@oxlint/binding-linux-x64-gnu` 1.78.0 _(linux/x64)_
+- `@oxlint/binding-linux-x64-musl` 1.78.0 _(linux/x64)_
+- `@oxlint/binding-openharmony-arm64` 1.78.0 _(openharmony/arm64)_
+- `@oxlint/binding-win32-arm64-msvc` 1.78.0 _(win32/arm64)_
+- `@oxlint/binding-win32-ia32-msvc` 1.78.0 _(win32/ia32)_
+- `@oxlint/binding-win32-x64-msvc` 1.78.0 _(win32/x64)_
 - `@rolldown/binding-android-arm64` 1.2.3 _(android/arm64)_
 - `@rolldown/binding-darwin-arm64` 1.2.3 _(darwin/arm64)_
 - `@rolldown/binding-darwin-x64` 1.2.3 _(darwin/x64)_
@@ -128,16 +128,16 @@ installed on whichever host happened to run the generator.
 - `@types/webxr` 0.5.24
 - `@types/whatwg-mimetype` 3.0.2
 - `@types/ws` 8.18.1
-- `@typescript-eslint/eslint-plugin` 8.65.0
-- `@typescript-eslint/parser` 8.65.0
-- `@typescript-eslint/project-service` 8.65.0
-- `@typescript-eslint/scope-manager` 8.65.0
-- `@typescript-eslint/tsconfig-utils` 8.65.0
-- `@typescript-eslint/type-utils` 8.65.0
-- `@typescript-eslint/types` 8.65.0
-- `@typescript-eslint/typescript-estree` 8.65.0
-- `@typescript-eslint/utils` 8.65.0
-- `@typescript-eslint/visitor-keys` 8.65.0
+- `@typescript-eslint/eslint-plugin` 8.67.0
+- `@typescript-eslint/parser` 8.67.0
+- `@typescript-eslint/project-service` 8.67.0
+- `@typescript-eslint/scope-manager` 8.67.0
+- `@typescript-eslint/tsconfig-utils` 8.67.0
+- `@typescript-eslint/type-utils` 8.67.0
+- `@typescript-eslint/types` 8.67.0
+- `@typescript-eslint/typescript-estree` 8.67.0
+- `@typescript-eslint/utils` 8.67.0
+- `@typescript-eslint/visitor-keys` 8.67.0
 - `@vitejs/plugin-react` 5.2.0
 - `@vitest/coverage-v8` 4.1.10
 - `@vitest/expect` 4.1.10
@@ -162,6 +162,7 @@ installed on whichever host happened to run the generator.
 - `brace-expansion` 5.0.9
 - `braces` 3.0.3
 - `browserslist` 4.28.7
+- `buffer-image-size` 0.6.4
 - `chai` 6.2.2
 - `chardet` 2.2.0
 - `convert-source-map` 2.0.0
@@ -177,11 +178,11 @@ installed on whichever host happened to run the generator.
 - `es-module-lexer` 2.3.1
 - `escalade` 3.2.0
 - `escape-string-regexp` 4.0.0
-- `eslint` 10.8.0
-- `eslint-plugin-react-hooks` 6.1.1
+- `eslint` 10.8.1
+- `eslint-plugin-react-hooks` 7.1.1
 - `estree-walker` 3.0.3
 - `extendable-error` 0.1.7
-- `fast-check` 4.5.0
+- `fast-check` 4.9.0
 - `fast-deep-equal` 3.1.3
 - `fast-glob` 3.3.3
 - `fast-json-stable-stringify` 2.1.0
@@ -200,8 +201,10 @@ installed on whichever host happened to run the generator.
 - `gensync` 1.0.0-beta.2
 - `globals` 17.7.0
 - `globby` 11.1.0
-- `happy-dom` 20.8.9
+- `happy-dom` 20.11.2
 - `has-flag` 4.0.0
+- `hermes-estree` 0.25.1
+- `hermes-parser` 0.25.1
 - `html-escaper` 2.0.2
 - `human-id` 4.2.0
 - `iconv-lite` 0.7.3
@@ -245,7 +248,7 @@ installed on whichever host happened to run the generator.
 - `obug` 2.1.4
 - `optionator` 0.9.4
 - `outdent` 0.5.0
-- `oxlint` 1.76.0
+- `oxlint` 1.78.0
 - `p-filter` 2.1.0
 - `p-limit` 2.3.0
 - `p-limit` 3.1.0
@@ -267,7 +270,7 @@ installed on whichever host happened to run the generator.
 - `prettier` 2.8.8
 - `pretty-format` 27.5.1
 - `punycode` 2.3.1
-- `pure-rand` 7.0.1
+- `pure-rand` 8.4.2
 - `quansync` 0.2.11
 - `queue-microtask` 1.2.3
 - `react` 19.2.8
@@ -300,7 +303,7 @@ installed on whichever host happened to run the generator.
 - `tr46` 0.0.3
 - `ts-api-utils` 2.5.0
 - `type-check` 0.4.0
-- `typescript-eslint` 8.65.0
+- `typescript-eslint` 8.67.0
 - `undici-types` 7.16.0
 - `universalify` 0.1.2
 - `update-browserslist-db` 1.3.0
